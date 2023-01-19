@@ -1,2 +1,5 @@
 # Do not upload original zip
 *.zip
+
+# Matlab files
+*.asv
