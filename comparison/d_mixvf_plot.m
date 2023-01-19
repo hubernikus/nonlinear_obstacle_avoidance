@@ -57,17 +57,15 @@ vphi5_b = vphi5 - c5;
 fimplicit(vphi5_b, 'LineStyle', '-.', 'LineWidth', 2);
 
 %% plot the traj
-% -> this part is not working ?! / e & p are not defined.
-if 0
-    t=1:length(e.Time);
-    plot(p(t,1),p(t,2),'m', 'LineWidth', 2);
-    xlabel('x'); ylabel('y');
-end
+
+t=1:length(e.Time);
+plot(p(t,1),p(t,2),'m', 'LineWidth', 2);
+xlabel('x'); ylabel('y');
 
 %% plot the vector field
 l1 = 0.1; l2 = 0.1;
-step = 0.1; 
-xx = -3.4 : step : 3; 
+step = 0.5; 
+xx = -3.5 : step : 3.5; 
 yy = -3 : step : 3;
 [X, Y] = meshgrid(xx,yy);
 VX = zeros(size(X));
@@ -82,19 +80,22 @@ vfvphi4 = vf(vphi4, 1);
 vfvphi5 = vf(vphi5, 1);
 
 for i = 1:size(X,1)
+    fprintf("Column: %d / %d \n", i, size(X,1));
     for j = 1:size(X,2)
-        n_vfphi = subs(vfphi, [x y], [X(i,j) Y(i,j)]);
-        n_vfvphi1 = subs(vfvphi1, [x y], [X(i,j) Y(i,j)]);
-        n_vfvphi2 = subs(vfvphi2, [x y], [X(i,j) Y(i,j)]);
-        n_vfvphi3 = subs(vfvphi3, [x y], [X(i,j) Y(i,j)]);
-        n_vfvphi4 = subs(vfvphi4, [x y], [X(i,j) Y(i,j)]);
-        n_vfvphi5 = subs(vfvphi5, [x y], [X(i,j) Y(i,j)]);
+        pos = [X(i,j) Y(i,j)];
+
+        n_vfphi = subs(vfphi, [x y], pos);
+        n_vfvphi1 = subs(vfvphi1, [x y], pos);
+        n_vfvphi2 = subs(vfvphi2, [x y], pos);
+        n_vfvphi3 = subs(vfvphi3, [x y], pos);
+        n_vfvphi4 = subs(vfvphi4, [x y], pos);
+        n_vfvphi5 = subs(vfvphi5, [x y], pos);
         
-        n_vphi1 = subs(vphi1, [x y], [X(i,j) Y(i,j)]);
-        n_vphi2 = subs(vphi2, [x y], [X(i,j) Y(i,j)]);
-        n_vphi3 = subs(vphi3, [x y], [X(i,j) Y(i,j)]);
-        n_vphi4 = subs(vphi4, [x y], [X(i,j) Y(i,j)]);
-        n_vphi5 = subs(vphi5, [x y], [X(i,j) Y(i,j)]);
+        n_vphi1 = subs(vphi1, [x y], pos);
+        n_vphi2 = subs(vphi2, [x y], pos);
+        n_vphi3 = subs(vphi3, [x y], pos);
+        n_vphi4 = subs(vphi4, [x y], pos);
+        n_vphi5 = subs(vphi5, [x y], pos);
         
         kq1 = bf(1, n_vphi1, c1, l1, l2);
         kq2 = bf(1, n_vphi2, c2, l1, l2);
@@ -114,6 +115,8 @@ for i = 1:size(X,1)
               kr3 * n_vfvphi3 / norm(n_vfvphi3) + ...
               kr4 * n_vfvphi4 / norm(n_vfvphi4) + ...
               kr5 * n_vfvphi5 / norm(n_vfvphi5);
+
+
         %vec = vec / norm(vec);
         VX(i,j) = vec(1);
         VY(i,j) = vec(2);
@@ -124,6 +127,40 @@ end
 quiver(X,Y,VX, VY,'b');
 hold off;
 
+
+%% plot the vector field - using function
+l1 = 0.1; l2 = 0.1;
+step = 0.5; 
+xx = -3.5 : step : 3.5; 
+yy = -3 : step : 3;
+[X, Y] = meshgrid(xx,yy);
+VX = zeros(size(X));
+VY = zeros(size(X));
+
+%%% calculate the vector field
+vfphi = vf(phi, 1);
+vfvphi1 = vf(vphi1, 1);
+vfvphi2 = vf(vphi2, 1);
+vfvphi3 = vf(vphi3, 1);
+vfvphi4 = vf(vphi4, 1);
+vfvphi5 = vf(vphi5, 1);
+
+for i = 1:size(X,1)
+    fprintf("Column: %d / %d \n", i, size(X,1));
+    for j = 1:size(X,2)
+        pos = [X(i,j) Y(i,j)];
+        
+        vec = evaluate_field_with_five_obstacles(pos);
+
+        %vec = vec / norm(vec);
+        VX(i,j) = vec(1);
+        VY(i,j) = vec(2);
+    end
+end
+
+%%% plot the vector field
+quiver(X,Y,VX, VY,'b');
+hold off;
 %% plot the error
 figure; hold on; grid on; set(gcf,'color','w')
 time=e.Time(t); e1=e.Data((t),1); e2=e.Data((t),2); 
@@ -137,7 +174,10 @@ legend('e1', 'safety bound');
 %legend('e1', 'e2', '||e||', 'safety bound');
 hold off;
 
-%% function to create vector field
+
+
+
+%% function to creathe vector field
 function out = vf(phi, k)
     syms x y
     E = [0, -1; 1 0];
