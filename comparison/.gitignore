@@ -3,3 +3,8 @@
 
 # Matlab files
 *.asv
+
+
+# Temp matlab files
+slprj/*
+*.slxc

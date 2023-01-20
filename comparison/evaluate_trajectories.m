@@ -1,44 +1,81 @@
 clc; clear all; close all;
+% All path m7erging are specifical for linux / unix
 
 datapath = "/home/lukas/Code/dynamic_obstacle_avoidance/dynamic_obstacle_avoidance/rotational/comparison/data";
 inputfile = "initial_positions.csv";
 
 outputfolder = "guiding_field";
 
-%% Create Outputfolder if needed
+% Create Outputfolder if needed
 output_path = datapath + "/" + outputfolder;
 mkdir(output_path);
 
-%% Evaluate trajectories
+% Import values from files
+config_file = "comparison_parameters.json";
+config_path = datapath+ "/../" + config_file;
+config_str = fileread(config_path);
+config_values = jsondecode(config_str);
 
-% The path adition is specifically for linux / unix
+% Set variables and import files
+
 start_positions = readtable(datapath + "/" + inputfile,...
-    'NumHeaderLines',3);
+    'NumHeaderLines', 1);
 
 dimension = size(start_positions, 2);
-it_max = 1000
-dt = 0.01
-conv_margin = 1e-3
+it_max = config_values.it_max
+dt = config_values.delta_time
+conv_margin = config_values.conv_margin
 
+t_max = it_max * dt;
+% t_span=0:dt:t_max;
+
+% paramStruct.StartTime = num2str(0);
+% paramStruct.StopTime = num2str(t_max);
+
+%% Evaluate trajectories
 for pp = 1: size(start_positions, 1)
+
+%     if pp > 5
+%         break
+%     end
     fprintf("Trajectory %d / %d \n", pp, size(start_positions, 1));
-    positions = zeros(it_max, dimension);
-    positions(1, :) = table2array(start_positions(pp, :));
 
-    for ix = 2: it_max
-        % No convergence calculation possible
-        velocity = evaluate_field_with_six_obstacles(positions(ix-1, :));
-        
-        positions(ix, :) = velocity * dt + positions(ix -1, :);
+    pos0 = table2array(start_positions(pp, :));
+    
+    model_name = 'd_mixvf_sim';
+    open_system(model_name);
+    mdlWks = get_param('d_mixvf_sim','ModelWorkspace');
+    assignin(mdlWks,'initial_position', pos0)
+%     simIn = Simulink.SimulationInput(model_name);
 
-        if norm(velocity) < conv_margin
-            positions = positions(1:ix, :); 
-            fprintf("Converged at it=%d.\n", ix)
-            break
-        end
-    end
-    fprintf("Stopping after max_it=%d.\n", ix)
-    filename = sprintf( 'trajectory%03d.csv', pp);
+    % Simulink solver
+%     sim('d_mixvf_sim', t_max);
+    out = sim(model_name);
+
+%     positions = zeros(it_max, dimension);
+%     positions(1, :) = table2array(start_positions(pp, :));%     for ix = 2: it_max
+%         % No convergence calculation possible
+%         
+%         velocity = evaluate_field_with_six_obstacles(positions(ix-1, :));
+% 
+%         if norm(velocity) < conv_margin
+%             positions = positions(1:ix, :); 
+%             fprintf("Converged at it=%d.\n", ix)
+%             break
+%         end
+% 
+%         % Normalize velocity to be consisten across algorithms
+%         velocity = velocity / norm(velocity);
+%    
+%         positions(ix, :) = velocity * dt + positions(ix -1, :);
+%     end
+%     fprintf("Stopping after max_it=%d.\n", ix)
+    
+    positions = p;
+    
+
+    % Start file numbering at 0
+    filename = sprintf( 'trajectory%03d.csv', pp-1);
     writematrix(positions, output_path + "/" + filename);
 end
 

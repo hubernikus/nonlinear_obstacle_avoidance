@@ -58,9 +58,15 @@ fimplicit(vphi5_b, 'LineStyle', '-.', 'LineWidth', 2);
 
 %% plot the traj
 
+pos0 = [2.0, 0.8];
+sim('d_mixvf_sim', 5)
+
+
 t=1:length(e.Time);
 plot(p(t,1),p(t,2),'m', 'LineWidth', 2);
 xlabel('x'); ylabel('y');
+
+disp("Simulation done.")
 
 %% plot the vector field
 l1 = 0.1; l2 = 0.1;
