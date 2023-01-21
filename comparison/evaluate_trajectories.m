@@ -80,3 +80,19 @@ for pp = 1: size(start_positions, 1)
 end
 
 fprintf("Finished evaluation.\n")
+writematrix(positions, output_path + "/" + filename);
+
+
+%% Integrate desired trajectories
+start_position = [-0.966468219, 2.43618389];
+model_name = 'd_mixvf_sim';
+open_system(model_name);
+mdlWks = get_param('d_mixvf_sim','ModelWorkspace');
+assignin(mdlWks,'initial_position', start_position);
+out = sim(model_name, 20.0);
+positions = p;
+
+filename = sprintf( outputfolder + '_cycle.csv', pp-1);
+writematrix(positions, datapath + "/" + filename);
+
+fprintf("Finished evaluation \n.")
