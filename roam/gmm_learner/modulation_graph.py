@@ -1,0 +1,3 @@
+"""
+Gaussian Graph for modulation
+"""

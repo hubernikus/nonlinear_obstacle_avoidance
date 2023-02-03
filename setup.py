@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = "nonlinear_obstacle_avoidance"
+package_name = "roam"
 
 setup(
     name=package_name,
@@ -10,7 +10,7 @@ setup(
     zip_safe=True,
     maintainer="Lukas Huber",
     maintainer_email="lukas.huber@epfl.ch",
-    description="Nonlinear Obstacle Avoidance",
+    description="Nonlinear Rotational Obstacle Avoidance",
     license="TODO",
     # package_dir={'': 'src'},
     tests_require=["pytest"],
