@@ -65,7 +65,8 @@ def test_inverted_simple_ellipse_comparison():
     assert np.all(final_velocity > 0), "Velocity should point up-left."
 
 
-def test_visualization_a_shape(visualize=False, save_figure=False):
+def _test_visualization_a_shape(visualize=False, save_figure=False):
+    # TODO -> maybe speed up this test by avoiding the learning part...
     dataname = "2D_Ashape"
     x_lim = [-6.0, 1.0]
     # x_lim = [-5.2, -0.1]
@@ -85,6 +86,10 @@ def test_visualization_a_shape(visualize=False, save_figure=False):
     gmm_learner.update_intersection_graph()
     gmm_learner.set_convergence_directions(NonlinearDynamcis=gmm_learner)
 
+    avoider_functor = lambda x: multihull_attraction(
+        x, gmm_learner.predict(x), obstacle_list=gmm_learner
+    )
+
     if visualize:
         # gmm_learner.plot_graph_and_gaussians()
         # n_resolution = 20
@@ -92,10 +97,6 @@ def test_visualization_a_shape(visualize=False, save_figure=False):
 
         n_resolution = 120
         do_quiver = False
-
-        avoider_functor = lambda x: multihull_attraction(
-            x, gmm_learner.predict(x), obstacle_list=gmm_learner
-        )
 
         fig, ax = plt.subplots(figsize=figsize)
         plot_obstacle_dynamics(
@@ -396,7 +397,6 @@ def general_visualzier():
         dataset_name = os.path.join("dataset", name + ".mat")
 
     if True:  # relearn (debugging only)
-
         np.random.seed(0)
         MainLearner = GraphGMM(file_name=dataset_name, n_gaussian=n_gaussian)
         # MainLearner = DirectionalGMM()
@@ -459,7 +459,7 @@ if (__name__) == "__main__":
 
     # test_inverted_simple_ellipse_comparison()
 
-    test_visualization_a_shape(visualize=True, save_figure=True)
+    _test_visualization_a_shape(visualize=True, save_figure=True)
     # visualize_l_shape(visualize=True, save_figure=False)
 
     # general_visualzier()
