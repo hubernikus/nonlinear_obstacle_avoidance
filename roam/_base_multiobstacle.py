@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.datatypes import Vector
 
 
 class BaseMulitObstacle:

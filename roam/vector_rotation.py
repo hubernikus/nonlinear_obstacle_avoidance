@@ -21,8 +21,8 @@ import networkx as nx
 
 from vartools.linalg import get_orthogonal_basis
 
-from dynamic_obstacle_avoidance.rotational.utils import get_orthonormal_spanning_basis
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector, VectorArray
+from roam.utils import get_orthonormal_spanning_basis
+from roam.datatypes import Vector, VectorArray
 
 NodeType = int
 

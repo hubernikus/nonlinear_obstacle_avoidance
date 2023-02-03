@@ -25,12 +25,12 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+from roam.rotational_avoidance import (
     obstacle_avoidance_rotational,
 )
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.vector_rotation import VectorRotationXd
+from roam.datatypes import Vector
 
 
 class ProjectedRotationDynamics:

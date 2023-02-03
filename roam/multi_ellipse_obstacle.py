@@ -18,14 +18,14 @@ from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
+from roam.rotational_avoider import RotationalAvoider
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationTree
+from roam.vector_rotation import VectorRotationXd
+from roam.vector_rotation import VectorRotationTree
 
-from dynamic_obstacle_avoidance.rotational.geometry import get_intersection_of_obstacles
+from roam.geometry import get_intersection_of_obstacles
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.datatypes import Vector
 
 # TODO:
 #   - smoothing to ensure consistency at convergence limit, i.e., add lambda to each branch

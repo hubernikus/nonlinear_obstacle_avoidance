@@ -16,7 +16,7 @@ import numpy.linalg as LA
 import numpy.typing as npt
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector, VectorArray
+from roam.datatypes import Vector, VectorArray
 
 
 def gamma_normal_gradient_descent(

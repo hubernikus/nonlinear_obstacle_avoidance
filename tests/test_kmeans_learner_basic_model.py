@@ -13,20 +13,20 @@ from numpy import linalg as LA
 import matplotlib.pyplot as plt
 from vartools.handwritting_handler import MotionDataHandler, HandwrittingHandler
 
-# from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+# from roam.rotational_avoidance import (
 #     obstacle_avoidance_rotational,
 # )
 
-from dynamic_obstacle_avoidance.rotational.kmeans_obstacle import KMeansObstacle
-from dynamic_obstacle_avoidance.rotational.kmeans_motion_learner import (
+from roam.kmeans_obstacle import KMeansObstacle
+from roam.kmeans_motion_learner import (
     KMeansMotionLearner,
     create_kmeans_obstacle_from_learner,
 )
 
-# from dynamic_obstacle_avoidance.rotational.base_logger import logger
+import roam.visualization.kmean_plotting as helper_functions
 
-from dynamic_obstacle_avoidance.rotational.tests import helper_functions
-from dynamic_obstacle_avoidance.rotational.tests.helper_functions import (
+# from roam.tests.helper_functions import (
+from roam.visualization.kmean_plotting import (
     plot_boundaries,
     # plot_normals,
     plot_gamma,

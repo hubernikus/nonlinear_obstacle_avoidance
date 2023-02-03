@@ -21,8 +21,8 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
-from dynamic_obstacle_avoidance.rotational.utils import gamma_normal_gradient_descent
-from dynamic_obstacle_avoidance.rotational.multi_hull_and_obstacle import (
+from roam.utils import gamma_normal_gradient_descent
+from roam.multi_hull_and_obstacle import (
     MultiHullAndObstacle,
 )
 

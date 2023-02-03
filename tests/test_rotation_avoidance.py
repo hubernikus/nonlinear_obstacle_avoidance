@@ -34,15 +34,15 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import (
+from roam.rotational_avoider import (
     get_intersection_with_circle,
 )
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
-from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+from roam.rotation_container import RotationContainer
+from roam.rotational_avoidance import (
     obstacle_avoidance_rotational,
 )
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
-from dynamic_obstacle_avoidance.rotational.dynamics.projected_rotation_dynamics import (
+from roam.rotational_avoider import RotationalAvoider
+from roam.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 

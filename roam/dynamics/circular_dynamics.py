@@ -10,8 +10,8 @@ from numpy import linalg as LA
 from vartools.dynamical_systems import DynamicalSystem
 from vartools.states import ObjectPose
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.vector_rotation import VectorRotationXd
+from roam.datatypes import Vector
 
 
 class DynamicDynamics:

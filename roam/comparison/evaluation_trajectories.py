@@ -16,7 +16,7 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
-from dynamic_obstacle_avoidance.rotational.dynamics.circular_dynamics import (
+from roam.dynamics.circular_dynamics import (
     # CircularRotationDynamics,
     SimpleCircularDynamics,
 )

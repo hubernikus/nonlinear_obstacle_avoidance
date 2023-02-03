@@ -2,8 +2,8 @@
 # Github: hubernikus
 # Created: 2022-04-23
 
-from dynamic_obstacle_avoidance.rotational.graph_handler import GraphElement
-from dynamic_obstacle_avoidance.rotational.graph_handler import GraphHandler
+from roam.graph_handler import GraphElement
+from roam.graph_handler import GraphHandler
 
 
 def test_graph_element():

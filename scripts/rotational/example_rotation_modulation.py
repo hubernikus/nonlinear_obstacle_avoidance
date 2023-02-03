@@ -19,15 +19,15 @@ from dynamic_obstacle_avoidance.obstacles import Ellipse, StarshapedFlower
 from dynamic_obstacle_avoidance.avoidance import obs_avoidance_interpolation_moving
 from dynamic_obstacle_avoidance.avoidance import ModulationAvoider
 
-from dynamic_obstacle_avoidance.rotational.multiboundary_container import (
+from roam.multiboundary_container import (
     MultiBoundaryContainer,
 )
 
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
-from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+from roam.rotation_container import RotationContainer
+from roam.rotational_avoidance import (
     obstacle_avoidance_rotational,
 )
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
+from roam.rotational_avoider import RotationalAvoider
 
 from dynamic_obstacle_avoidance.visualization import (
     Simulation_vectorFields,

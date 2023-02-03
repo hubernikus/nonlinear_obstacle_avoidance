@@ -14,7 +14,7 @@ from dynamic_obstacle_avoidance.obstacles import Ellipse
 from dynamic_obstacle_avoidance.visualization.gamma_field_visualization import (
     gamma_field_visualization,
 )
-from dynamic_obstacle_avoidance.rotational.multiboundary_container import (
+from roam.multiboundary_container import (
     MultiBoundaryContainer,
 )
 

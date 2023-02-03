@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from vartools.directional_space import get_directional_weighted_sum
 
 # from vartools.directional_space DirectionBase
-from dynamic_obstacle_avoidance.rotational.dynamics.circular_dynamics import (
+from roam.dynamics.circular_dynamics import (
     # CircularRotationDynamics,
     SimpleCircularDynamics,
 )
@@ -36,11 +36,11 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 
 from dynamic_obstacle_avoidance.avoidance import ModulationAvoider
 
-from dynamic_obstacle_avoidance.rotational.nonlinear_rotation_avoider import (
+from roam.nonlinear_rotation_avoider import (
     NonlinearRotationalAvoider,
 )
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
-from dynamic_obstacle_avoidance.rotational.dynamics.projected_rotation_dynamics import (
+from roam.rotation_container import RotationContainer
+from roam.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 

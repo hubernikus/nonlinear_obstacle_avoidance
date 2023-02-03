@@ -19,8 +19,8 @@ from vartools.linalg import get_orthogonal_basis
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.vector_rotation import VectorRotationXd
+from roam.datatypes import Vector
 
 
 class LocallyRotatedFromObtacle(DynamicalSystem):

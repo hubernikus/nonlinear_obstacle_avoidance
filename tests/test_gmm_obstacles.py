@@ -13,7 +13,7 @@ from sklearn.mixture import GaussianMixture
 
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
-from dynamic_obstacle_avoidance.rotational.gmm_obstacle import GmmObstacle
+from roam.gmm_obstacle import GmmObstacle
 
 
 def plot_gammas_multigamma(gmm_ellipse, simple_ellipse):

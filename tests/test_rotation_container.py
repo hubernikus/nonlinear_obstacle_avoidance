@@ -15,7 +15,7 @@ from vartools.dynamical_systems import LinearSystem
 
 from dynamic_obstacle_avoidance.obstacles import Ellipse
 
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
+from roam.rotation_container import RotationContainer
 
 
 class TestRotational(unittest.TestCase):

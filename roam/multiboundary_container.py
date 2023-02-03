@@ -13,7 +13,7 @@ import numpy as np
 from shapely import affinity
 from shapely.geometry.point import Point
 
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
+from roam.rotation_container import RotationContainer
 from dynamic_obstacle_avoidance.obstacles import Ellipse
 
 from vartools.dynamical_systems import LinearSystem

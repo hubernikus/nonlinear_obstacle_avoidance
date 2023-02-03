@@ -18,7 +18,7 @@ from vartools.directional_space import get_directional_weighted_sum
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector, VectorArray
+from roam.datatypes import Vector, VectorArray
 
 
 class KMeansObstacle(Obstacle):
@@ -653,7 +653,7 @@ def test_distributed_kmeans():
 
     main_learner = MotionLearnerThrougKMeans(data=datahandler)
 
-    from dynamic_obstacle_avoidance.rotational.tests.test_kmeans_to_localstability import (
+    from roam.tests.test_kmeans_to_localstability import (
         create_kmeans_obstacle_from_learner,
     )
 

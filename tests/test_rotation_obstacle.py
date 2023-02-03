@@ -15,13 +15,13 @@ from vartools.dynamical_systems import LinearSystem
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 
-# from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationTree
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationSequence
+# from roam.vector_rotation import VectorRotationXd
+from roam.vector_rotation import VectorRotationTree
+from roam.vector_rotation import VectorRotationSequence
 
-from dynamic_obstacle_avoidance.rotational.utils import gamma_normal_gradient_descent
+from roam.utils import gamma_normal_gradient_descent
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.datatypes import Vector
 
 
 class SingleLevelObstacle:

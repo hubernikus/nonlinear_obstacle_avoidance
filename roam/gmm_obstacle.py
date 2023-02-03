@@ -29,10 +29,10 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from dynamic_obstacle_avoidance.rotational.graph_handler import GraphHandler
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
+from roam.graph_handler import GraphHandler
+from roam.rotational_avoider import RotationalAvoider
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.datatypes import Vector
 
 
 class GmmObstacle:

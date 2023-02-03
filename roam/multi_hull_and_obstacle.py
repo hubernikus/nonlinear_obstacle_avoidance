@@ -35,9 +35,9 @@ from dynamic_obstacle_avoidance.containers import BaseContainer
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from dynamic_obstacle_avoidance.rotational.utils import gamma_normal_gradient_descent
+from roam.utils import gamma_normal_gradient_descent
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector, Orientation
+from roam.datatypes import Vector, Orientation
 
 
 def get_property_of_node_edge(graph, node, key) -> Vector:

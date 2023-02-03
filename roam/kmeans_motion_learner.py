@@ -33,23 +33,23 @@ from vartools.handwritting_handler import HandwrittingHandler
 
 # from vartools.math import get_intersection_between_line_and_plane
 
-from dynamic_obstacle_avoidance.rotational.base_logger import logger
-from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+from roam.base_logger import logger
+from roam.rotational_avoidance import (
     obstacle_avoidance_rotational,
 )
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationTree
-from dynamic_obstacle_avoidance.rotational.kmeans_obstacle import KMeansObstacle
+from roam.vector_rotation import VectorRotationTree
+from roam.kmeans_obstacle import KMeansObstacle
 
-from dynamic_obstacle_avoidance.rotational.dynamics import MultiOutputSVR
-from dynamic_obstacle_avoidance.rotational.dynamics import DeviationOfConstantFlow
-from dynamic_obstacle_avoidance.rotational.dynamics import (
+from roam.dynamics import MultiOutputSVR
+from roam.dynamics import DeviationOfConstantFlow
+from roam.dynamics import (
     PerpendicularDeviatoinOfLinearDS,
 )
 
-from dynamic_obstacle_avoidance.rotational.tests import helper_functions
+from roam.visualization import kmean_plotting
 
-# from dynamic_obstacle_avoidance.rotational.datatypes import VectorArray
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+# from roam.datatypes import VectorArray
+from roam.datatypes import Vector
 
 
 NodeType = int
@@ -298,7 +298,6 @@ class KMeansMotionLearner:
         self.distances_parent = np.zeros_like(average_sequence)
 
         for ii, label in enumerate(self.get_feature_labels()):
-
             average_sequence[ii] = np.mean(
                 self.data.sequence_value[self.kmeans.labels_ == label]
             )
@@ -466,7 +465,6 @@ class KMeansMotionLearner:
             # If the parent is not pointing, do another (last) check
             direction = mean_direction
         else:
-
             if not self._is_pointing_towards_parent(
                 mean_direction, ind_node, ind_parent
             ):
@@ -573,7 +571,6 @@ class KMeansMotionLearner:
         indexes_relative: Optional[np.ndarray] = None,
         weights: Optional[np.ndarray] = None,
     ) -> Vector:
-
         if indexes_relative is None:
             weights = self._predict_sequence_weights(position)
             indexes_relative = weights > 0
@@ -947,11 +944,11 @@ class KMeansMotionLearner:
         return weights
 
     def plot_kmeans(self, *args, **kwargs) -> None:
-        return helper_functions.plot_kmeans(self, *args, **kwargs)
+        return kmean_plotting.plot_kmeans(self, *args, **kwargs)
 
     def plot_boundaries(self, *args, **kwargs) -> None:
         # TODO: this does not need to be here..
-        return helper_functions.plot_boundaries(self, *args, **kwargs)
+        return kmean_plotting.plot_boundaries(self, *args, **kwargs)
 
 
 def create_kmeans_obstacle_from_learner(

@@ -29,14 +29,14 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import (
+from roam.rotational_avoider import (
     get_intersection_with_circle,
 )
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
-from dynamic_obstacle_avoidance.rotational.rotational_avoidance import (
+from roam.rotation_container import RotationContainer
+from roam.rotational_avoidance import (
     obstacle_avoidance_rotational,
 )
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
+from roam.rotational_avoider import RotationalAvoider
 
 from dynamic_obstacle_avoidance.visualization import Simulation_vectorFields
 

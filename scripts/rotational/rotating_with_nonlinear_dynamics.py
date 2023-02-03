@@ -11,9 +11,9 @@ from vartools.visualization import VectorfieldPlotter
 from vartools.dynamical_systems import LinearSystem
 
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
+from roam.rotation_container import RotationContainer
 
-from dynamic_obstacle_avoidance.rotational.rotational_avoider import RotationalAvoider
+from roam.rotational_avoider import RotationalAvoider
 
 
 def single_ellipse_nonlinear(n_resolution=10, save_figure=False):

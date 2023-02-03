@@ -20,10 +20,10 @@ from vartools.dynamical_systems import LinearSystem, LocallyRotated
 # from vartools.dynamicalsys.closedform import evaluate_linear_dynamical_system
 
 from dynamic_obstacle_avoidance.obstacles import Ellipse
-from dynamic_obstacle_avoidance.rotational.multiboundary_container import (
+from roam.multiboundary_container import (
     MultiBoundaryContainer,
 )
-from dynamic_obstacle_avoidance.rotational.rotation_container import RotationContainer
+from roam.rotation_container import RotationContainer
 
 from roam.gmm_learner.learner.directional_gmm import DirectionalGMM
 from roam.gmm_learner.visualization.gmm_visualization import (

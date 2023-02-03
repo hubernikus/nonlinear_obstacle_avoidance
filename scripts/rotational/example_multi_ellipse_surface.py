@@ -25,7 +25,7 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from dynamic_obstacle_avoidance.rotational.gmm_obstacle import GmmObstacle
+from roam.gmm_obstacle import GmmObstacle
 
 
 def get_ellipse_shapely(ellipse: Ellipse) -> shapely.affinity:

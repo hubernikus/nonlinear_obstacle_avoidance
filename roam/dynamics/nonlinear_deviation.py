@@ -31,7 +31,7 @@ from vartools.directional_space import get_angle_space_inverse
 from vartools.directional_space import get_angle_space, get_angle_space_of_array
 from vartools.directional_space import get_directional_weighted_sum
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector, VectorArray
+from roam.datatypes import Vector, VectorArray
 
 Basis = np.ndarray
 DeviationVector = np.ndarray

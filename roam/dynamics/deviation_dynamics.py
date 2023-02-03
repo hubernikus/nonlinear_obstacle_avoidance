@@ -20,11 +20,11 @@ from vartools.directional_space import get_directional_weighted_sum
 from dynamic_obstacle_avoidance.obstacles import Ellipse
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationTree
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationSequence
+from roam.vector_rotation import VectorRotationXd
+from roam.vector_rotation import VectorRotationTree
+from roam.vector_rotation import VectorRotationSequence
 
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.datatypes import Vector
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles

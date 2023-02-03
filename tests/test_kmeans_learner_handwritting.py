@@ -3,7 +3,7 @@ Tests (and visualizations) for KmeansMotionLearner and KMeansObstacle.
 
 To run, in the ipython environment:
 >>>
-run dynamic_obstacle_avoidance/rotational/tests/test_kmeans_learner_handwritting.py
+run roam/tests/test_kmeans_learner_handwritting.py
 
 """
 
@@ -22,14 +22,14 @@ import matplotlib.pyplot as plt
 
 from vartools.handwritting_handler import HandwrittingHandler
 
-# from dynamic_obstacle_avoidance.rotational.kmeans_obstacle import KMeansObstacle
-from dynamic_obstacle_avoidance.rotational.kmeans_motion_learner import (
+# from roam.kmeans_obstacle import KMeansObstacle
+from roam.kmeans_motion_learner import (
     KMeansMotionLearner,
     create_kmeans_obstacle_from_learner,
 )
 
 
-from dynamic_obstacle_avoidance.rotational.tests.helper_functions import (
+from roam.visualization.kmean_plotting import (
     plot_boundaries,
     plot_normals,
     plot_gamma,
@@ -39,7 +39,9 @@ from dynamic_obstacle_avoidance.rotational.tests.helper_functions import (
     # plot_partial_dynamcs_of_four_clusters,
     plot_gamma_of_learner,
 )
-from dynamic_obstacle_avoidance.rotational.tests import helper_functions
+
+# from roam.tests import helper_functions
+import roam.visualization.kmean_plotting as helper_functions
 
 
 # fig_dir = "/home/lukas/Code/dynamic_obstacle_avoidance/figures/"

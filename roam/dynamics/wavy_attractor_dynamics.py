@@ -13,8 +13,8 @@ from numpy import linalg as LA
 from vartools.dynamical_systems._base import DynamicalSystem
 from vartools.dynamical_systems.linear import LinearSystem
 
-from dynamic_obstacle_avoidance.rotational.vector_rotation import VectorRotationXd
-from dynamic_obstacle_avoidance.rotational.datatypes import Vector
+from roam.vector_rotation import VectorRotationXd
+from roam.datatypes import Vector
 
 
 class WavyLinearDynamics(DynamicalSystem):
