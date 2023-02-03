@@ -4,34 +4,26 @@ Library for the rotation and summing of linear Systems for learning purposes.
 # Author: Lukas Huber
 # Email: hubernikus@gmail.com
 # License: BSD (c) 2021
-import warnings
-from math import pi
 
 from typing import Optional
 
 import numpy as np
 from numpy import linalg as LA
-import numpy.typing as npt
 
-import matplotlib.pyplot as plt  # For debugging only (!)
+# import numpy.typing as npt
+# import matplotlib.pyplot as plt  # For debugging only (!)
 
 from vartools.linalg import get_orthogonal_basis
 
 # from vartools.directional_space import DirectionBase
-from vartools.directional_space import UnitDirection
 from vartools.directional_space import get_directional_weighted_sum
-from vartools.directional_space import (
-    get_directional_weighted_sum_from_unit_directions,
-)
 
-# from vartools.directional_space import get_angle_space, get_angle_space_inverse
+# from vartools.directional_space import (
+#     get_directional_weighted_sum_from_unit_directions,
+# )
 
-from dynamic_obstacle_avoidance.utils import get_weight_gamma
 from dynamic_obstacle_avoidance.utils import get_weight_from_inv_of_gamma
 
-# from dynamic_obstacle_avoidance.avoidance.rotation import (
-# directional_convergence_summing,
-# )
 from roam.rotational_avoider import RotationalAvoider
 from roam.multiboundary_container import (
     MultiBoundaryContainer,

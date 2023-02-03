@@ -1,0 +1,14 @@
+numpy
+scipy
+shapely
+
+# Currently needed for all the plotting and visualization packages
+matplotlib
+pyqt5 # Allow animation and visualization
+
+# Graphs [for now use both]
+networkx    # more versatile
+# igraph      # faster
+
+# Learning Library
+scikit-learn

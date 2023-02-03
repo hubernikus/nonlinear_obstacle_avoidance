@@ -119,7 +119,6 @@ class MultiEllipseObstacle(Obstacle):
         velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
     ):
-
         if linearized_velocity is None:
             base_velocity = self.get_linearized_velocity(
                 self._obstacle_list[self._root_id].get_reference_point(
@@ -176,10 +175,10 @@ class MultiEllipseObstacle(Obstacle):
         self, position: Vector, obs_id: int, base_velocity: np.ndarray
     ) -> None:
         # TODO: predict at start the size (slight speed up)
-        surface_points: list(Vector) = [position]
-        # normal_directions: List(Vector) = []
-        # reference_directions: List(Vector) = []
-        parents_tree: List(int) = [obs_id]
+        surface_points: list[Vector] = [position]
+        # normal_directions: list[Vector] = []
+        # reference_directions: list[Vector] = []
+        parents_tree: list[int] = [obs_id]
 
         obs = self._obstacle_list[obs_id]
         normal_directions = [obs.get_normal_direction(position, in_global_frame=True)]

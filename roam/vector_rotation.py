@@ -275,6 +275,7 @@ class VectorRotationTree:
 
     # TODO: what happens if an obstacle is at angle 'pi'?
     # as it might happend at  zero-level
+    # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
     def __init__(self, root_id: int = None, root_direction: Vector = None) -> None:
         self._graph = nx.DiGraph()
@@ -323,7 +324,6 @@ class VectorRotationTree:
         level: int = None
         # rotation_limit: float = math.pi * 0.75,
     ) -> None:
-
         if parent_id is not None:
             self._graph.add_edge(
                 parent_id,
