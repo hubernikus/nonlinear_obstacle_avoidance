@@ -318,11 +318,10 @@ class VectorRotationTree:
     def add_node(
         self,
         node_id: NodeType,
-        direction: Vector = None,
-        parent_id: NodeType = None,
-        child_id: NodeType = None,
-        level: int = None
-        # rotation_limit: float = math.pi * 0.75,
+        direction: Optional[Vector] = None,
+        parent_id: Optional[NodeType] = None,
+        child_id: Optional[NodeType] = None,
+        level: Optional[int] = None,
     ) -> None:
         if parent_id is not None:
             self._graph.add_edge(
@@ -460,8 +459,6 @@ class VectorRotationTree:
 
         self.evaluate_all_orientations(sorted_list)
 
-        # for node_id in sorted_list[::-1]:
-        # print("[vector-rotation]: Start loop 461")
         for node_id in reversed(sorted_list):
             # Reverse update the weights
             for pred_id in self._graph.predecessors(node_id):
@@ -514,7 +511,6 @@ class VectorRotationTree:
             for ii, succ in enumerate(successors):
                 self._graph.nodes[succ]["part_orientation"].base = succ_basis[:, ii, :]
 
-        # print("[vector-rotation]: Evaluation 513")
         return self.evaluate_graph_summing(sorted_list)
 
     def evaluate_graph_summing(self, sorted_list) -> Vector:
@@ -525,12 +521,10 @@ class VectorRotationTree:
         But calculations are simple, i.e., this could be sped upt with cython / C++ / Rust
         """
         level_list = [self._graph.nodes[node_id]["level"] for node_id in sorted_list]
-        # print("[vector-rotation]: Evaluation 525")
 
         # Bottom up calculation - from lowest level to highest level
         # at each level, take the weighted average of all rotations
         for level in set(level_list):
-            # print(f"[vector-rotation]: Doing level: {level}")
             nodelevel_ids = []
             for node_id, lev in zip(sorted_list, level_list):
                 if lev == level and self._graph.nodes[node_id]["weight"]:
