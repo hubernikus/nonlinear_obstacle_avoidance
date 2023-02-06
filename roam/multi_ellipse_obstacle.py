@@ -6,7 +6,8 @@ for now limited to 2D (in order to find intersections easily).
 
 import math
 from typing import Optional
-import itertools as it
+
+# import itertools as it
 
 import numpy as np
 from numpy import linalg as LA
@@ -20,7 +21,6 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from roam.rotational_avoider import RotationalAvoider
 
-from roam.vector_rotation import VectorRotationXd
 from roam.vector_rotation import VectorRotationTree
 
 from roam.geometry import get_intersection_of_obstacles
@@ -36,7 +36,7 @@ def get_intersection_with_ellipse(
     position, direction, ellipse: Ellipse, in_global_frame: bool = False
 ) -> Optional[np.ndarray]:
     if in_global_frame:
-        # Currently only implemented with ellipse
+        # Currently only implemented for ellipse
         position = ellipse.pose.transform_position_to_relative(position)
         direction = ellipse.pose.transform_direction_to_relative(direction)
 
@@ -133,8 +133,7 @@ class MultiEllipseObstacle(Obstacle):
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
         gamma_weights = compute_weights(gamma_values)
 
-        lambda_values = np.zeros(self.n_components)
-
+        # lambda_values = np.zeros(self.n_components)
         self._tangent_tree = VectorRotationTree()
         self._tangent_tree.set_root(
             root_id=self._BASE_VEL_ID,

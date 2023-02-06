@@ -15,14 +15,14 @@ from typing import Optional
 from dataclasses import dataclass
 
 import numpy as np
-import numpy.typing as npt
+
+# import numpy.typing as npt
 from numpy import linalg as LA
 
 import networkx as nx
 
 from vartools.linalg import get_orthogonal_basis
 
-from roam.utils import get_orthonormal_spanning_basis
 from roam.datatypes import Vector, VectorArray
 
 NodeType = int
@@ -517,7 +517,7 @@ class VectorRotationTree:
     def evaluate_graph_summing(self, sorted_list) -> Vector:
         """Graph summing under assumption of shared-basis at each level.
 
-        => the number of calculations is $2x (n_{childrend} of node) \forall node \in nodes $
+        => the number of calculations is $2x (n_{childrend} of node) \forall node in nodes $
         i.e. does currently not scale well
         But calculations are simple, i.e., this could be sped upt with cython / C++ / Rust
         """
