@@ -10,6 +10,7 @@ from __future__ import annotations  # Not needed from python 3.10 onwards
 import copy
 import warnings
 import math
+from typing import Optional
 
 from dataclasses import dataclass
 
