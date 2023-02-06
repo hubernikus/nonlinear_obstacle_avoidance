@@ -310,7 +310,7 @@ def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
     )
 
 
-def test_triple_ellipse_environment(visualize=False):
+def test_triple_ellipse_environment(visualize=False, savefig=False):
     triple_ellipses = MultiEllipseObstacle()
     triple_ellipses.append(
         Ellipse(
@@ -375,6 +375,13 @@ def test_triple_ellipse_environment(visualize=False):
             # vectorfield_color=vf_color,
         )
 
+        if savefig:
+            figname = "triple_ellipses_obstacle_sidewards"
+            plt.savefig(
+                "figures/" + "rotated_dynamics_" + figname + figtype,
+                bbox_inches="tight",
+            )
+
     position = np.array([-3.37931034, 0.27586207])
     gamma_value = triple_ellipses.get_gamma(position, in_global_frame=True)
     assert gamma_value <= 1, "Is in one of the obstacles"
@@ -405,7 +412,7 @@ def test_triple_ellipse_environment(visualize=False):
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
 
-def test_tripple_ellipse_in_the_face(visualize=False):
+def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
     triple_ellipses = MultiEllipseObstacle()
 
     triple_ellipses.append(
@@ -440,9 +447,15 @@ def test_tripple_ellipse_in_the_face(visualize=False):
     linearized_velociy = np.array([1.0, 0.0])
 
     if visualize:
-        x_lim = [-14, 14]
-        y_lim = [-12, 18]
-        fig, ax = plt.subplots(figsize=(8, 8))
+        # x_lim = [-6, 6]
+        # y_lim = [-3.8, 11]
+        # n_grid = 30
+        # fig, ax = plt.subplots(figsize=(7, 8))
+
+        x_lim = [-7, 7]
+        y_lim = [-5, 12.5]
+        n_grid = 100
+        fig, ax = plt.subplots(figsize=(5, 6))
 
         plot_obstacles(
             obstacle_container=triple_ellipses._obstacle_list,
@@ -450,10 +463,18 @@ def test_tripple_ellipse_in_the_face(visualize=False):
             x_lim=x_lim,
             y_lim=y_lim,
             draw_reference=True,
+            noTicks=True,
             # reference_point_number=True,
-            show_obstacle_number=True,
+            # show_obstacle_number=True,
             # ** kwargs,
         )
+
+        if savefig:
+            figname = "triple_ellipses_obstacle_facewards"
+            plt.savefig(
+                "figures/" + "obstacles_only_" + figname + figtype,
+                bbox_inches="tight",
+            )
 
         plot_obstacle_dynamics(
             obstacle_container=[],
@@ -467,10 +488,19 @@ def test_tripple_ellipse_in_the_face(visualize=False):
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
-            do_quiver=True,
-            n_grid=30,
+            # do_quiver=True,
+            do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=False,
             # vectorfield_color=vf_color,
         )
+
+        if savefig:
+            figname = "triple_ellipses_obstacle_facewards"
+            plt.savefig(
+                "figures/" + "rotated_dynamics_" + figname + figtype,
+                bbox_inches="tight",
+            )
 
     position = np.array([-5.0, 0.5])
     averaged_direction = triple_ellipses.get_tangent_direction(
@@ -524,6 +554,9 @@ def test_orthonormal_tangent_finding():
 
 
 if (__name__) == "__main__":
+    # figtype = ".png"
+    figtype = ".pdf"
+
     import matplotlib.pyplot as plt
 
     from dynamic_obstacle_avoidance.visualization import plot_obstacles
@@ -536,7 +569,7 @@ if (__name__) == "__main__":
 
     test_orthonormal_tangent_finding()
 
-    test_tripple_ellipse_in_the_face(visualize=True)
+    test_tripple_ellipse_in_the_face(visualize=True, savefig=True)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
