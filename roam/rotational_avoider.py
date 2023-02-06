@@ -14,15 +14,10 @@ from typing import Optional
 
 import numpy as np
 from numpy import linalg as LA
-import matplotlib.pyplot as plt  # For debugging only (!)
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
 from vartools.directional_space import get_directional_weighted_sum
-from vartools.directional_space import (
-    get_directional_weighted_sum_from_unit_directions,
-)
-from vartools.directional_space import get_angle_space, get_angle_space_inverse
 from vartools.directional_space import get_angle_from_vector
 from vartools.directional_space import get_vector_from_angle
 from vartools.directional_space import UnitDirection
@@ -127,7 +122,7 @@ class RotationalAvoider(BaseAvoider):
 
         if obstacle_list is None:
             # TODO: depreciated
-            obstacle_olist = self.obstacle_environment
+            obstacle_list = self.obstacle_environment
 
         n_obstacles = len(obstacle_list)
         if not n_obstacles:  # No obstacles in the environment
@@ -231,7 +226,8 @@ class RotationalAvoider(BaseAvoider):
                 else:
                     convergence_velocity = self.convergence_dynamics.evaluate(position)
 
-            if not (conv_vel_norm := LA.norm(convergence_velocity)):
+            # if not (conv_vel_norm := LA.norm(convergence_velocity)):
+            if not LA.norm(convergence_velocity):
                 # Zero value
                 # base = DirectionBase(matrix=null_matrix)
                 base = null_matrix
@@ -295,7 +291,6 @@ class RotationalAvoider(BaseAvoider):
         min_dot_prod = 0
         it_min = None
         for ii in range(len(gammas)):
-
             # Under the assumption of normalized input vectors
             dot_prod = np.dot(modulated_velocity, normals[:, ii])
 
@@ -560,7 +555,6 @@ class RotationalAvoider(BaseAvoider):
         reference: Vector,
         convergence_radius: float = math.pi / 2,
     ) -> Vector:
-
         if np.dot(initial_vector, normal) > np.cos(convergence_radius):
             # This if switch is continuous as it happens when the initial_vector
             # is on the surface of the circle
@@ -755,7 +749,7 @@ class RotationalAvoider(BaseAvoider):
             # When the two 'tangents' are far apart use the normal as fill-in
             # this ensure continuous value even far away
             dot_weights = (-1) * dot_weights
-            normal_vector = base[:, 0]
+            # normal_vector = base[:, 0]
 
             # null_vector = get_directional_weighted_sum(
             #     null_direction=conv_vector,
