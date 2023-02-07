@@ -670,7 +670,7 @@ def plot_trajectory_comparison(datapath, savefig=False):
 
 
 if (__name__) == "__main__":
-    datapath = "/home/lukas/Code/roam/comparison/data"
+    datapath = "/home/lukas/Code/nonlinear_obstacle_avoidance/roam/comparison/data/"
     figtype = ".pdf"
     # figtype = ".png"
 
@@ -683,13 +683,12 @@ if (__name__) == "__main__":
     #     datapath=datapath,
     #     store_to_file=True,
     # )
-
-    # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
-    # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)
-
     evaluate_nonlinear_trajectories()
     evaluate_modulated_trajectories()
     evaluate_original_trajectories()
+
+    # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
+    # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)
 
     # visualize_trajectories(datapath, datafolder="nonlinear_avoidance")
     # visualize_trajectories(datapath, datafolder="modulation_avoidance")

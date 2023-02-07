@@ -60,6 +60,17 @@ def mean_squared_acceleration(trajectory, delta_time):
     return np.mean(acceleration_squared)
 
 
+def dot_product_acceleration(trajectory, delta_time):
+    velocities = (trajectory[:, 1:] - trajectory[:, :-1]) / delta_time
+    velocities = normalize_velocities(velocities)
+
+    velocity_dotprod = np.sum(velocities[:, 1:] * velocities[:, :-1], axis=0)
+    # breakpoint()
+    return np.mean(velocity_dotprod)
+    # velocity_dot_prod_fact = (1.0 - velocity_dotprod) / 2.0
+    # return np.mean(velocity_dot_prod_fact**2)
+
+
 def mean_squared_velocity_deviation(trajectory, dynamic_functor, delta_time):
     velocities = (trajectory[:, 1:] - trajectory[:, :-1]) / delta_time
     velocities = normalize_velocities(velocities)
@@ -74,38 +85,30 @@ def mean_squared_velocity_deviation(trajectory, dynamic_functor, delta_time):
     return np.mean(deviations)
 
 
-def mean_squared_velocity_change_dot_product(trajectory, delta_time):
-    velocities = (trajectory[:, 1:] - trajectory[:, :-1]) / delta_time
-    velocities = normalize_velocities(velocities)
-
-    velocity_dotprod = np.sum(velocities[:, 1:] * velocities[:, :-1], axis=0)
-    velocity_dot_prod_fact = (1.0 - velocity_dotprod) / 2.0
-    return np.mean(velocity_dot_prod_fact**2)
-
-
-def mean_squared_velocity_deviation_dot_product(
-    trajectory, dynamic_functor, delta_time
-):
+def dot_product_velocity_deviation(trajectory, dynamic_functor, delta_time):
     velocities = (trajectory[:, 1:] - trajectory[:, :-1]) / delta_time
     velocities = normalize_velocities(velocities)
 
     init_velocities = np.zeros_like(velocities)
     for ii in range(init_velocities.shape[1]):
-        init_velocities[:, ii] = dynamic_functor(trajectory[:, ii])
-        if not (init_norm := LA.norm(init_velocities)):
+        init_vel = dynamic_functor(trajectory[:, ii])
+        if not (init_norm := LA.norm(init_vel)):
             continue
-        init_velocities = init_velocities / init_norm
+        init_velocities[:, ii] = init_vel / init_norm
 
     velocity_dotprod = np.sum(velocities * init_velocities, axis=0)
-    velocity_dotprod_factor = (1.0 - velocity_dotprod) / 2.0
-
-    return np.mean(velocity_dotprod_factor**2)
+    return np.mean(velocity_dotprod)
+    # velocity_dotprod_factor = (1.0 - velocity_dotprod) / 2.0
+    # return np.mean(velocity_dotprod_factor**2)
 
 
 @dataclass
 class TrajectoryEvaluator:
     data_folder: "str"
-    data_path: "str" = "/home/lukas/Code/roam/comparison/data"
+    # data_path: "str" = "/home/lukas/Code/roam/comparison/data"
+    data_path: "str" = (
+        "/home/lukas/Code/nonlinear_obstacle_avoidance/roam/comparison/data"
+    )
 
     n_runs: int = 0
 
@@ -122,7 +125,7 @@ class TrajectoryEvaluator:
 
     def run(self):
         with open(
-            os.path.join(datapath, "..", "comparison_parameters.json")
+            os.path.join(self.data_path, "..", "comparison_parameters.json")
         ) as user_file:
             simulation_parameters = json.load(user_file)
 
@@ -167,10 +170,6 @@ class TrajectoryEvaluator:
                 / self.n_runs
             )
 
-            self.squared_acceleration += (
-                mean_squared_acceleration(trajectory, delta_time) / self.n_runs
-            )
-
             self.squared_error_velocity += (
                 mean_squared_velocity_deviation(
                     trajectory, initial_dynamics.evaluate, delta_time
@@ -179,15 +178,18 @@ class TrajectoryEvaluator:
             )
 
             self.dotprod_err_velocity += (
-                mean_squared_velocity_change_dot_product(trajectory, delta_time)
-                / self.n_runs
-            )
-
-            self.dotprod_acceleration += (
-                mean_squared_velocity_deviation_dot_product(
+                dot_product_velocity_deviation(
                     trajectory, initial_dynamics.evaluate, delta_time
                 )
                 / self.n_runs
+            )
+
+            self.squared_acceleration += (
+                mean_squared_acceleration(trajectory, delta_time) / self.n_runs
+            )
+
+            self.dotprod_acceleration += (
+                dot_product_acceleration(trajectory, delta_time) / self.n_runs
             )
 
 
@@ -211,21 +213,24 @@ def print_table(evaluation_list):
     value = [f"{ee.squared_acceleration:.2f}" for ee in evaluation_list]
     print(" & ".join(["$a$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.dotprod_acceleration * 1e1:.2f}" for ee in evaluation_list]
-    print(" & ".join(["$\\langle a \\rangle [1e1m/s]$"] + value) + " \\\\ \hline")
+    value = [
+        f"{(1.0 - ee.dotprod_acceleration) * 0.5 * 1e4:.2f}" for ee in evaluation_list
+    ]
+    print(" & ".join(["$\\langle a \\rangle [1e-4 m/s]$"] + value) + " \\\\ \hline")
 
     value = [f"{ee.squared_error_velocity:.2f}" for ee in evaluation_list]
     print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.dotprod_err_velocity * 1e6:.2f}" for ee in evaluation_list]
-    print(" & ".join(["$\\langle v \\rangle [1e6]$"] + value) + " \\\\ \hline")
+    # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
+    value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5 :.2f}" for ee in evaluation_list]
+    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
 
 
 if (__name__) == "__main__":
-
-    if False:
+    # if False:
+    if True:
         # n_runs = 5
-        n_runs = -1
+        n_runs = -1  # All runs...
 
         nonlinear_evaluation = TrajectoryEvaluator(
             n_runs=n_runs, data_folder="nonlinear_avoidance"
