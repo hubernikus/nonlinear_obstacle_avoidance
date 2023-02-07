@@ -449,6 +449,7 @@ class VectorRotationTree:
         if not math.isclose((weight_sum := np.sum(weights)), 1.0, rel_tol=1e-4):
             warnings.warn(f"Sum of weights {weight_sum} is not equal to one.")
 
+        # TODO: Maybe this should be done at the end of the step (?)
         self.reset_node_weights()
 
         # Weights are stored in the predecessing nodes of the corresponding edge
@@ -499,6 +500,9 @@ class VectorRotationTree:
             # Make sure dimension is the first axes for future array restructuring
             succ_basis = np.swapaxes(_succ_basis, 0, 1)
 
+            # TODO: this could be directly integrated in the final rotation (as there we
+            # fully rotate backwards)
+            #     hence remove this - add more (inverse rotation) later => safe an operation...
             # Backwards rotate such that it's aligned with the new angle
             succ_basis = rotate_array(
                 directions=succ_basis.reshape(self.dimension, -1),
