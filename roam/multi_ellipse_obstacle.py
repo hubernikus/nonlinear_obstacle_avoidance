@@ -446,15 +446,20 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
     linearized_velociy = np.array([1.0, 0.0])
 
     if visualize:
+        # figsize=(7, 8)
         # x_lim = [-6, 6]
         # y_lim = [-3.8, 11]
-        # n_grid = 30
-        # fig, ax = plt.subplots(figsize=(7, 8))
 
-        x_lim = [-7, 7]
+        # figsize = (5, 6)
+        # x_lim = [-7, 7]
+        # y_lim = [-5, 12.5]
+
+        figsize = (10, 5)
+        x_lim = [-12, 12]
         y_lim = [-5, 12.5]
-        n_grid = 100
-        fig, ax = plt.subplots(figsize=(5, 6))
+
+        n_grid = 120
+        fig, ax = plt.subplots(figsize=figsize)
 
         plot_obstacles(
             obstacle_container=triple_ellipses._obstacle_list,
