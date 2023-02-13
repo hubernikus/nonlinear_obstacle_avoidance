@@ -14,12 +14,12 @@ def plot_3d_cuboid(ax, cube: Cuboid, color="green"):
     axis = cube.axes_length
     orientation = cube.orientation
 
-    pos_ranges = [
-        cube.center_position - cube.axes_length / 2.0,
-        cube.center_position + cube.axes_length / 2.0,
-    ]
-    pos_ranges = np.array(pos_ranges).T
-
+    pos_ranges = np.array(
+        [
+            cube.center_position - axis / 2.0,
+            cube.center_position + axis / 2.0,
+        ]
+    ).T
     posx = pos_ranges[0, :]
     posy = pos_ranges[1, :]
     posz = pos_ranges[2, :]
@@ -27,15 +27,15 @@ def plot_3d_cuboid(ax, cube: Cuboid, color="green"):
     # Define the vertices of the cube
     for ii in posx:
         for jj in posy:
-            ax.plot([ii, ii], [jj, jj], posz, color="black", marker="o")
+            ax.plot([ii, ii], [jj, jj], posz, color=color, marker="o")
 
     for ii in posx:
         for jj in posz:
-            ax.plot([ii, ii], posy, [jj, jj], color="black", marker="o")
+            ax.plot([ii, ii], posy, [jj, jj], color=color, marker="o")
 
     for ii in posy:
         for jj in posz:
-            ax.plot(posx, [ii, ii], [jj, jj], color="black", marker="o")
+            ax.plot(posx, [ii, ii], [jj, jj], color=color, marker="o")
 
 
 def plot_3d_ellipsoid(ax, ellipse: Ellipse):
