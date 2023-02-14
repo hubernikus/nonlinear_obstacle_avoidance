@@ -5,7 +5,7 @@ for now limited to 2D (in order to find intersections easily).
 """
 
 import math
-from typing import Optional
+from typing import Optional, Protocol
 
 # import itertools as it
 
@@ -66,8 +66,24 @@ def get_intersection_with_ellipse(
         return surface_pos
 
 
+class HierarchyObstacle(Protocol):   
+    @property
+    def n_components(self) -> int:
+        ...
+
+    @property
+    def root_id(self) -> int:
+        ...
+
+    def get_parent_idx(self, idx_obs: int) -> int:
+        ...
+
+    def get_component(self, idx_obs: int) -> Obstacle:
+        ...
+    
+
 class MultiObstacleAvoider:
-    def __init__(self, obstacle: Obstacle):
+    def __init__(self, obstacle: HierarchyObstacle):
         self.obstacle = obstacle
 
         # An ID number which does not co-inside with the obstacle
@@ -79,27 +95,32 @@ class MultiObstacleAvoider:
     @property
     def n_components(self) -> int:
         return self.obstacle.n_components   
-
+    
     def get_tangent_direction(
         self,
         position: Vector,
         velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
-        obstacle_list: Optional[ObstacleContainer] = None,
+        # obstacle_list: Optional[ObstacleContainer] = None,
     ):
-        if obstacle_list is None:
-            obstacle_list = self.obstacle.get_obstacle_list()
+        # if obstacle_list is None:
+        #     obstacle_list = self.obstacle.get_obstacle_list()
 
         if linearized_velocity is None:
+            root_obs = self.obstacle.get_component(self.obstacle.root_id)
             base_velocity = self.get_linearized_velocity(
-                obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
+                # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
+                root_obs.get_reference_point(in_global_frame=True)
             )
         else:
             base_velocity = linearized_velocity
 
-        gamma_values = np.zeros(self.n_components)
-        for ii, obs in enumerate(obstacle_list):
+        gamma_values = np.zeros(self.obstacle.n_components)
+        # for ii, obs in enumerate(obstacle_list):
+        for ii in range(self.obstacle.n_components):
+            obs = self.obstacle.get_component(ii)
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
+
         gamma_weights = compute_weights(gamma_values)
 
         # lambda_values = np.zeros(self.n_components)
@@ -118,12 +139,12 @@ class MultiObstacleAvoider:
         node_list = [self._BASE_VEL_ID]
 
         # for obs_id in it.filterfalse(lambda x: x <= 0, range(len(obstacle_list))):
-        for obs_id in range(len(obstacle_list)):
+        for obs_id in range(self.obstacle.n_components):
             if gamma_weights[obs_id] <= 0:
                 continue
 
             node_list.append((obs_id, obs_id))
-            self._update_tangent_branch(position, obs_id, base_velocity, obstacle_list)
+            self._update_tangent_branch(position, obs_id, base_velocity)
 
         weights = (
             gamma_weights[gamma_weights > 0]
@@ -144,7 +165,6 @@ class MultiObstacleAvoider:
         position: Vector,
         obs_id: int,
         base_velocity: np.ndarray,
-        obstacle_list: ObstacleContainer,
     ) -> None:
         # TODO: predict at start the size (slight speed up)
         surface_points: list[Vector] = [position]
@@ -152,16 +172,16 @@ class MultiObstacleAvoider:
         # reference_directions: list[Vector] = []
         parents_tree: list[int] = [obs_id]
 
-        obs = obstacle_list[obs_id]
+        obs = self.obstacle.get_component(obs_id)
         normal_directions = [obs.get_normal_direction(position, in_global_frame=True)]
         reference_directions = [
             obs.get_reference_direction(position, in_global_frame=True)
         ]
 
         while parents_tree[-1] != self.obstacle.root_id:
-            obs = obstacle_list[parents_tree[-1]]
+            obs = self.obstacle.get_component(parents_tree[-1])
 
-            new_id = self.obstacle.get_parent(parents_tree[-1])
+            new_id = self.obstacle.get_parent_idx(parents_tree[-1])
             if new_id is None:
                 # TODO: We should not reach this?! -> remove(?)
                 breakpoint()
@@ -173,7 +193,7 @@ class MultiObstacleAvoider:
 
             parents_tree.append(new_id)
 
-            obs_parent = obstacle_list[new_id]
+            obs_parent = self.obstacle.get_component(new_id)
             ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
 
             intersection = get_intersection_with_ellipse(
@@ -246,9 +266,12 @@ class MultiEllipseObstacle(Obstacle):
     def root_id(self) -> int:
         return self._root_id
 
-    def get_obstacle_list(self) -> ObstacleContainer:
-        return self._obstacle_list
+    # def get_obstacle_list(self) -> ObstacleContainer:
+    #     return self._obstacle_list
     
+    def get_component(self, idx_obs) -> Obstacle:
+        return self._obstacle_list[idx_obs]
+
     def set_root(self, obs_id: int):
         if self._root_id:
             raise NotImplementedError("Make sure to delete first.")
@@ -280,7 +303,7 @@ class MultiEllipseObstacle(Obstacle):
     def delete_item(self, obs_id: int):
         raise NotImplementedError()
 
-    def get_parent(self, idx_obs: int) -> int:
+    def get_parent_idx(self, idx_obs: int) -> int:
         return self._parent_list[idx_obs]
 
     def get_linearized_velocity(self, position):
