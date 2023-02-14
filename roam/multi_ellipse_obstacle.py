@@ -18,6 +18,7 @@ from vartools.linalg import get_orthogonal_basis
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
+from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from roam.rotational_avoider import RotationalAvoider
 
@@ -65,71 +66,39 @@ def get_intersection_with_ellipse(
         return surface_pos
 
 
-class MultiEllipseObstacle(Obstacle):
-    def __init__(self):
-        self._obstacle_list = []
-
-        self._root_id: Optional[int] = None
-        self._parent_list: list[Optional[int]] = []
-        self._children_list: list[list[int]] = []
-
-        self.gamma_power_scaling = 0.5
+class MultiObstacleAvoider:
+    def __init__(self, obstacle: Obstacle):
+        self.obstacle = obstacle
 
         # An ID number which does not co-inside with the obstacle
         self._BASE_VEL_ID = -1
+        self.gamma_power_scaling = 0.5
+
+        self._tangent_tree = VectorRotationTree()
 
     @property
     def n_components(self) -> int:
-        return len(self._obstacle_list)
-
-    def set_root(self, obs_id: int):
-        if self._root_id:
-            raise NotImplementedError("Make sure to delete first.")
-        self._root_id = obs_id
-        self._parent_list[obs_id] = -1
-
-    def set_parent(self, obs_id: int, parent_id: int):
-        # This should go automatically at run-time
-        if self._parent_list[obs_id]:
-            raise NotImplementedError("Make sure to delete first.")
-
-        self._parent_list[obs_id] = parent_id
-        self._children_list[parent_id].append(obs_id)
-
-        # Set reference point
-        intersection = get_intersection_of_obstacles(
-            self._obstacle_list[obs_id], self._obstacle_list[parent_id]
-        )
-
-        self._obstacle_list[obs_id].set_reference_point(
-            intersection, in_global_frame=True
-        )
-
-    def append(self, obstacle: Obstacle) -> None:
-        self._obstacle_list.append(obstacle)
-        self._children_list.append([])
-        self._parent_list.append(None)
-
-    def delete_item(self, obs_id: int):
-        raise NotImplementedError()
+        return self.obstacle.n_components   
 
     def get_tangent_direction(
         self,
         position: Vector,
         velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
+        obstacle_list: Optional[ObstacleContainer] = None,
     ):
+        if obstacle_list is None:
+            obstacle_list = self.obstacle.get_obstacle_list()
+
         if linearized_velocity is None:
             base_velocity = self.get_linearized_velocity(
-                self._obstacle_list[self._root_id].get_reference_point(
-                    in_global_frame=True
-                )
+                obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
             )
         else:
             base_velocity = linearized_velocity
 
         gamma_values = np.zeros(self.n_components)
-        for ii, obs in enumerate(self._obstacle_list):
+        for ii, obs in enumerate(obstacle_list):
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
         gamma_weights = compute_weights(gamma_values)
 
@@ -141,20 +110,20 @@ class MultiEllipseObstacle(Obstacle):
         )
         self._tangent_tree.add_node(
             parent_id=self._BASE_VEL_ID,
-            node_id=self._root_id,
+            node_id=self.obstacle.root_id,
             direction=base_velocity,
         )
 
         # The base node (initial velocity)
         node_list = [self._BASE_VEL_ID]
 
-        # for obs_id in it.filterfalse(lambda x: x <= 0, range(len(self._obstacle_list))):
-        for obs_id in range(len(self._obstacle_list)):
+        # for obs_id in it.filterfalse(lambda x: x <= 0, range(len(obstacle_list))):
+        for obs_id in range(len(obstacle_list)):
             if gamma_weights[obs_id] <= 0:
                 continue
 
             node_list.append((obs_id, obs_id))
-            self._update_tangent_branch(position, obs_id, base_velocity)
+            self._update_tangent_branch(position, obs_id, base_velocity, obstacle_list)
 
         weights = (
             gamma_weights[gamma_weights > 0]
@@ -171,7 +140,11 @@ class MultiEllipseObstacle(Obstacle):
         return weighted_tangent
 
     def _update_tangent_branch(
-        self, position: Vector, obs_id: int, base_velocity: np.ndarray
+        self,
+        position: Vector,
+        obs_id: int,
+        base_velocity: np.ndarray,
+        obstacle_list: ObstacleContainer,
     ) -> None:
         # TODO: predict at start the size (slight speed up)
         surface_points: list[Vector] = [position]
@@ -179,16 +152,16 @@ class MultiEllipseObstacle(Obstacle):
         # reference_directions: list[Vector] = []
         parents_tree: list[int] = [obs_id]
 
-        obs = self._obstacle_list[obs_id]
+        obs = obstacle_list[obs_id]
         normal_directions = [obs.get_normal_direction(position, in_global_frame=True)]
         reference_directions = [
             obs.get_reference_direction(position, in_global_frame=True)
         ]
 
-        while parents_tree[-1] != self._root_id:
-            obs = self._obstacle_list[parents_tree[-1]]
+        while parents_tree[-1] != self.obstacle.root_id:
+            obs = obstacle_list[parents_tree[-1]]
 
-            new_id = self._parent_list[parents_tree[-1]]
+            new_id = self.obstacle.get_parent(parents_tree[-1])
             if new_id is None:
                 # TODO: We should not reach this?! -> remove(?)
                 breakpoint()
@@ -200,7 +173,7 @@ class MultiEllipseObstacle(Obstacle):
 
             parents_tree.append(new_id)
 
-            obs_parent = self._obstacle_list[new_id]
+            obs_parent = obstacle_list[new_id]
             ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
 
             intersection = get_intersection_with_ellipse(
@@ -255,6 +228,60 @@ class MultiEllipseObstacle(Obstacle):
                 parent_id=(obs_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
+
+
+class MultiEllipseObstacle(Obstacle):
+    def __init__(self):
+        self._obstacle_list = []
+
+        self._root_id: Optional[int] = None
+        self._parent_list: list[Optional[int]] = []
+        self._children_list: list[list[int]] = []
+
+    @property
+    def n_components(self) -> int:
+        return len(self._obstacle_list)
+
+    @property
+    def root_id(self) -> int:
+        return self._root_id
+
+    def get_obstacle_list(self) -> ObstacleContainer:
+        return self._obstacle_list
+    
+    def set_root(self, obs_id: int):
+        if self._root_id:
+            raise NotImplementedError("Make sure to delete first.")
+        self._root_id = obs_id
+        self._parent_list[obs_id] = -1
+
+    def set_parent(self, obs_id: int, parent_id: int):
+        # This should go automatically at run-time
+        if self._parent_list[obs_id]:
+            raise NotImplementedError("Make sure to delete first.")
+
+        self._parent_list[obs_id] = parent_id
+        self._children_list[parent_id].append(obs_id)
+
+        # Set reference point
+        intersection = get_intersection_of_obstacles(
+            self._obstacle_list[obs_id], self._obstacle_list[parent_id]
+        )
+
+        self._obstacle_list[obs_id].set_reference_point(
+            intersection, in_global_frame=True
+        )
+
+    def append(self, obstacle: Obstacle) -> None:
+        self._obstacle_list.append(obstacle)
+        self._children_list.append([])
+        self._parent_list.append(None)
+
+    def delete_item(self, obs_id: int):
+        raise NotImplementedError()
+
+    def get_parent(self, idx_obs: int) -> int:
+        return self._parent_list[idx_obs]
 
     def get_linearized_velocity(self, position):
         raise NotImplementedError()
@@ -339,6 +366,8 @@ def test_triple_ellipse_environment(visualize=False, savefig=False):
     triple_ellipses.set_parent(obs_id=1, parent_id=0)
     triple_ellipses.set_parent(obs_id=2, parent_id=0)
 
+    multibstacle_avoider = MultiObstacleAvoider(obstacle=triple_ellipses)
+
     velocity = np.array([1.0, 0])
     linearized_velociy = np.array([1.0, 0])
 
@@ -363,7 +392,7 @@ def test_triple_ellipse_environment(visualize=False, savefig=False):
             collision_check_functor=lambda x: (
                 triple_ellipses.get_gamma(x, in_global_frame=True) <= 1
             ),
-            dynamics=lambda x: triple_ellipses.get_tangent_direction(
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
                 x, velocity, linearized_velociy
             ),
             x_lim=x_lim,
@@ -387,25 +416,25 @@ def test_triple_ellipse_environment(visualize=False, savefig=False):
 
     # Testing various position around the obstacle
     position = np.array([-1.5, 5])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([-5, 5])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] > 0
 
     position = np.array([5.5, 5])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([-5, -0.9])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
@@ -442,6 +471,8 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
     triple_ellipses.set_parent(obs_id=1, parent_id=0)
     triple_ellipses.set_parent(obs_id=2, parent_id=0)
 
+    multibstacle_avoider = MultiObstacleAvoider(obstacle=triple_ellipses)
+
     velocity = np.array([1.0, 0.0])
     linearized_velociy = np.array([1.0, 0.0])
 
@@ -458,7 +489,8 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
         x_lim = [-12, 12]
         y_lim = [-5, 12.5]
 
-        n_grid = 120
+        # n_grid = 120
+        n_grid = 20
         fig, ax = plt.subplots(figsize=figsize)
 
         plot_obstacles(
@@ -486,14 +518,14 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
                 triple_ellipses.get_gamma(x, in_global_frame=True) <= 1
             ),
             # obstacle_container=triple_ellipses._obstacle_list,
-            dynamics=lambda x: triple_ellipses.get_tangent_direction(
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
                 x, velocity, linearized_velociy
             ),
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
-            # do_quiver=True,
-            do_quiver=False,
+            do_quiver=True,
+            # do_quiver=False,
             n_grid=n_grid,
             show_ticks=False,
             # vectorfield_color=vf_color,
@@ -507,19 +539,19 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
             )
 
     position = np.array([-5.0, 0.5])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([6.0, 6.0])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([-5.0, 9.0])
-    averaged_direction = triple_ellipses.get_tangent_direction(
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
     assert averaged_direction[0] > 0 and averaged_direction[1] > 0
@@ -573,7 +605,7 @@ if (__name__) == "__main__":
 
     test_orthonormal_tangent_finding()
 
-    test_tripple_ellipse_in_the_face(visualize=True, savefig=True)
+    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
