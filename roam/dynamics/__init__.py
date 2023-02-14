@@ -10,6 +10,9 @@ from .nonlinear_deviation import DeviationOfConstantFlow
 from .nonlinear_deviation import DeviationOfLinearDS
 from .nonlinear_deviation import PerpendicularDeviatoinOfLinearDS
 
+from .circular_dynamics import DynamicDynamics
+from .circular_dynamics import SimpleCircularDynamics
+
 from .locally_rotated_linear_dynamics import LocallyRotatedFromObtacle
 
 from .wavy_attractor_dynamics import WavyLinearDynamics
@@ -23,4 +26,6 @@ __all__ = [
     "PerpendicularDeviatoinOfLinearDS",
     "LocallyRotatedFromObtacle",
     "WavyLinearDynamics",
+    "DynamicDynamics",
+    "SimpleCircularDynamics",
 ]

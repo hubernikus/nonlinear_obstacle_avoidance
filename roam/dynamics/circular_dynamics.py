@@ -7,6 +7,8 @@ from typing import Optional
 import numpy as np
 from numpy import linalg as LA
 
+from scipy.spatial.transform import Rotation
+
 from vartools.dynamical_systems import DynamicalSystem
 from vartools.states import ObjectPose
 
@@ -99,8 +101,8 @@ class CircularRotationDynamics(DynamicalSystem):
         """
         if pose is None:
             pose = ObjectPose(position=np.zeros(dimension))
-        # else:
-        #     pose: ObjectPose = pose
+        else:
+            dimension = pose.position.shape[0]
 
         super().__init__(dimension=dimension, pose=pose, **kwargs)
 
@@ -185,17 +187,21 @@ class SimpleCircularDynamics(DynamicalSystem):
     def __init__(
         self,
         base_matrix: Optional[np.ndarray] = None,
-        dimension: int = 2,
+        pose: Optional[ObjectPose] = None,
+        # dimension: int = 2,
         radius: float = 2.0,
         **kwargs,
     ):
-        if base_matrix is None:
-            self.base_matrix = np.eye(dimension)
-        else:
-            self.base_matrix = base_matrix
+        if base_matrix is not None:
             dimension = base_matrix.shape[0]
+            if pose is None:
+                pose = ObjectPose(
+                    np.zeros(dimension), Rotation.from_matrix(base_matrix)
+                )
+            else:
+                pose.orientation = Rotation.from_matrix(base_matrix)
 
-        super().__init__(dimension=dimension, **kwargs)
+        super().__init__(pose=pose, **kwargs)
 
         self.k1 = 1.0
         self.k2 = 1.0
@@ -203,17 +209,18 @@ class SimpleCircularDynamics(DynamicalSystem):
         self._E = np.array([[0, -1], [1, 0]])
         self.radius = radius
 
-    def transform_position_to_relative(self, position: Vector) -> Vector:
-        return self.base_matrix.T @ (position - self.pose.position)
+    # def transform_position_to_relative(self, position: Vector) -> Vector:
+    #     # TODO: this should be the normal pose (?)
+    #     return self.base_matrix.T @ (position - self.pose.position)
 
-    def transform_position_from_relative(self, position: Vector) -> Vector:
-        return (self.base_matrix @ position) + self.pose.position
+    # def transform_position_from_relative(self, position: Vector) -> Vector:
+    #     return (self.base_matrix @ position) + self.pose.position
 
-    def transform_direction_to_relative(self, position: Vector) -> Vector:
-        return self.base_matrix.T @ position
+    # def transform_direction_to_relative(self, position: Vector) -> Vector:
+    #     return self.base_matrix.T @ position
 
-    def transform_direction_from_relative(self, position: Vector) -> Vector:
-        return self.base_matrix @ position
+    # def transform_direction_from_relative(self, position: Vector) -> Vector:
+    #     return self.base_matrix @ position
 
     def get_phi(self, position: Vector) -> float:
         return np.sum(position[:2] ** 2) - self.radius**2
@@ -223,7 +230,7 @@ class SimpleCircularDynamics(DynamicalSystem):
         return 2 * position[:2]
 
     def evaluate(self, position):
-        relative_position = self.transform_position_to_relative(position)
+        relative_position = self.pose.transform_position_to_relative(position)
 
         grad = self.get_grad(relative_position)  # or n11
         phi = self.get_phi(relative_position)  # or e11
@@ -237,7 +244,7 @@ class SimpleCircularDynamics(DynamicalSystem):
             return direction
         normalized_direction = direction / dir_norm
 
-        return self.transform_direction_from_relative(normalized_direction)
+        return self.pose.transform_direction_from_relative(normalized_direction)
 
 
 def test_rotation_circle(visualize=False):
@@ -375,7 +382,6 @@ def test_3d_simple_dynamics(visualize=False):
 
 
 def _animation_of_circular_subdynamics(visualize=False):
-
     if visualize:
         import matplotlib.pyplot as plt
         from vartools.dynamical_systems import LinearSystem

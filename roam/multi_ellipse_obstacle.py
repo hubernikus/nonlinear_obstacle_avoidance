@@ -66,7 +66,8 @@ def get_intersection_with_ellipse(
         return surface_pos
 
 
-class HierarchyObstacle(Protocol):   
+class HierarchyObstacle(Protocol):
+    # + all methods of a general obstacle(?)
     @property
     def n_components(self) -> int:
         ...
@@ -75,12 +76,12 @@ class HierarchyObstacle(Protocol):
     def root_id(self) -> int:
         ...
 
-    def get_parent_idx(self, idx_obs: int) -> int:
+    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
         ...
 
     def get_component(self, idx_obs: int) -> Obstacle:
         ...
-    
+
 
 class MultiObstacleAvoider:
     def __init__(self, obstacle: HierarchyObstacle):
@@ -94,8 +95,8 @@ class MultiObstacleAvoider:
 
     @property
     def n_components(self) -> int:
-        return self.obstacle.n_components   
-    
+        return self.obstacle.n_components
+
     def get_tangent_direction(
         self,
         position: Vector,
@@ -268,7 +269,7 @@ class MultiEllipseObstacle(Obstacle):
 
     # def get_obstacle_list(self) -> ObstacleContainer:
     #     return self._obstacle_list
-    
+
     def get_component(self, idx_obs) -> Obstacle:
         return self._obstacle_list[idx_obs]
 
@@ -303,7 +304,7 @@ class MultiEllipseObstacle(Obstacle):
     def delete_item(self, obs_id: int):
         raise NotImplementedError()
 
-    def get_parent_idx(self, idx_obs: int) -> int:
+    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
         return self._parent_list[idx_obs]
 
     def get_linearized_velocity(self, position):
