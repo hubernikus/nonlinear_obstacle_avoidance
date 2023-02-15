@@ -355,21 +355,36 @@ def test_2d_human(visualize=False):
         robot=None,
     )
 
+    distance_scaling = 10
+
     new_human.set_root(
-        Cuboid(axes_length=[0.4, 0.5], center_position=np.zeros(dimension)),
+        Cuboid(
+            axes_length=[0.4, 0.7],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="body",
     )
+    new_human[-1].set_reference_point(np.array([0, -0.3]), in_global_frame=False)
 
     new_human.add_limb(
-        Ellipse(axes_length=[0.12, 0.3], center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=[0.12, 0.3],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="neck",
         parent_name="body",
         reference_position=[0.0, -0.10],
-        parent_reference_position=[0.0, 0.20],
+        parent_reference_position=[0.0, 0.30],
     )
 
     new_human.add_limb(
-        Ellipse(axes_length=[0.2, 0.3], center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=[0.2, 0.3],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="head",
         parent_name="neck",
         reference_position=[0.0, 0.0],
@@ -377,15 +392,23 @@ def test_2d_human(visualize=False):
     )
 
     new_human.add_limb(
-        Ellipse(axes_length=upper_arm_axes, center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="upperarm1",
         parent_name="body",
         reference_position=[-0.2, 0],
-        parent_reference_position=[0.15, 0.2],
+        parent_reference_position=[0.15, 0.3],
     )
 
     new_human.add_limb(
-        Ellipse(axes_length=lower_arm_axes, center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="lowerarm1",
         parent_name="upperarm1",
         reference_position=[-0.18, 0],
@@ -393,15 +416,23 @@ def test_2d_human(visualize=False):
     )
 
     new_human.add_limb(
-        Ellipse(axes_length=upper_arm_axes, center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="upperarm2",
         parent_name="body",
         reference_position=[0.2, 0],
-        parent_reference_position=[-0.15, 0.2],
+        parent_reference_position=[-0.15, 0.3],
     )
 
     new_human.add_limb(
-        Ellipse(axes_length=lower_arm_axes, center_position=np.zeros(dimension)),
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
         name="lowerarm2",
         parent_name="upperarm2",
         reference_position=[0.18, 0],
@@ -423,11 +454,11 @@ def test_2d_human(visualize=False):
     linearized_velociy = np.array([1.0, 0.0])
 
     if visualize:
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(10, 6))
 
         x_lim = [-1.3, 1.3]
         y_lim = [-0.25, 1.2]
-        n_grid = 10
+        n_grid = 20
 
         plot_obstacles(
             obstacle_container=new_human._obstacle_list,
@@ -460,11 +491,23 @@ def test_2d_human(visualize=False):
             # vectorfield_color=vf_color,
         )
 
-    position = np.array([-1.3, -0.25])
+    position = np.array([-0.3, -0.0])
     averaged_direction = multibstacle_avoider.get_tangent_direction(
         position, velocity, linearized_velociy
     )
-    assert averaged_direction[0] > 0 and averaged_direction[1] > 0
+    assert averaged_direction[1] > 0
+
+    position = np.array([-0.6, 1.0])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] > 0
+
+    position = np.array([0.4, 0.0])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[1] < 0
 
 
 def test_2d_blocky_arch(visualize=False):
@@ -570,5 +613,5 @@ if (__name__) == "__main__":
     # plt.close("all")
     plt.ion()
 
-    test_2d_blocky_arch(visualize=False)
-    # test_2d_human(visualize=False)
+    # test_2d_blocky_arch(visualize=True)
+    test_2d_human(visualize=True)
