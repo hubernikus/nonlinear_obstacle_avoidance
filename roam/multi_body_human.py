@@ -20,6 +20,7 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from roam.rigid_body import RigidBody
+from roam.multi_ellipse_obstacle import MultiObstacleAvoider
 
 
 def plot_3d_cuboid(ax, cube: Cuboid, color="green"):
@@ -327,6 +328,19 @@ class MultiBodyHuman:
         if self.visualization_handler is not None:
             self.visualization_handler.update(self._obstacle_list)
 
+    def get_gamma(self, position: Vector, in_global_frame: bool = True) -> bool:
+        # in_global_frame is not used but kept for compatibility
+
+        # Get minimum gamma
+        gammas = np.zeros(self.n_components)
+
+        for ii in range(self.n_components):
+            gammas[ii] = self._obstacle_list[ii].get_gamma(
+                position, in_global_frame=True
+            )
+
+        return np.min(gammas)
+
 
 def test_2d_human(visualize=False):
     upper_arm_axes = [0.5, 0.18]
@@ -402,11 +416,18 @@ def test_2d_human(visualize=False):
     # new_human.set_orientation(idx_obs, orientation=)
     new_human.align_position_with_parent(idx_obs)
 
+    multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
+
+    # First with (very) simple dyn
+    velocity = np.array([1.0, 0.0])
+    linearized_velociy = np.array([1.0, 0.0])
+
     if visualize:
         fig, ax = plt.subplots(figsize=(6, 5))
 
         x_lim = [-1.3, 1.3]
         y_lim = [-0.25, 1.2]
+        n_grid = 10
 
         plot_obstacles(
             obstacle_container=new_human._obstacle_list,
@@ -418,6 +439,25 @@ def test_2d_human(visualize=False):
             # reference_point_number=True,
             # show_obstacle_number=True,
             # ** kwargs,
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                new_human.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            # obstacle_container=triple_ellipses._obstacle_list,
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
+                x, velocity, linearized_velociy
+            ),
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=False,
+            # vectorfield_color=vf_color,
         )
 
 

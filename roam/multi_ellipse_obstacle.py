@@ -174,9 +174,9 @@ class MultiObstacleAvoider:
         base_velocity: np.ndarray,
     ) -> None:
         # TODO: predict at start the size (slight speed up)
-        surface_points: list[Vector] = [position]
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
+        surface_points: list[Vector] = [position]
         parents_tree: list[int] = [obs_id]
 
         obs = self.obstacle.get_component(obs_id)
@@ -204,7 +204,7 @@ class MultiObstacleAvoider:
             ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
 
             intersection = get_intersection_with_ellipse(
-                position, ref_dir, obs_parent, in_global_frame=True
+                surface_points[-1], ref_dir, obs_parent, in_global_frame=True
             )
 
             if intersection is None:
@@ -619,16 +619,99 @@ def test_orthonormal_tangent_finding():
     assert np.allclose(tangent_rot, tangent_matr)
 
 
-def test_three_branch_two_body_obstacle(visualize=False):
-    upper_arm_axes = [0.5, 0.18]
-    lower_arm_axes = [0.4, 0.14]
-    head_dimension = [0.2, 0.3]
-
-    opti_human.set_root(
-        Cuboid(axes_length=[0.4, 0.15, 0.5], center_position=np.zeros(3)),
-        name="body",
-        optitrack_id=id_body,
+def test_tree_with_two_children(visualize=False, savefig=False):
+    """This is a rather uncommon configuration as the vectorfield has to traverse back
+    since the root obstacle is not at the center."""
+    triple_ellipses = MultiEllipseObstacle()
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([-3.4, 3.4]),
+            axes_length=np.array([8, 3.0]),
+            orientation=90 * math.pi / 180.0,
+        )
     )
+
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([0, 0]),
+            axes_length=np.array([8, 3.0]),
+            orientation=0,
+        )
+    )
+
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([3.4, 3.4]),
+            axes_length=np.array([8, 3.0]),
+            orientation=-90 * math.pi / 180.0,
+        )
+    )
+
+    triple_ellipses.set_root(obs_id=0)
+    triple_ellipses.set_parent(obs_id=1, parent_id=0)
+    triple_ellipses.set_parent(obs_id=2, parent_id=1)
+
+    multibstacle_avoider = MultiObstacleAvoider(obstacle=triple_ellipses)
+
+    velocity = np.array([1.0, 0])
+    linearized_velociy = np.array([1.0, 0])
+
+    if visualize:
+        figsize = (10, 5)
+        x_lim = [-12, 12]
+        y_lim = [-5, 12.5]
+
+        n_grid = 40
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_obstacles(
+            obstacle_container=triple_ellipses._obstacle_list,
+            ax=ax,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            draw_reference=True,
+            noTicks=True,
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                triple_ellipses.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            # obstacle_container=triple_ellipses._obstacle_list,
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
+                x, velocity, linearized_velociy
+            ),
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=False,
+            # vectorfield_color=vf_color,
+        )
+
+        if savefig:
+            figname = "triple_ellipses_childeschild_obstacle_facewards"
+            plt.savefig(
+                "figures/" + "rotated_dynamics_" + figname + figtype,
+                bbox_inches="tight",
+            )
+
+    # On the surface of the first obstacle
+    position = np.array([-4.84, 4.68])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] > 0 and averaged_direction[1] > 0
+
+    # On the surface of the last one -> velocity has to go up to the root (!)
+    position = np.array([2.15, 5.77])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] < 0 and averaged_direction[1] < 0
 
 
 if (__name__) == "__main__":
@@ -645,9 +728,10 @@ if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
-    test_orthonormal_tangent_finding()
+    test_tree_with_two_children(visualize=False, savefig=False)
 
-    test_tripple_ellipse_in_the_face(visualize=True, svafig=False)
+    test_orthonormal_tangent_finding()
+    test_tripple_ellipse_in_the_face(visualize=False, savefig=False)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
