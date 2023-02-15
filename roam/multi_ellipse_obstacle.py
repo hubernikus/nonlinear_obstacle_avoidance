@@ -40,6 +40,7 @@ def get_intersection_with_ellipse(
     in_global_frame: bool = False,
     intersection_type=CircleIntersectionType.CLOSE,
 ) -> Optional[np.ndarray]:
+    # Depreciated -> this has been integrated in the EllipseWithAxes class.
     if in_global_frame:
         # Currently only implemented for ellipse
         position = ellipse.pose.transform_position_to_relative(position)
