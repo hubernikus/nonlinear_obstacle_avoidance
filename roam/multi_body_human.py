@@ -86,7 +86,7 @@ def plot_3d_ellipsoid(ax, ellipse: Ellipse):
 
 
 # class HumanTrackContainer(Obstacle):
-class MultiBodyHuman:
+class MultiBodyObstacle:
     dimension = 3
 
     def __init__(
@@ -186,7 +186,7 @@ class MultiBodyHuman:
     def get_update_id(self, idx_node: int) -> int:
         return self._graph.nodes[idx_node]["update_id"]
 
-    def add_limb(
+    def add_component(
         self,
         obstacle: Obstacle,
         name: str,
@@ -342,14 +342,14 @@ class MultiBodyHuman:
         return np.min(gammas)
 
 
-def test_2d_human(visualize=False):
+def create_2d_human():
     upper_arm_axes = [0.5, 0.18]
     lower_arm_axes = [0.4, 0.14]
     head_dimension = [0.2, 0.3]
 
     dimension = 2
 
-    new_human = MultiBodyHuman(
+    new_human = MultiBodyObstacle(
         visualization_handler=None,
         pose_updater=None,
         robot=None,
@@ -367,19 +367,19 @@ def test_2d_human(visualize=False):
     )
     new_human[-1].set_reference_point(np.array([0, -0.3]), in_global_frame=False)
 
-    new_human.add_limb(
-        Ellipse(
-            axes_length=[0.12, 0.3],
+    new_human.add_component(
+        Cuboid(
+            axes_length=[0.12, 0.12],
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
         name="neck",
         parent_name="body",
-        reference_position=[0.0, -0.10],
+        reference_position=[0.0, -0.05],
         parent_reference_position=[0.0, 0.30],
     )
 
-    new_human.add_limb(
+    new_human.add_component(
         Ellipse(
             axes_length=[0.2, 0.3],
             center_position=np.zeros(dimension),
@@ -387,11 +387,11 @@ def test_2d_human(visualize=False):
         ),
         name="head",
         parent_name="neck",
-        reference_position=[0.0, 0.0],
-        parent_reference_position=[0.0, 0.11],
+        reference_position=[0.0, -0.12],
+        parent_reference_position=[0.0, 0.05],
     )
 
-    new_human.add_limb(
+    new_human.add_component(
         Ellipse(
             axes_length=upper_arm_axes,
             center_position=np.zeros(dimension),
@@ -403,7 +403,7 @@ def test_2d_human(visualize=False):
         parent_reference_position=[0.15, 0.3],
     )
 
-    new_human.add_limb(
+    new_human.add_component(
         Ellipse(
             axes_length=lower_arm_axes,
             center_position=np.zeros(dimension),
@@ -415,7 +415,7 @@ def test_2d_human(visualize=False):
         parent_reference_position=[0.2, 0],
     )
 
-    new_human.add_limb(
+    new_human.add_component(
         Ellipse(
             axes_length=upper_arm_axes,
             center_position=np.zeros(dimension),
@@ -427,7 +427,7 @@ def test_2d_human(visualize=False):
         parent_reference_position=[-0.15, 0.3],
     )
 
-    new_human.add_limb(
+    new_human.add_component(
         Ellipse(
             axes_length=lower_arm_axes,
             center_position=np.zeros(dimension),
@@ -441,11 +441,18 @@ def test_2d_human(visualize=False):
 
     new_human.update()
 
-    # Set arm-orientation
     idx_obs = new_human.get_obstacle_id_from_name("lowerarm1")
     new_human[idx_obs].orientation = 70 * np.pi / 180
     # new_human.set_orientation(idx_obs, orientation=)
     new_human.align_position_with_parent(idx_obs)
+
+    return new_human
+
+
+def test_2d_human(visualize=False):
+    # Set arm-orientation
+
+    new_human = create_2d_human()
 
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
 
@@ -513,7 +520,7 @@ def test_2d_human(visualize=False):
 def test_2d_blocky_arch(visualize=False):
     dimension = 2
 
-    multi_block = MultiBodyHuman(
+    multi_block = MultiBodyObstacle(
         visualization_handler=None,
         pose_updater=None,
         robot=None,
@@ -524,7 +531,7 @@ def test_2d_blocky_arch(visualize=False):
         name=0,
     )
 
-    multi_block.add_limb(
+    multi_block.add_component(
         Cuboid(axes_length=[4.0, 1.0], center_position=np.zeros(dimension)),
         name=1,
         parent_name=0,
@@ -532,7 +539,7 @@ def test_2d_blocky_arch(visualize=False):
         parent_reference_position=[0.0, 1.5],
     )
 
-    multi_block.add_limb(
+    multi_block.add_component(
         Cuboid(axes_length=[4.0, 1.0], center_position=np.zeros(dimension)),
         name=1,
         parent_name=0,
