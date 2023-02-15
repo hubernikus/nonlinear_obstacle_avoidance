@@ -435,9 +435,9 @@ def test_2d_human(visualize=False):
             x_lim=x_lim,
             y_lim=y_lim,
             draw_reference=True,
-            noTicks=True,
+            noTicks=False,
             # reference_point_number=True,
-            # show_obstacle_number=True,
+            show_obstacle_number=True,
             # ** kwargs,
         )
 
@@ -459,6 +459,12 @@ def test_2d_human(visualize=False):
             show_ticks=False,
             # vectorfield_color=vf_color,
         )
+
+    position = np.array([-1.3, -0.25])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    breakpoint()
 
 
 if (__name__) == "__main__":

@@ -34,7 +34,11 @@ from roam.datatypes import Vector
 
 
 def get_intersection_with_ellipse(
-    position, direction, ellipse: Ellipse, in_global_frame: bool = False
+    position,
+    direction,
+    ellipse: Ellipse,
+    in_global_frame: bool = False,
+    intersection_type=CircleIntersectionType.CLOSE,
 ) -> Optional[np.ndarray]:
     if in_global_frame:
         # Currently only implemented for ellipse
@@ -50,7 +54,7 @@ def get_intersection_with_ellipse(
         start_position=rel_pos,
         direction=rel_dir,
         radius=0.5,
-        intersection_type=CircleIntersectionType.CLOSE,
+        intersection_type=intersection_type,
     )
 
     if surface_rel_pos is None:
@@ -185,6 +189,9 @@ class MultiObstacleAvoider:
             obs.get_reference_direction(position, in_global_frame=True)
         ]
 
+        print("obs_id", obs_id)
+        print("position", position)
+
         while parents_tree[-1] != self.obstacle.root_id:
             obs = self.obstacle.get_component(parents_tree[-1])
 
@@ -203,10 +210,14 @@ class MultiObstacleAvoider:
             obs_parent = self.obstacle.get_component(new_id)
             ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
 
-            intersection = get_intersection_with_ellipse(
-                surface_points[-1], ref_dir, obs_parent, in_global_frame=True
+            # intersection = get_intersection_with_ellipse(
+            #     surface_points[-1], ref_dir, obs_parent, in_global_frame=True
+            # )
+            intersection = obs_parent.get_intersection_with_surface(
+                surface_points[-1], ref_dir, in_global_frame=True
             )
 
+            print(surface_points)
             if intersection is None:
                 raise Exception()
 
@@ -728,10 +739,11 @@ if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
-    test_tree_with_two_children(visualize=False, savefig=False)
+    test_two_rectangle_obstacle(visualize=False, savefig=False)
 
+    test_tree_with_two_children(visualize=False, savefig=False)
     test_orthonormal_tangent_finding()
-    test_tripple_ellipse_in_the_face(visualize=False, savefig=False)
+    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
