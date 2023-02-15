@@ -97,16 +97,22 @@ class MultiObstacleAvoider:
     def n_components(self) -> int:
         return self.obstacle.n_components
 
+    def avoid(
+        self,
+        position: Vector,
+        velocity: Vector,
+        convergence_direction: Optional[Vector] = None,
+    ) -> Vector:
+        return self.get_tangent_direction(position, velocity, convergence_direction)
+
     def get_tangent_direction(
         self,
         position: Vector,
         velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
-        # obstacle_list: Optional[ObstacleContainer] = None,
-    ):
+    ) -> Vector:
         # if obstacle_list is None:
         #     obstacle_list = self.obstacle.get_obstacle_list()
-
         if linearized_velocity is None:
             root_obs = self.obstacle.get_component(self.obstacle.root_id)
             base_velocity = self.get_linearized_velocity(
@@ -613,6 +619,18 @@ def test_orthonormal_tangent_finding():
     assert np.allclose(tangent_rot, tangent_matr)
 
 
+def test_three_branch_two_body_obstacle(visualize=False):
+    upper_arm_axes = [0.5, 0.18]
+    lower_arm_axes = [0.4, 0.14]
+    head_dimension = [0.2, 0.3]
+
+    opti_human.set_root(
+        Cuboid(axes_length=[0.4, 0.15, 0.5], center_position=np.zeros(3)),
+        name="body",
+        optitrack_id=id_body,
+    )
+
+
 if (__name__) == "__main__":
     # figtype = ".png"
     figtype = ".pdf"
@@ -629,7 +647,7 @@ if (__name__) == "__main__":
 
     test_orthonormal_tangent_finding()
 
-    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
+    test_tripple_ellipse_in_the_face(visualize=True, svafig=False)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
