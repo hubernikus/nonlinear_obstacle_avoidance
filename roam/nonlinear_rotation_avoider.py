@@ -129,11 +129,10 @@ class NonlinearRotationalAvoider(BaseAvoider):
 
     def evaluate(self, position, **kwargs):
         initial_velocity = self.evaluate_initial_dynamics(position)
-        # breakpoint()
         local_convergence_velocity = self.evaluate_weighted_dynamics(
             position, initial_velocity
         )
-        # breakpoint()
+
         return self._rotation_avoider.avoid(
             position=position,
             initial_velocity=initial_velocity,

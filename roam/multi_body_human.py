@@ -20,7 +20,7 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from roam.rigid_body import RigidBody
-from roam.multi_ellipse_obstacle import MultiObstacleAvoider
+from roam.multi_obstacle_avoider import MultiObstacleAvoider
 
 
 def plot_3d_cuboid(ax, cube: Cuboid, color="green"):
@@ -449,11 +449,9 @@ def create_2d_human():
     return new_human
 
 
-def test_2d_human(visualize=False):
+def test_2d_human_with_linear(visualize=False):
     # Set arm-orientation
-
     new_human = create_2d_human()
-
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
 
     # First with (very) simple dyn
@@ -515,6 +513,57 @@ def test_2d_human(visualize=False):
         position, velocity, linearized_velociy
     )
     assert averaged_direction[1] < 0
+
+
+def test_2d_human_with_circular(visualize=False):
+    # Set arm-orientation
+    new_human = create_2d_human()
+    multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
+
+    # First with (very) simple dynanmic
+    initial_dynamics = SimpleCircularDynamics(
+        radius=1.0, pose=np.zeros(1, 1), orientation=30.0 / 180 * np.pi
+    )
+
+    if visualize:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        x_lim = [-1.3, 1.3]
+        y_lim = [-0.25, 1.2]
+        n_grid = 20
+
+        plot_obstacles(
+            obstacle_container=new_human._obstacle_list,
+            ax=ax,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            draw_reference=True,
+            noTicks=False,
+            # reference_point_number=True,
+            show_obstacle_number=True,
+            # ** kwargs,
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                new_human.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            # obstacle_container=triple_ellipses._obstacle_list,
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
+                x, velocity, linearized_velociy
+            ),
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=False,
+            # vectorfield_color=vf_color,
+        )
+
+    pass
 
 
 def test_2d_blocky_arch(visualize=False):
