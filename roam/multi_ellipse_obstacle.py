@@ -169,6 +169,7 @@ class MultiObstacleAvoider:
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
+        # breakpoint()
 
         return weighted_tangent
 
@@ -189,9 +190,6 @@ class MultiObstacleAvoider:
         reference_directions = [
             obs.get_reference_direction(position, in_global_frame=True)
         ]
-
-        print("obs_id", obs_id)
-        print("position", position)
 
         while parents_tree[-1] != self.obstacle.root_id:
             obs = self.obstacle.get_component(parents_tree[-1])
@@ -218,8 +216,10 @@ class MultiObstacleAvoider:
                 surface_points[-1], ref_dir, in_global_frame=True
             )
 
-            print(surface_points)
             if intersection is None:
+                # TODO: This should probably never happen -> remove?
+                # but for now easier to debug / catch (other) errors early
+                breakpoint()
                 raise Exception()
 
             surface_points.append(intersection)
@@ -246,6 +246,9 @@ class MultiObstacleAvoider:
             direction=tangent,
         )
 
+        # if obs_id == 1:
+        #     breakpoint()
+
         # Iterate over all but last one
         for ii in reversed(range(len(parents_tree) - 1)):
             rel_id = parents_tree[ii]
@@ -267,6 +270,9 @@ class MultiObstacleAvoider:
                 parent_id=(obs_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
+
+            # if obs_id == 1:
+            # breakpoint()
 
 
 class MultiEllipseObstacle(Obstacle):
@@ -726,6 +732,39 @@ def test_tree_with_two_children(visualize=False, savefig=False):
     assert averaged_direction[0] < 0 and averaged_direction[1] < 0
 
 
+def test_rectangle_obstacle():
+    """This is a rather uncommon configuration as the vectorfield has to traverse back
+    since the root obstacle is not at the center."""
+    triple_ellipses = MultiEllipseObstacle()
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([-3.4, 3.4]),
+            axes_length=np.array([8, 3.0]),
+            orientation=90 * math.pi / 180.0,
+        )
+    )
+
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([0, 0]),
+            axes_length=np.array([8, 3.0]),
+            orientation=0,
+        )
+    )
+
+    triple_ellipses.append(
+        Ellipse(
+            center_position=np.array([3.4, 3.4]),
+            axes_length=np.array([8, 3.0]),
+            orientation=-90 * math.pi / 180.0,
+        )
+    )
+
+    triple_ellipses.set_root(obs_id=0)
+    triple_ellipses.set_parent(obs_id=1, parent_id=0)
+    triple_ellipses.set_parent(obs_id=2, parent_id=1)
+
+
 if (__name__) == "__main__":
     # figtype = ".png"
     figtype = ".pdf"
@@ -739,8 +778,6 @@ if (__name__) == "__main__":
 
     plt.close("all")
     plt.ion()
-
-    test_two_rectangle_obstacle(visualize=False, savefig=False)
 
     test_tree_with_two_children(visualize=False, savefig=False)
     test_orthonormal_tangent_finding()
