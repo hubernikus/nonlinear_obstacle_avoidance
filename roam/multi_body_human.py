@@ -360,7 +360,7 @@ def create_2d_human():
         robot=None,
     )
 
-    distance_scaling = 10
+    distance_scaling = 3
 
     new_human.set_root(
         Cuboid(
@@ -696,5 +696,5 @@ if (__name__) == "__main__":
     plt.ion()
 
     # test_2d_blocky_arch(visualize=True)
-    test_2d_human_with_linear(visualize=True)
-    # test_2d_human_with_circular(visualize=True)
+    # test_2d_human_with_linear(visualize=True)
+    test_2d_human_with_circular(visualize=True)
