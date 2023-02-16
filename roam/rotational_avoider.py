@@ -56,7 +56,7 @@ class RotationalAvoider(BaseAvoider):
         cut_off_gamma: float = 1e6,
         tail_rotation: bool = False,
         convergence_radius: float = math.pi / 2.0,
-    ):
+    ) -> None:
         """Initial dynamics, convergence direction and obstacle list are used."""
         super().__init__(
             initial_dynamics=initial_dynamics, obstacle_environment=obstacle_environment
@@ -87,11 +87,11 @@ class RotationalAvoider(BaseAvoider):
     def avoid(
         self,
         position: np.ndarray,
-        initial_velocity: np.ndarray = None,
-        obstacle_list: list = None,
-        convergence_velocity: np.ndarray = None,
+        initial_velocity: Optional[np.ndarray] = None,
+        obstacle_list: Optional[list] = None,
+        convergence_velocity: Optional[np.ndarray] = None,
         sticky_surface: bool = True,
-        convergence_radius: float = None,
+        convergence_radius: Optional[float] = None,
     ) -> np.ndarray:
         """Obstacle avoidance based on 'local' rotation and the directional weighted mean.
 
@@ -556,8 +556,9 @@ class RotationalAvoider(BaseAvoider):
         convergence_radius: float = math.pi / 2,
     ) -> Vector:
         if np.dot(initial_vector, normal) > np.cos(convergence_radius):
-            # This if switch is continuous as it happens when the initial_vector
-            # is on the surface of the circle
+            # Switch the circle-basis
+            # Note: This switch is continuous as it happens when the initial_vector
+            # is on the surface of the circle-boundary
             base = get_orthogonal_basis(normal)
             angle_ref = get_angle_from_vector((-1) * reference, base=base)
         else:
@@ -591,7 +592,6 @@ class RotationalAvoider(BaseAvoider):
 
         Similar behavior as 'get_projected_tangent_from_vectors' but angle/unit direction input.
         This function may be removed in the future (!).
-
         """
 
         if not (dir_convergence - dir_reference).norm():
@@ -664,13 +664,46 @@ class RotationalAvoider(BaseAvoider):
         # Weight which ensures continuity at far end
         return w_conv * dir_tangent + (1 - w_conv) * dir_convergence
 
+    @staticmethod
+    def get_rotation_weight(
+        normal_vector: np.ndarray,
+        reference_vector: np.ndarray,
+        convergence_vector: np.ndarray,
+        convergence_radius: float,
+        gamma_value: float,
+        smooth_continuation_power: float,
+        radius_base: float = math.pi * 0.5,
+    ) -> float:
+        # Max effect when on the surface
+        if gamma_value <= 1.0:
+            return 1.0
+
+        if np.dot(convergence_vector, normal_vector) > np.cos(convergence_radius):
+            # Switch the circle-basis
+            # Note: This switch is continuous as it happens when the initial_vector
+            # is on the surface of the circle-boundary
+            base = get_orthogonal_basis(normal_vector)
+            angle_ref = get_angle_from_vector((-1) * reference_vector, base=base)
+        else:
+            base = get_orthogonal_basis((-1) * normal_vector)
+            angle_ref = get_angle_from_vector(reference_vector, base=base)
+
+        # angle_ref = get_angle_from_vector(reference_vector, base=base)
+        angle_conv = get_angle_from_vector(convergence_vector, base=base)
+
+        delta_angle = float(LA.norm(angle_ref - angle_conv))
+        ref_radius = max(radius_base, convergence_radius)
+        rotation_power = min(1.0, delta_angle / ref_radius) ** smooth_continuation_power
+
+        return (1.0 / gamma_value) ** rotation_power
+
     def directional_convergence_summing(
         self,
         convergence_vector: np.ndarray,
         reference_vector: np.ndarray,
         base: np.ndarray,
         weight: float,
-        nonlinear_velocity: np.ndarray = None,
+        nonlinear_velocity: Optional[np.ndarray] = None,
         convergence_radius: float = math.pi / 2,
     ) -> UnitDirection:
         """Rotating / modulating a vector by using directional space.
@@ -713,7 +746,7 @@ class RotationalAvoider(BaseAvoider):
                 continuation_weight = (
                     continuation_weight**self.smooth_continuation_power
                 )
-                weight = weight ** (1 / continuation_weight)
+                weight = weight ** (1.0 / continuation_weight)
 
         if (
             LA.norm(dir_convergence.as_angle()) < convergence_radius
@@ -738,8 +771,10 @@ class RotationalAvoider(BaseAvoider):
         if False:
             angle_margin = math.pi * 0.7
             ang_min = math.pi * 0.5
+
             if (ang_norm := LA.norm(dir_initial.as_angle())) >= angle_margin:
                 return dir_initial.as_vector()
+
             elif ang_norm > math.pi * ang_min:
                 weight = weight * (1 - (ang_norm - ang_min) / (angle_margin - ang_min))
                 #     return dir_initial.as_vector()
@@ -770,5 +805,5 @@ class RotationalAvoider(BaseAvoider):
             weights=np.array([weight, (1 - weight)]),
             directions=np.vstack((conv_vector, dir_initial.as_vector())).T,
         )
-        # breakpoint()
+
         return rotated_velocity

@@ -44,17 +44,25 @@ class HierarchyObstacle(Protocol):
 
 
 class MultiObstacleAvoider:
+    """Obstacle Avoider which can take a 'multi-obstacle' as an input."""
+
+    # TODO: future implementation should include multiple obstacles
     def __init__(
         self,
         obstacle: HierarchyObstacle,
         initial_dynamics: Optional[DynamicalSystem] = None,
         convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
+        convergence_radius: float = math.pi * 0.2,
+        smooth_continuation_power: float = 0.0,
     ):
         if initial_dynamics is not None:
             self.initial_dynamics = initial_dynamics
 
         if convergence_dynamics is not None:
             self.convergence_dynamics = convergence_dynamics
+
+        self.convergence_radius = convergence_radius
+        self.smooth_continuation_power = smooth_continuation_power
 
         self.obstacle = obstacle
 
@@ -85,28 +93,47 @@ class MultiObstacleAvoider:
         self,
         position: Vector,
         velocity: Vector,
-        linearized_velocity: Optional[Vector] = None,
+        linearized_velocity: Vector,
+        # linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
-        # if obstacle_list is None:
-        #     obstacle_list = self.obstacle.get_obstacle_list()
-        if linearized_velocity is None:
-            root_obs = self.obstacle.get_component(self.obstacle.root_id)
-            base_velocity = self.get_linearized_velocity(
-                # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
-                root_obs.get_reference_point(in_global_frame=True)
-            )
-        else:
-            base_velocity = linearized_velocity
+        # if linearized_velocity is None:
+        #     root_obs = self.obstacle.get_component(self.obstacle.root_id)
+
+        #     base_velocity = self.get_linearized_velocity(
+        #         # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
+        #         root_obs.get_reference_point(in_global_frame=True)
+        #     )
+        # else:
+        base_velocity = linearized_velocity
 
         gamma_values = np.zeros(self.obstacle.n_components)
-        # for ii, obs in enumerate(obstacle_list):
         for ii in range(self.obstacle.n_components):
             obs = self.obstacle.get_component(ii)
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
 
         gamma_weights = compute_weights(gamma_values)
 
-        # lambda_values = np.zeros(self.n_components)
+        # Get convergence direction
+        idx_root = self.obstacle.root_id
+        normal = self.obstacle.get_component(idx_root).get_normal_direction(
+            position, in_global_frame=True
+        )
+        reference = self.obstacle.get_component(idx_root).get_reference_direction(
+            position, in_global_frame=True
+        )
+
+        # Evaluate rotation weight, to ensure smoothness in space (!)
+        rotation_weight = RotationalAvoider.get_rotation_weight(
+            normal_vector=normal,
+            reference_vector=reference,
+            convergence_vector=linearized_velocity,
+            convergence_radius=self.convergence_radius,
+            gamma_value=min(gamma_values),
+            smooth_continuation_power=self.smooth_continuation_power,
+        )
+        # print("rotation_weight", rotation_weight)
+        # gamma_weights = gamma_weights * rotation_weight
+
         self._tangent_tree = VectorRotationTree()
         self._tangent_tree.set_root(
             root_id=self._BASE_VEL_ID,
@@ -118,10 +145,9 @@ class MultiObstacleAvoider:
             direction=base_velocity,
         )
 
-        # The base node (initial velocity)
+        # The base node should be equal to the (initial velocity)
         node_list = [self._BASE_VEL_ID]
 
-        # for obs_id in it.filterfalse(lambda x: x <= 0, range(len(obstacle_list))):
         for obs_id in range(self.obstacle.n_components):
             if gamma_weights[obs_id] <= 0:
                 continue
@@ -632,7 +658,7 @@ if (__name__) == "__main__":
         plot_obstacle_dynamics,
     )
 
-    plt.close("all")
+    # plt.close("all")
     plt.ion()
 
     test_tree_with_two_children(visualize=False, savefig=False)
