@@ -775,7 +775,7 @@ def _test_circular_dynamics_with_two_circles(
     rotation_projector = ProjectedRotationDynamics(
         attractor_position=circular_ds.pose.position,
         initial_dynamics=circular_ds,
-        reference_velocity=lambda x: x - center_velocity.center_position,
+        reference_velocity=lambda x: x - circular_ds.center_position,
     )
 
     obstacle_avoider = NonlinearRotationalAvoider(

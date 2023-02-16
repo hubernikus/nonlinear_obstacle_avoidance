@@ -7,8 +7,6 @@ for now limited to 2D (in order to find intersections easily).
 import math
 from typing import Optional, Protocol
 
-# import itertools as it
-
 import numpy as np
 from numpy import linalg as LA
 
@@ -24,9 +22,8 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from roam.multi_ellipse_obstacle import MultiEllipseObstacle
 from roam.rotational_avoider import RotationalAvoider
 from roam.vector_rotation import VectorRotationTree
+from roam.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
 from roam.datatypes import Vector
-
-# from roam.geometry import get_intersection_of_obstacles
 
 
 class HierarchyObstacle(Protocol):
@@ -51,8 +48,14 @@ class MultiObstacleAvoider:
         self,
         obstacle: HierarchyObstacle,
         initial_dynamics: Optional[DynamicalSystem] = None,
-        convergence_dynamics: Optional[DynamicalSystem] = None,
+        convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
     ):
+        if initial_dynamics is not None:
+            self.initial_dynamics = initial_dynamics
+
+        if convergence_dynamics is not None:
+            self.convergence_dynamics = convergence_dynamics
+
         self.obstacle = obstacle
 
         # An ID number which does not co-inside with the obstacle
@@ -65,10 +68,17 @@ class MultiObstacleAvoider:
     def n_components(self) -> int:
         return self.obstacle.n_components
 
-    def evaluate(
-        self,
-        position: Vector,
-    ) -> Vector:
+    def evaluate(self, position: Vector) -> Vector:
+        velocity = self.initial_dynamics.evaluate(position)
+        # So far the convergence direction is only about the root-obstacle
+        # in the future, this needs to be extended such that the rotation is_updating
+        # ensured to be smooth (!)
+        convergence_direction = (
+            self.convergence_dynamics.evaluate_convergence_around_obstacle(
+                position, obstacle=self.obstacle.get_component(self.obstacle.root_id)
+            )
+        )
+
         return self.get_tangent_direction(position, velocity, convergence_direction)
 
     def get_tangent_direction(
@@ -126,12 +136,9 @@ class MultiObstacleAvoider:
 
         # Remaining weight to the initial velocity
         weights = np.hstack(([1 - np.sum(weights)], weights))
-
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
-        # breakpoint()
-
         return weighted_tangent
 
     def _update_tangent_branch(

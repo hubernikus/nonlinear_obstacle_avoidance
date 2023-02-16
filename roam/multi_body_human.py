@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation
 import networkx as nx
 
 from vartools.state_filters import PositionFilter, SimpleOrientationFilter
+from vartools.states import ObjectPose
 
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.obstacles import Obstacle
@@ -21,6 +22,10 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from roam.rigid_body import RigidBody
 from roam.multi_obstacle_avoider import MultiObstacleAvoider
+from roam.dynamics.circular_dynamics import SimpleCircularDynamics
+from roam.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
 
 
 def plot_3d_cuboid(ax, cube: Cuboid, color="green"):
@@ -521,8 +526,21 @@ def test_2d_human_with_circular(visualize=False):
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
 
     # First with (very) simple dynanmic
-    initial_dynamics = SimpleCircularDynamics(
-        radius=1.0, pose=np.zeros(1, 1), orientation=30.0 / 180 * np.pi
+    circular_ds = SimpleCircularDynamics(
+        radius=1.0,
+        pose=ObjectPose(position=np.array([1, 1]), orientation=30.0 / 180 * np.pi),
+    )
+
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=circular_ds.pose.position,
+        initial_dynamics=circular_ds,
+        reference_velocity=lambda x: x - circular_ds.pose.position,
+    )
+
+    multibstacle_avoider = MultiObstacleAvoider(
+        obstacle=new_human,
+        initial_dynamics=circular_ds,
+        convergence_dynamics=rotation_projector,
     )
 
     if visualize:
@@ -550,20 +568,20 @@ def test_2d_human_with_circular(visualize=False):
                 new_human.get_gamma(x, in_global_frame=True) <= 1
             ),
             # obstacle_container=triple_ellipses._obstacle_list,
-            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
-                x, velocity, linearized_velociy
-            ),
+            dynamics=multibstacle_avoider.evaluate,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
             do_quiver=True,
             # do_quiver=False,
             n_grid=n_grid,
-            show_ticks=False,
+            show_ticks=True,
             # vectorfield_color=vf_color,
         )
 
-    pass
+    position = np.array([-1.0, 0.0])
+    velocity = multibstacle_avoider.evaluate(position)
+    # breakpoint()
 
 
 def test_2d_blocky_arch(visualize=False):
@@ -670,4 +688,5 @@ if (__name__) == "__main__":
     plt.ion()
 
     # test_2d_blocky_arch(visualize=True)
-    test_2d_human(visualize=True)
+    # test_2d_human_with_linear(visualize=True)
+    test_2d_human_with_circular(visualize=True)
