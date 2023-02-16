@@ -674,6 +674,7 @@ class RotationalAvoider(BaseAvoider):
         smooth_continuation_power: float,
         radius_base: float = math.pi * 0.5,
     ) -> float:
+        # TODO: the angle calculation could be done one level up (?)
         # Max effect when on the surface
         if gamma_value <= 1.0:
             return 1.0
@@ -684,17 +685,21 @@ class RotationalAvoider(BaseAvoider):
             # is on the surface of the circle-boundary
             base = get_orthogonal_basis(normal_vector)
             angle_ref = get_angle_from_vector((-1) * reference_vector, base=base)
+
         else:
             base = get_orthogonal_basis((-1) * normal_vector)
             angle_ref = get_angle_from_vector(reference_vector, base=base)
 
-        # angle_ref = get_angle_from_vector(reference_vector, base=base)
         angle_conv = get_angle_from_vector(convergence_vector, base=base)
-
         delta_angle = float(LA.norm(angle_ref - angle_conv))
-        ref_radius = max(radius_base, convergence_radius)
-        rotation_power = min(1.0, delta_angle / ref_radius) ** smooth_continuation_power
 
+        ref_radius = min(radius_base, convergence_radius) - LA.norm(angle_ref)
+
+        if ref_radius <= delta_angle:
+            return 1.0 / gamma_value
+
+        # rotation_power in [0, 1]
+        rotation_power = (delta_angle / ref_radius) ** smooth_continuation_power
         return (1.0 / gamma_value) ** rotation_power
 
     def directional_convergence_summing(

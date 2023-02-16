@@ -500,6 +500,14 @@ def test_2d_human_with_linear(visualize=False):
             show_ticks=False,
             # vectorfield_color=vf_color,
         )
+    position = np.array([-0.201, -0.2])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+
+    # assert (
+    #     averaged_direction[1] > 0 and abs(averaged_direction[0]) < 0.1
+    # ), "Not tangent to surface in front of obstacle."
 
     position = np.array([-0.3, -0.0])
     averaged_direction = multibstacle_avoider.get_tangent_direction(
@@ -688,5 +696,5 @@ if (__name__) == "__main__":
     plt.ion()
 
     # test_2d_blocky_arch(visualize=True)
-    # test_2d_human_with_linear(visualize=True)
-    test_2d_human_with_circular(visualize=True)
+    test_2d_human_with_linear(visualize=True)
+    # test_2d_human_with_circular(visualize=True)
