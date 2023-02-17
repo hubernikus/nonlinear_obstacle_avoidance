@@ -13,7 +13,7 @@ from vartools.dynamical_systems import LinearSystem
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from roam.rotation_container import RotationContainer
 
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 
 
 def single_ellipse_nonlinear(n_resolution=10, save_figure=False):

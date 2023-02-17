@@ -32,12 +32,12 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 from roam.rotation_container import RotationContainer
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
 
 # from dynamic_obstacle_avoidance.containers import ObstacleContainer
-from roam.kmeans_motion_learner import (
+from roam.kmeans_learner import (
     KMeansMotionLearner,
 )
 from roam.datatypes import Vector

@@ -32,25 +32,23 @@ from vartools.dynamical_systems import LinearSystem
 from vartools.handwritting_handler import HandwrittingHandler
 
 # from vartools.math import get_intersection_between_line_and_plane
-
 from roam.base_logger import logger
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
 from roam.vector_rotation import VectorRotationTree
-from roam.kmeans_obstacle import KMeansObstacle
-
 from roam.dynamics import MultiOutputSVR
 from roam.dynamics import DeviationOfConstantFlow
 from roam.dynamics import (
     PerpendicularDeviatoinOfLinearDS,
 )
-
 from roam.visualization import kmean_plotting
 
 # from roam.datatypes import VectorArray
-from roam.datatypes import Vector
 
+from .kmeans_obstacle import KMeansObstacle
+
+from roam.datatypes import Vector
 
 NodeType = int
 
@@ -178,7 +176,7 @@ class KMeansMotionLearner:
         # Create kmeans-obstacles
         self.region_obstacles = []
         for ii in range(self.n_clusters):
-            self.region_obstacles.append(create_kmeans_obstacle_from_learner(self, ii))
+            self.region_obstacles.append(create_kmeans_learner_from_learner(self, ii))
 
             # Assumption of only one predecessor (!)
             # TODO: several predecessors and successors (?!)
@@ -951,7 +949,7 @@ class KMeansMotionLearner:
         return kmean_plotting.plot_boundaries(self, *args, **kwargs)
 
 
-def create_kmeans_obstacle_from_learner(
+def create_kmeans_learner_from_learner(
     learner: KMeansMotionLearner, index: int
 ) -> KMeansObstacle:
     """Simple KMeans-factory.

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 # from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes
 from dynamic_obstacle_avoidance.obstacles import Ellipse
 from roam.rotation_container import RotationContainer
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 from roam.multihull_convergence import (
     multihull_attraction,
 )

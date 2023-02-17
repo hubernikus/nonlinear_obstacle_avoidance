@@ -32,8 +32,8 @@ from roam.multihull_convergence import (
 from roam.multihull_convergence import (
     multihull_attraction,
 )
-from roam.rotational_avoider import RotationalAvoider
-from roam.rotational_avoider import (
+from roam.avoidance import RotationalAvoider
+from vartools.math import (
     get_intersection_with_circle,
 )
 

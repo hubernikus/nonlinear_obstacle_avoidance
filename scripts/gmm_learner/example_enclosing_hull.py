@@ -16,7 +16,7 @@ from vartools.dynamical_systems import LinearSystem
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 from roam.rotation_container import RotationContainer
 from dynamic_obstacle_avoidance.visualization import (
     Simulation_vectorFields,

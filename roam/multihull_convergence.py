@@ -24,7 +24,7 @@ from vartools.directional_space import get_directional_weighted_sum
 
 from dynamic_obstacle_avoidance.utils import get_weight_from_inv_of_gamma
 
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 from roam.multiboundary_container import (
     MultiBoundaryContainer,
 )

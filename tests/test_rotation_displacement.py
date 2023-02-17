@@ -20,7 +20,7 @@ import matplotlib as mpl
 from vartools.directional_space import UnitDirection
 from vartools.directional_space.visualization import circular_space_setup
 
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 
 
 def visualize_displacements(

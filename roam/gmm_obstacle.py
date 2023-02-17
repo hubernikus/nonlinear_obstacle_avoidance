@@ -30,7 +30,7 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 from roam.graph_handler import GraphHandler
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 
 from roam.datatypes import Vector
 

@@ -34,14 +34,14 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.rotational_avoider import (
+from vartools.math import (
     get_intersection_with_circle,
 )
 from roam.rotation_container import RotationContainer
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 from roam.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
@@ -979,7 +979,7 @@ def _test_obstacle_and_hull_avoidance(visualize=False, save_figure=False):
         )
 
         if save_figure:
-            fig_name = "rotational_avoidance_obstacles_in_hull"
+            fig_name = "avoidance_obstacles_in_hull"
             fig.savefig("figures/" + fig_name + figtype, bbox_inches="tight")
 
 

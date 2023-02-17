@@ -29,21 +29,21 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
-from roam.rotational_avoider import (
+from vartools.math import (
     get_intersection_with_circle,
 )
 from roam.rotation_container import RotationContainer
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 
 from dynamic_obstacle_avoidance.visualization import Simulation_vectorFields
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 
 
-def _test_circle_following_rotational_avoidance(visualize=False):
+def _test_circle_following_avoidance(visualize=False):
     global_ds = CircularStable(radius=10, maximum_velocity=1)
 
     if visualize:
@@ -72,5 +72,5 @@ def _test_circle_following_rotational_avoidance(visualize=False):
 if (__name__) == "__main__":
     figtype = ".png"
 
-    _test_circle_following_rotational_avoidance(visualize=True)
+    _test_circle_following_avoidance(visualize=True)
     print("Tests done")

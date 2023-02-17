@@ -11,9 +11,9 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
-from roam import kmeans_motion_learner as kml
+from roam import kmeans_learner as kml
 
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
 
@@ -158,7 +158,7 @@ def plot_normals(ax, obstacle, x_lim=None, y_lim=None, n_grid=10):
 
 def plot_boundaries(kmeans_learner, ax, plot_attractor=False) -> None:
     for ii in range(kmeans_learner.kmeans.n_clusters):
-        tmp_obstacle = kml.create_kmeans_obstacle_from_learner(kmeans_learner, ii)
+        tmp_obstacle = kml.create_kmeans_learner_from_learner(kmeans_learner, ii)
 
         positions = tmp_obstacle.evaluate_surface_points()
         ax.plot(
@@ -365,7 +365,7 @@ def plot_gamma_of_learner(
     main_learner, x_lim, y_lim, hierarchy_passing_gamma=True, fig=None, ax=None
 ):
     """A local helper function to plot the gamma fields."""
-    # from roam.kmeans_obstacle import KMeansObstacle
+    # from roam.kmeans_learner import KMeansObstacle
 
     if ax is None:
         if fig is None:
@@ -377,7 +377,7 @@ def plot_gamma_of_learner(
 
     for ii in range(main_learner.kmeans.n_clusters):
         if hierarchy_passing_gamma:
-            region_obstacle = kml.create_kmeans_obstacle_from_learner(main_learner, ii)
+            region_obstacle = kml.create_kmeans_learner_from_learner(main_learner, ii)
 
         else:
             region_obstacle = kml.KMeansObstacle(

@@ -37,7 +37,7 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 
 from dynamic_obstacle_avoidance.avoidance import BaseAvoider
-from roam.rotational_avoider import (
+from roam.avoidance import (
     RotationalAvoider,
 )
 from roam.rotation_container import RotationContainer

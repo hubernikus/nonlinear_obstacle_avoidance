@@ -32,10 +32,10 @@ from roam.multiboundary_container import (
 )
 
 from roam.rotation_container import RotationContainer
-from roam.rotational_avoidance import (
+from roam.avoidance import (
     obstacle_avoidance_rotational,
 )
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 
 from dynamic_obstacle_avoidance.visualization import (
     Simulation_vectorFields,

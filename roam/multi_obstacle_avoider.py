@@ -22,7 +22,7 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from roam.multi_ellipse_obstacle import MultiEllipseObstacle
-from roam.rotational_avoider import RotationalAvoider
+from roam.avoidance import RotationalAvoider
 from roam.vector_rotation import VectorRotationTree
 from roam.datatypes import Vector
 

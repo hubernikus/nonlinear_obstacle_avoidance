@@ -22,10 +22,10 @@ import matplotlib.pyplot as plt
 
 from vartools.handwritting_handler import HandwrittingHandler
 
-# from roam.kmeans_obstacle import KMeansObstacle
-from roam.kmeans_motion_learner import (
+# from roam.kmeans_learner import KMeansObstacle
+from roam.kmeans_learner import (
     KMeansMotionLearner,
-    create_kmeans_obstacle_from_learner,
+    create_kmeans_learner_from_learner,
 )
 
 
@@ -293,7 +293,7 @@ def plot_snake_partial_motions(save_figure=False, fig_name="", data=None):
     # Analysis of specific cluster
     # index = 5
     index = 6
-    tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    tmp_obstacle = create_kmeans_learner_from_learner(main_learner, index)
 
     fig, ax = plt.subplots()
     # plot_normals(ax, tmp_obstacle)
@@ -322,7 +322,7 @@ def plot_snake_partial_motions(save_figure=False, fig_name="", data=None):
         fig.savefig("figures/" + fig_name + ".png", bbox_inches="tight")
 
     index = 0
-    tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    tmp_obstacle = create_kmeans_learner_from_learner(main_learner, index)
 
     position = np.array([-3.04769137, -0.12654154])
     ax.plot(position[0], position[1], "ro")
@@ -383,7 +383,7 @@ def plot_kmeans_messy_snake(save_figure=False, fig_name="", data=None):
         fig.savefig("figures/" + fig_name + ".png", bbox_inches="tight")
 
     index = 0
-    tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    tmp_obstacle = create_kmeans_learner_from_learner(main_learner, index)
 
     position = np.array([-3.04769137, -0.12654154])
     ax.plot(position[0], position[1], "ro")
@@ -466,7 +466,7 @@ def get_min_max_from_data(positions, range_fraction=0.5):
     return [x_min - delta_x, x_max + delta_x], [y_min - delta_y, y_max + delta_y]
 
 
-def create_kmeans_obstacle_physically_consistent(
+def create_kmeans_learner_physically_consistent(
     centers, save_figure=False, data_name="", figsize=None
 ):
     if len(data_name):
@@ -559,10 +559,10 @@ if (__name__) == "__main__":
         # Messy snake with Physically Consistent
         try:
             # priors, mu, sigma = plot_snake_partial_motions()
-            create_kmeans_obstacle_physically_consistent(mu, save_figure=True)
+            create_kmeans_learner_physically_consistent(mu, save_figure=True)
 
         except:
             priors, mu, sigma = plot_snake_partial_motions()
-            create_kmeans_obstacle_physically_consistent(mu, save_figure=True)
+            create_kmeans_learner_physically_consistent(mu, save_figure=True)
 
     print("Tests finished.")

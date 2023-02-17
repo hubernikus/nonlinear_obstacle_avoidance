@@ -654,18 +654,18 @@ def test_distributed_kmeans():
     main_learner = MotionLearnerThrougKMeans(data=datahandler)
 
     from roam.tests.test_kmeans_to_localstability import (
-        create_kmeans_obstacle_from_learner,
+        create_kmeans_learner_from_learner,
     )
 
     # Make sure surface point is close (much smaller than the surface)
     position = np.array([-2.5, 5])
     index = 0
-    tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    tmp_obstacle = create_kmeans_learner_from_learner(main_learner, index)
     surf_point = tmp_obstacle.get_point_on_surface(position, in_global_frame=True)
     assert LA.norm(surf_point - tmp_obstacle.center_position) < 2
 
     # index = 0
-    # tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    # tmp_obstacle = create_kmeans_learner_from_learner(main_learner, index)
     # position = np.array([-3.04769137, -0.12654154])
     # tmp_obstacle.radius = 1.6677169816152546
     # gamma = tmp_obstacle.get_gamma(position, in_global_frame=True)
@@ -673,7 +673,7 @@ def test_distributed_kmeans():
     plt.close("all")
     fig, ax = plt.subplots()
     for ii in range(main_learner.n_clusters):
-        tmp_obstacle = create_kmeans_obstacle_from_learner(main_learner, ii)
+        tmp_obstacle = create_kmeans_learner_from_learner(main_learner, ii)
 
         positions = tmp_obstacle.evaluate_surface_points(n_points=500)
         ax.plot(

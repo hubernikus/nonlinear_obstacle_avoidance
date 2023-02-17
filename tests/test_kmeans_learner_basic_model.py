@@ -13,14 +13,14 @@ from numpy import linalg as LA
 import matplotlib.pyplot as plt
 from vartools.handwritting_handler import MotionDataHandler, HandwrittingHandler
 
-# from roam.rotational_avoidance import (
+# from roam.avoidance import (
 #     obstacle_avoidance_rotational,
 # )
 
-from roam.kmeans_obstacle import KMeansObstacle
-from roam.kmeans_motion_learner import (
+from roam.kmeans_learner import KMeansObstacle
+from roam.kmeans_learner import (
     KMeansMotionLearner,
-    create_kmeans_obstacle_from_learner,
+    create_kmeans_learner_from_learner,
 )
 
 import roam.visualization.kmean_plotting as helper_functions
@@ -117,7 +117,7 @@ def test_surface_position_and_normal(visualize=False):
     # region_obstacle = KMeansObstacle(radius=radius, kmeans=kmeans, index=0)
     # Test - somewhere in the middle
     index = index = main_learner.kmeans.predict([[-1, 0]])[0]
-    region_obstacle = create_kmeans_obstacle_from_learner(main_learner, index=index)
+    region_obstacle = create_kmeans_learner_from_learner(main_learner, index=index)
     position = np.array([2, -1])
     surface_position = region_obstacle.get_point_on_surface(
         position, in_global_frame=True
@@ -125,7 +125,7 @@ def test_surface_position_and_normal(visualize=False):
     assert np.isclose(surface_position[0], 0)
 
     # Surface point of free space should be equal to the radius
-    region_obstacle = create_kmeans_obstacle_from_learner(main_learner, index=index)
+    region_obstacle = create_kmeans_learner_from_learner(main_learner, index=index)
     position = np.array([-2, 0])
     surface_position = region_obstacle.get_point_on_surface(
         position, in_global_frame=True
@@ -286,7 +286,7 @@ def test_gamma_kmeans(visualize=False, save_figure=False):
 
     # Check gamma at the boundary
     index = main_learner.kmeans.predict([[-1, 0]])[0]
-    region_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    region_obstacle = create_kmeans_learner_from_learner(main_learner, index)
     region_obstacle.radius = 1.5
 
     # Check gamma towards the successor
@@ -302,14 +302,14 @@ def test_gamma_kmeans(visualize=False, save_figure=False):
     gamma = region_obstacle.get_gamma(position, in_global_frame=True)
     assert np.isclose(gamma, 1), "Gamma is expected to be close to 1."
 
-    region_obstacle = create_kmeans_obstacle_from_learner(main_learner, 3)
+    region_obstacle = create_kmeans_learner_from_learner(main_learner, 3)
     region_obstacle.radius = 1.5
     position = np.array([1.38, 0.44])
     gamma = region_obstacle.get_gamma(position, in_global_frame=True)
     assert gamma < 1
 
     index = main_learner.kmeans.predict([[-1, 0]])[0]
-    region_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+    region_obstacle = create_kmeans_learner_from_learner(main_learner, index)
     region_obstacle.radius = 1.5
 
     position = np.array([-1.5, 0])
@@ -387,7 +387,7 @@ def test_transition_weight(visualize=False, save_figure=False):
 
         # Plot normal gamma with parent
         fig, ax = plt.subplots()
-        region_obstacle = create_kmeans_obstacle_from_learner(main_learner, index)
+        region_obstacle = create_kmeans_learner_from_learner(main_learner, index)
         gammas = np.zeros(positions.shape[1])
         for pp in range(positions.shape[1]):
             gammas[pp] = region_obstacle.get_gamma(
@@ -513,7 +513,7 @@ def test_normals(visualize=False, save_figure=False):
             ax.axis("equal")
 
         if save_figure:
-            fig_name = "kmeans_obstacles_multiplot_normal"
+            fig_name = "kmeans_learners_multiplot_normal"
             fig.savefig("figures/" + fig_name + fig_type, bbox_inches="tight")
 
 
