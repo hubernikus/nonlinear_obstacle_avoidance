@@ -61,7 +61,6 @@ class ProjectedRotationDynamics:
         min_gamma: float = 1,
         max_gamma: float = 10,
     ) -> None:
-
         self.dimension = attractor_position.shape[0]
 
         self.obstacle = obstacle
@@ -322,7 +321,6 @@ class ProjectedRotationDynamics:
             uniform_position * math.exp(radius / dist_attr_obs) * dist_attr_obs
         )
 
-        # breakpoint()
         # Move out-of from attractor-frame
         relative_position = relative_position + attractor_position
 
@@ -349,6 +347,9 @@ class ProjectedRotationDynamics:
         relative_attractor = self.obstacle.pose.transform_position_to_relative(
             self.attractor_position
         )
+
+        if self.obstacle.get_gamma(relative_attractor, in_obstacle_frame=True) < 1:
+            breakpoint()  # This should be treated specially!(!)
 
         gamma = self.obstacle.get_gamma(relative_position, in_obstacle_frame=True)
 
@@ -378,6 +379,7 @@ class ProjectedRotationDynamics:
         projected_position = self.obstacle.pose.transform_position_from_relative(
             inflated_position
         )
+
         return projected_position
 
     def _get_lyapunov_gradient(self, position: Vector) -> Vector:
@@ -506,4 +508,5 @@ class ProjectedRotationDynamics:
         )
 
         averaged_direction = averaged_direction * LA.norm(initial_velocity)
+
         return averaged_direction

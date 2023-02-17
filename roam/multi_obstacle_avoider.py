@@ -7,14 +7,12 @@ for now limited to 2D (in order to find intersections easily).
 import math
 from typing import Optional, Protocol
 
-# import itertools as it
-
 import numpy as np
 from numpy import linalg as LA
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
-from vartools.dynamical_systems import DynamicalSystem
+from vartools.dynamical_systems import DynamicalSystem, LinearSystem
 
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
@@ -24,9 +22,8 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from roam.multi_ellipse_obstacle import MultiEllipseObstacle
 from roam.avoidance import RotationalAvoider
 from roam.vector_rotation import VectorRotationTree
+from roam.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
 from roam.datatypes import Vector
-
-# from roam.geometry import get_intersection_of_obstacles
 
 
 class HierarchyObstacle(Protocol):
@@ -47,12 +44,25 @@ class HierarchyObstacle(Protocol):
 
 
 class MultiObstacleAvoider:
+    """Obstacle Avoider which can take a 'multi-obstacle' as an input."""
+
+    # TODO: future implementation should include multiple obstacles
     def __init__(
         self,
         obstacle: HierarchyObstacle,
         initial_dynamics: Optional[DynamicalSystem] = None,
-        convergence_dynamics: Optional[DynamicalSystem] = None,
+        convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
+        convergence_radius: float = math.pi * 5e-2,
+        smooth_continuation_power: float = 0.1,
     ):
+        if initial_dynamics is not None:
+            self.initial_dynamics = initial_dynamics
+
+        self.convergence_dynamics = convergence_dynamics
+
+        self.convergence_radius = convergence_radius
+        self.smooth_continuation_power = smooth_continuation_power
+
         self.obstacle = obstacle
 
         # An ID number which does not co-inside with the obstacle
@@ -65,38 +75,70 @@ class MultiObstacleAvoider:
     def n_components(self) -> int:
         return self.obstacle.n_components
 
-    def evaluate(
-        self,
-        position: Vector,
-    ) -> Vector:
+    def evaluate(self, position: Vector) -> Vector:
+        velocity = self.initial_dynamics.evaluate(position)
+        # So far the convergence direction is only about the root-obstacle
+        # in the future, this needs to be extended such that the rotation is_updating
+        # ensured to be smooth (!)
+        if self.convergence_dynamics is None:
+            convergence_direction = velocity
+        else:
+            convergence_direction = (
+                self.convergence_dynamics.evaluate_convergence_around_obstacle(
+                    position,
+                    obstacle=self.obstacle.get_component(self.obstacle.root_id),
+                )
+            )
+
         return self.get_tangent_direction(position, velocity, convergence_direction)
 
     def get_tangent_direction(
         self,
         position: Vector,
         velocity: Vector,
-        linearized_velocity: Optional[Vector] = None,
+        linearized_velocity: Vector,
+        # linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
-        # if obstacle_list is None:
-        #     obstacle_list = self.obstacle.get_obstacle_list()
-        if linearized_velocity is None:
-            root_obs = self.obstacle.get_component(self.obstacle.root_id)
-            base_velocity = self.get_linearized_velocity(
-                # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
-                root_obs.get_reference_point(in_global_frame=True)
-            )
-        else:
-            base_velocity = linearized_velocity
+        # if linearized_velocity is None:
+        #     root_obs = self.obstacle.get_component(self.obstacle.root_id)
+
+        #     base_velocity = self.get_linearized_velocity(
+        #         # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
+        #         root_obs.get_reference_point(in_global_frame=True)
+        #     )
+        # else:
+        base_velocity = linearized_velocity
 
         gamma_values = np.zeros(self.obstacle.n_components)
-        # for ii, obs in enumerate(obstacle_list):
         for ii in range(self.obstacle.n_components):
             obs = self.obstacle.get_component(ii)
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
 
         gamma_weights = compute_weights(gamma_values)
 
-        # lambda_values = np.zeros(self.n_components)
+        # Evaluate rotation weight, to ensure smoothness in space (!)
+        idx_root = self.obstacle.root_id
+        normal = self.obstacle.get_component(idx_root).get_normal_direction(
+            position, in_global_frame=True
+        )
+        reference = self.obstacle.get_component(idx_root).get_reference_direction(
+            position, in_global_frame=True
+        )
+
+        rotation_weight = RotationalAvoider.get_rotation_weight(
+            normal_vector=normal,
+            reference_vector=reference,
+            convergence_vector=linearized_velocity,
+            convergence_radius=self.convergence_radius,
+            gamma_value=min(gamma_values),
+            smooth_continuation_power=self.smooth_continuation_power,
+        )
+
+        if not (gamma_sum := sum(gamma_weights)) or not rotation_weight:
+            return velocity
+
+        gamma_weights = gamma_weights / gamma_sum * rotation_weight
+
         self._tangent_tree = VectorRotationTree()
         self._tangent_tree.set_root(
             root_id=self._BASE_VEL_ID,
@@ -108,10 +150,9 @@ class MultiObstacleAvoider:
             direction=base_velocity,
         )
 
-        # The base node (initial velocity)
+        # The base node should be equal to the (initial velocity)
         node_list = [self._BASE_VEL_ID]
 
-        # for obs_id in it.filterfalse(lambda x: x <= 0, range(len(obstacle_list))):
         for obs_id in range(self.obstacle.n_components):
             if gamma_weights[obs_id] <= 0:
                 continue
@@ -126,12 +167,9 @@ class MultiObstacleAvoider:
 
         # Remaining weight to the initial velocity
         weights = np.hstack(([1 - np.sum(weights)], weights))
-
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
-        # breakpoint()
-
         return weighted_tangent
 
     def _update_tangent_branch(
@@ -581,37 +619,77 @@ def test_tree_with_two_children(visualize=False, savefig=False):
     assert averaged_direction[0] < 0 and averaged_direction[1] < 0
 
 
-def test_rectangle_obstacle():
-    """This is a rather uncommon configuration as the vectorfield has to traverse back
-    since the root obstacle is not at the center."""
-    triple_ellipses = MultiEllipseObstacle()
-    triple_ellipses.append(
-        Ellipse(
-            center_position=np.array([-3.4, 3.4]),
-            axes_length=np.array([8, 3.0]),
-            orientation=90 * math.pi / 180.0,
-        )
-    )
-
-    triple_ellipses.append(
+def test_single_ellipse(visualize=False):
+    single_ellipse = MultiEllipseObstacle()
+    single_ellipse.append(
         Ellipse(
             center_position=np.array([0, 0]),
-            axes_length=np.array([8, 3.0]),
-            orientation=0,
+            axes_length=np.array([2.0, 4.0]),
+            # orientation=90 * math.pi / 180.0,
         )
     )
+    single_ellipse.set_root(obs_id=0)
 
-    triple_ellipses.append(
-        Ellipse(
-            center_position=np.array([3.4, 3.4]),
-            axes_length=np.array([8, 3.0]),
-            orientation=-90 * math.pi / 180.0,
-        )
+    linear_dynamics = LinearSystem(attractor_position=np.array([4.0, 0.0]))
+
+    multibstacle_avoider = MultiObstacleAvoider(
+        obstacle=single_ellipse,
+        initial_dynamics=linear_dynamics,
+        convergence_dynamics=None,  # Same as initial
+        smooth_continuation_power=0.1,
     )
 
-    triple_ellipses.set_root(obs_id=0)
-    triple_ellipses.set_parent(obs_id=1, parent_id=0)
-    triple_ellipses.set_parent(obs_id=2, parent_id=1)
+    if visualize:
+        figsize = (8, 6)
+        x_lim = [-5, 5]
+        y_lim = [-5, 5]
+
+        n_grid = 40
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_obstacles(
+            obstacle_container=single_ellipse._obstacle_list,
+            ax=ax,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            draw_reference=True,
+            noTicks=True,
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                single_ellipse.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            dynamics=multibstacle_avoider.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=False,
+            # vectorfield_color=vf_color,
+        )
+
+    position = np.array([-3.22, 0.374])
+    velocity1 = multibstacle_avoider.evaluate(position)
+
+    position = np.array([-3.22, 0.670])
+    velocity2 = multibstacle_avoider.evaluate(position)
+    assert np.allclose(
+        velocity1, velocity2, atol=0.1
+    ), "Smooth velocity change with respect to position."
+
+    # Evaluate at position[1]
+    position = np.array([-3.0, 0.4])
+    velocity1 = multibstacle_avoider.evaluate(position)
+    assert velocity1[0] > 0 and velocity1[1] > 0
+
+    # Evaluate at position[2]
+    position = np.array([-2.0, 0.4])
+    velocity2 = multibstacle_avoider.evaluate(position)
+    assert velocity2[0] < velocity1[0], "Not slowing down towards obstacle."
 
 
 if (__name__) == "__main__":
@@ -625,12 +703,12 @@ if (__name__) == "__main__":
         plot_obstacle_dynamics,
     )
 
-    plt.close("all")
     plt.ion()
+    test_single_ellipse(visualize=False)
 
     test_tree_with_two_children(visualize=False, savefig=False)
     test_orthonormal_tangent_finding()
-    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
+    test_tripple_ellipse_in_the_face(visualize=False, savefig=False)
     test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
