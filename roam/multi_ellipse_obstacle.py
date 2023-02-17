@@ -15,17 +15,12 @@ from numpy import linalg as LA
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
 
-from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
-from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from roam.rotational_avoider import RotationalAvoider
-
 from roam.vector_rotation import VectorRotationTree
-
 from roam.geometry import get_intersection_of_obstacles
-
 from roam.datatypes import Vector
 
 # TODO:

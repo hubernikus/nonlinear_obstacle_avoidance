@@ -223,12 +223,23 @@ class MultiBodyObstacle:
         self.create_filters(is_updating=(not update_id is None))
         self._id_counter += 1
 
-    def update_using_optitrack(self):
+    @property
+    def optitrack_indeces(self):
+        indeces_tree_opti = [-1] * self.n_components
+        for ii in range(self.n_components):
+            if self._graph.nodes[ii]["update_id"] is not None:
+                indeces_tree_opti[ii] = self._graph.nodes[ii]["update_id"]
+
+        return indeces_tree_opti
+
+    def update_using_optitrack(self, transform_to_robot_frame: bool = True) -> None:
         if self.pose_updater is not None:
             new_object_poses = self.pose_updater.get_messages()
+
         else:
             new_object_poses = []
         indeces_measures = [oo.obs_id for oo in new_object_poses]
+        indeces_optitrack_tree = self.optitrack_indeces
 
         if self.robot is not None:
             try:
@@ -239,18 +250,80 @@ class MultiBodyObstacle:
                 pass
 
             else:
+                # So far: no filter for the robot (!)
                 franka_object = new_object_poses[index_franka_list]
-                self.robot.position = franka_object.position
-                self.robot.rotation = franka_object.rotation
 
-        try:
-            idx_measure = indeces_measures.index(self.root_idx)
+                self.robot.pose.position = franka_object.position
+                self.robot.pose.rotation = franka_object.rotation
 
-        except ValueError:
-            # Element not in list
-            pass
-        else:
-            self.update_dynamic_obstacle(self.root_idx, new_object_poses[idx_measure])
+                # print("Robot")
+                # print(self.robot.position)
+                # print("Euler[Robot", self.robot.rotation.as_euler("xyz"))
+
+        # Update filters and put to poses
+        filtered_poses = [None] * self.n_components
+        for ii, idx_meas in enumerate(indeces_measures):
+            try:
+                idx_tree = indeces_optitrack_tree.index(idx_meas)
+
+            except:
+                pass
+            else:
+                self.position_filters[idx_tree].run_once(new_object_poses[ii].position)
+                self.orientation_filters[idx_tree].run_once(
+                    new_object_poses[ii].rotation
+                )
+
+                if self.position_filters[idx_tree] is None:
+                    continue
+
+                if transform_to_robot_frame and self.robot is not None:
+                    filtered_poses[idx_tree] = ObjectPose(
+                        position=self.robot.pose.transform_position_to_relative(
+                            self.position_filters[idx_tree].position
+                        ),
+                        orientation=self.robot.pose.transform_orientation_to_relative(
+                            self.orientation_filters[idx_tree].rotation
+                        ),
+                    )
+                else:
+                    filtered_poses[idx_tree] = ObjectPose(
+                        position=self.position_filters[idx_tree].position,
+                        orientation=self.orientation_filters[idx_tree].rotation,
+                    )
+
+        # # Transform to robot frame(?)
+        # filtered_poses = [None] * self.n_components
+        # if transform_to_robot_frame and self.robot is not None:
+        #     for ii in range(self.n_components):
+        #         if self.position_filters[ii] is None:
+        #             continue
+        #         print(f"trafo for {ii}")
+        #         filtered_poses[ii] = ObjectPose(
+        #             position=self.robot.pose.transform_position_to_relative(
+        #                 self.position_filters[ii].position
+        #             ),
+        #             orientation=self.robot.pose.transform_orientation_to_relative(
+        #                 self.orientation_filters[ii].rotation
+        #             ),
+        #         )
+        # else:
+        #     for ii in range(self.n_components):
+        #         if self.position_filters[ii] is None:
+        #             continue
+        #         filtered_poses[ii] = ObjectPose(
+        #             position=self.position_filters[ii].position,
+        #             orientation=self.orientation_filters[ii].rotation,
+        #         )
+        if filtered_poses[self.root_idx] is not None:
+            # print("Doing root")
+            # self.update_dynamic_obstacle(self.root_idx, filtered_poses[self.root_idx])
+            self[self.root_idx].pose = filtered_poses[self.root_idx]
+            # breakpoint()
+
+            # Assumption of rotation only in z (since it's a human in 2D)
+            zyx_rot = self[self.root_idx].pose.orientation.as_euler("zyx")
+            self[self.root_idx].pose.orientation = Rotation.from_euler("z", zyx_rot[0])
 
         obs_indeces = list(self._graph.successors(self.root_idx))
         it_node = 0
@@ -260,23 +333,27 @@ class MultiBodyObstacle:
 
             it_node += 1  # Iterate
 
-            idx_optitrack = self._graph.nodes[idx_node]["update_id"]
-            try:
-                idx_measure = indeces_measures.index(idx_optitrack)
+            # idx_optitrack = self._graph.nodes[idx_node]["update_id"]
+            # try:
+            # idx_measure = indeces_measures.index(idx_optitrack)
 
-            except ValueError:
+            if filtered_poses[idx_node] is None:
                 # Static opbstacle - no optitrack exists...
-                # Update rotation
+                # We assume orientation was constant?
                 idx_parent = list(self._graph.predecessors(idx_node))[0]
                 self[idx_node].orientation = self[idx_parent].orientation
+
                 self.align_position_with_parent(idx_node)
 
             else:
-                self.update_dynamic_obstacle(idx_node, new_object_poses[idx_measure])
+                self[idx_node].pose = filtered_poses[idx_node]
+                # self.update_dynamic_obstacle(idx_node, filtered_poses[idx_node])
+                self.update_orientation_based_on_position(idx_node)
                 self.align_position_with_parent(idx_node)
+                # self.align_position_with_parent(idx_node)
 
                 # Reset position filter
-                self.position_filters[idx_node]._position = self[idx_node].pose.position
+                # self.position_filters[idx_node]._position = self[idx_node].pose.position
 
     # def set_orientation(self, idx_obs: int, orientation: float | Rotation) -> None:
     #     self[idx_obs].orientation = orientation
@@ -285,8 +362,8 @@ class MultiBodyObstacle:
 
     def update_dynamic_obstacle(self, idx_obs: int, obs_measure: RigidBody):
         # Update position
-        self.position_filters[idx_obs].run_once(obs_measure.position)
-        self.orientation_filters[idx_obs].run_once(obs_measure.rotation)
+        # self.position_filters[idx_obs].run_once(obs_measure.position)
+        # self.orientation_filters[idx_obs].run_once(obs_measure.rotation)
 
         self[idx_obs].pose.position = self.robot.pose.transform_position_to_relative(
             self.position_filters[idx_obs].position
@@ -301,6 +378,37 @@ class MultiBodyObstacle:
         ].linear_velocity = self.robot.pose.transform_linear_velocity_to_relative(
             self.position_filters[idx_obs].velocity
         )
+
+    def update_orientation_based_on_position(
+        self, idx_obs: int, position_trust: float = 1.0
+    ) -> None:
+        idx_parent = list(self._graph.predecessors(idx_obs))[0]
+        idx_local_ref = self._graph.nodes[idx_parent]["indeces_children"].index(idx_obs)
+        local_reference_parent = self._graph.nodes[idx_parent]["references_children"][
+            idx_local_ref
+        ]
+        reference_parent = self[idx_parent].pose.transform_position_from_relative(
+            local_reference_parent
+        )
+
+        axes_direction = self[idx_obs].position - reference_parent
+        axes_direction = np.array([1.0, 0, -1.0])
+        if not (axes_norm := np.linalg.norm(axes_direction)):
+            # No information from position only
+            return
+        axes_direction = axes_direction / axes_norm
+
+        rot_vec = np.cross([0.0, 0, 1.0], axes_direction)
+
+        if rotvec_norm := np.linalg.norm(rot_vec):
+            rot_vec = rot_vec / rotvec_norm
+            theta = np.arcsin(rotvec_norm)
+            quat = np.hstack((rot_vec * np.cos(theta / 2.0), [np.sin(theta / 2.0)]))
+
+        else:
+            quat = np.array([0, 0, 0, 1.0])
+
+        self[idx_obs].pose.orientation = Rotation.from_quat(quat)
 
     def align_position_with_parent(self, idx_obs: int):
         """Update obstacle with respect to the movement of the body-parts (limbs)
@@ -589,7 +697,6 @@ def test_2d_human_with_circular(visualize=False):
 
     position = np.array([-1.0, 0.0])
     velocity = multibstacle_avoider.evaluate(position)
-    # breakpoint()
 
 
 def test_2d_blocky_arch(visualize=False):
