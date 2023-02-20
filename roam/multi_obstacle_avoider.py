@@ -8,7 +8,7 @@ import math
 from typing import Optional, Protocol
 
 import numpy as np
-from numpy import linalg as LA
+from numpy import linalg
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
@@ -107,6 +107,9 @@ class MultiObstacleAvoider:
         #         root_obs.get_reference_point(in_global_frame=True)
         #     )
         # else:
+        if not linalg.norm(velocity):
+            return velocity
+
         base_velocity = linearized_velocity
 
         gamma_values = np.zeros(self.obstacle.n_components)

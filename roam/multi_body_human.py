@@ -559,6 +559,11 @@ def create_2d_human():
     # new_human.set_orientation(idx_obs, orientation=)
     new_human.align_position_with_parent(idx_obs)
 
+    idx_obs = new_human.get_obstacle_id_from_name("lowerarm2")
+    new_human[idx_obs].orientation = 45 * np.pi / 180
+    # new_human.set_orientation(idx_obs, orientation=)
+    new_human.align_position_with_parent(idx_obs)
+
     return new_human
 
 
@@ -636,7 +641,7 @@ def test_2d_human_with_linear(visualize=False):
     assert averaged_direction[1] < 0
 
 
-def test_2d_human_with_circular(visualize=False):
+def test_2d_human_with_circular(visualize=False, savefig=False):
     # Set arm-orientation
     new_human = create_2d_human()
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
@@ -660,11 +665,11 @@ def test_2d_human_with_circular(visualize=False):
     )
 
     if visualize:
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(7, 4))
+        n_grid = 100
 
         x_lim = [-1.3, 1.3]
         y_lim = [-0.25, 1.2]
-        n_grid = 20
 
         plot_obstacles(
             obstacle_container=new_human._obstacle_list,
@@ -674,7 +679,7 @@ def test_2d_human_with_circular(visualize=False):
             draw_reference=True,
             noTicks=False,
             # reference_point_number=True,
-            show_obstacle_number=True,
+            # show_obstacle_number=True,
             # ** kwargs,
         )
 
@@ -688,15 +693,29 @@ def test_2d_human_with_circular(visualize=False):
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
-            do_quiver=True,
-            # do_quiver=False,
+            # do_quiver=True,
+            do_quiver=False,
             n_grid=n_grid,
             show_ticks=True,
             # vectorfield_color=vf_color,
+            attractor_position=circular_ds.pose.position,
         )
+
+        if savefig:
+            figname = "multibody_human"
+            plt.savefig(
+                "figures/" + "rotated_dynamics_" + figname + figtype,
+                bbox_inches="tight",
+            )
 
     position = np.array([-1.0, 0.0])
     velocity = multibstacle_avoider.evaluate(position)
+    assert velocity[1] > 0, "Expected o be moving upwards."
+
+    position = np.array([1.0, 1.0])
+    velocity = multibstacle_avoider.evaluate(position)
+    assert np.allclose(velocity, [0, 0]), "No velocity at attractor"
+    # breakpoint()
 
 
 def test_2d_blocky_arch(visualize=False):
@@ -804,4 +823,6 @@ if (__name__) == "__main__":
 
     # test_2d_blocky_arch(visualize=True)
     # test_2d_human_with_linear(visualize=True)
-    test_2d_human_with_circular(visualize=True)
+    test_2d_human_with_circular(visualize=True, savefig=True)
+
+    print("[INFO] Done.")
