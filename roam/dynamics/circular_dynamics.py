@@ -37,6 +37,7 @@ class DynamicDynamics:
         main_dynamics: DynamicalSystem,
         dynamics_of_base: DynamicalSystem,
         influence_radius: float = 2.0,
+        frequency: float = 100.0,
     ) -> None:
         self.main_dynamics = main_dynamics
         self.dynamics_of_base = dynamics_of_base
@@ -44,7 +45,7 @@ class DynamicDynamics:
         self.influence_radius = influence_radius
         self.decent_factor = 2.0
 
-        self.time_step_of_base_movement = 1e-2
+        self.time_step_of_base_movement = 1 / frequency
 
     @property
     def position(self) -> Vector:
@@ -58,26 +59,32 @@ class DynamicDynamics:
         dist_center = LA.norm(position - self.position)
         if dist_center < self.influence_radius:
             weight = 1
+
         elif dist_center < self.influence_radius * self.decent_factor:
             max_radius = self.influence_radius * self.decent_factor
             weight = (self.decent_factor * self.influence_radius - dist_center) / (
                 ((self.decent_factor - 1) * self.influence_radius)
             )
+
         else:
+            # breakpoint()
+            # print("Zero weight - far way.")
             return
 
         base_velocity = self.dynamics_of_base.evaluate(self.position)
 
+        # print("updating bits.")
         self.position = (
             base_velocity * weight * self.time_step_of_base_movement + self.position
         )
+        breakpoint()
 
     def evaluate(self, position: Vector) -> Vector:
         """Updates the main_dynamics pose with as proposed in dynamics_of_base
         and then returns the velocity vector in the from main_dynamics"""
         # TODO: decide which center to move / how to ensure the evaluation of a local system
         #     should a dynamical system even have a reference frame (i.e. pose?)
-        self.update_base(position)
+        # self.update_base(position)
         return self.main_dynamics.evaluate(position)
 
 
