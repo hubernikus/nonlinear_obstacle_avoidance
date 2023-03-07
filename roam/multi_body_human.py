@@ -319,6 +319,7 @@ class MultiBodyObstacle:
             # print("Doing root")
             # self.update_dynamic_obstacle(self.root_idx, filtered_poses[self.root_idx])
             self[self.root_idx].pose = filtered_poses[self.root_idx]
+            self[self.root_idx].pose.position[2] = 0.2  # Set root position specific
             # breakpoint()
 
             # Assumption of rotation only in z (since it's a human in 2D)
@@ -380,7 +381,9 @@ class MultiBodyObstacle:
         )
 
     def update_orientation_based_on_position(
-        self, idx_obs: int, position_trust: float = 1.0
+        self,
+        idx_obs: int,
+        # position_trust: float = 1.0
     ) -> None:
         idx_parent = list(self._graph.predecessors(idx_obs))[0]
         idx_local_ref = self._graph.nodes[idx_parent]["indeces_children"].index(idx_obs)
@@ -392,7 +395,7 @@ class MultiBodyObstacle:
         )
 
         axes_direction = self[idx_obs].position - reference_parent
-        axes_direction = np.array([1.0, 0, -1.0])
+        # axes_direction = np.array([1.0, 0, -1.0])
         if not (axes_norm := np.linalg.norm(axes_direction)):
             # No information from position only
             return
@@ -407,6 +410,8 @@ class MultiBodyObstacle:
 
         else:
             quat = np.array([0, 0, 0, 1.0])
+
+        # breakpoint()
 
         self[idx_obs].pose.orientation = Rotation.from_quat(quat)
 

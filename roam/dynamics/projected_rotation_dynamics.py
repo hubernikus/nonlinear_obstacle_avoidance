@@ -212,7 +212,9 @@ class ProjectedRotationDynamics:
 
         # 'Unfold' the circular plane into an infinite -y/+y-plane
         if not (dist_attr_obs := LA.norm(vec_attractor_to_obstacle)):
-            raise NotImplementedError("Implement for position at center.")
+            warnings.warn("Implement for position at center.")
+            return position
+            # raise NotImplementedError("Implement for position at center.")
         dir_attractor_to_obstacle = vec_attractor_to_obstacle / dist_attr_obs
 
         # Get values in the attractor frame of reference
@@ -349,7 +351,8 @@ class ProjectedRotationDynamics:
         )
 
         if self.obstacle.get_gamma(relative_attractor, in_obstacle_frame=True) < 1:
-            breakpoint()  # This should be treated specially!(!)
+            return position
+            # breakpoint()  # This should be treated specially!(!)
 
         gamma = self.obstacle.get_gamma(relative_position, in_obstacle_frame=True)
 
