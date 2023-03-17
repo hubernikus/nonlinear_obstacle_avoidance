@@ -47,6 +47,8 @@ from roam.dynamics.projected_rotation_dynamics import (
 
 
 def get_convergence_weight(gamma: float) -> float:
+    if math.isclose(gamma, 0):
+        return 1.0
     return min(1 / gamma, 1)
 
 
