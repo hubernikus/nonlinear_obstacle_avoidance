@@ -34,17 +34,16 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
 
-
 from roam.multiboundary_container import MultiBoundaryContainer
 from roam.dynamics import WavyLinearDynamics
 from roam.rotation_container import RotationContainer
 from roam.avoidance import obstacle_avoidance_rotational
 from roam.avoidance import RotationalAvoider
 from roam.dynamics.circular_dynamics import SimpleCircularDynamics
-
-
-# plt.close('all')
-plt.ion()
+from roam.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
+from roam.nonlinear_rotation_avoider import NonlinearRotationalAvoider
 
 
 def function_integrator(
@@ -66,7 +65,7 @@ def function_integrator(
             print(f"Stopped at it={ii}")
             break
 
-        if err_abs is not None and LA.norm(velocity) < err_abs:
+        if err_abs is not None and np.linalg.norm(velocity) < err_abs:
             print(f"Converged at it={ii}")
             break
 
@@ -414,17 +413,29 @@ def integration_smoothness_around_ellipse(visualize=False, save_figure=False):
                 )
 
 
-def convergence_direction_comparison_for_circular_dynamis(
-    visualize=True, save_figure=False
+def convergence_direction_comparison_for_circular_dynamics(
+    visualize=True, save_figure=False, n_resolution=120
 ):
     # from vartools.dynamical_systems import CircularStable
     obstacle_environment = RotationContainer()
+    center = np.array([2.2, 0.0])
+    # obstacle_environment.append(
+    #     Ellipse(
+    #         center_position=center,
+    #         axes_length=np.array([2.0, 1.0]),
+    #         orientation=45 * math.pi / 180.0,
+    #         # margin_absolut=0.3,
+    #     )
+    # )
     obstacle_environment.append(
-        Ellipse(
-            center_position=np.array([2.0, 0.0]),
-            axes_length=np.array([2.0, 1.0]),
-            orientation=45 * math.pi / 180.0,
-            # margin_absolut=0.3,
+        StarshapedFlower(
+            center_position=center,
+            radius_magnitude=0.4,
+            number_of_edges=5,
+            radius_mean=0.75,
+            orientation=33 / 180 * pi,
+            # tail_effect=False,
+            # is_boundary=True,
         )
     )
 
@@ -446,7 +457,6 @@ def convergence_direction_comparison_for_circular_dynamis(
     )
 
     # Convergence direction [local]
-
     rotation_projector = ProjectedRotationDynamics(
         attractor_position=circular_ds.pose.position,
         initial_dynamics=circular_ds,
@@ -463,23 +473,22 @@ def convergence_direction_comparison_for_circular_dynamis(
     x_lim = [-3.0, 3.4]
     y_lim = [-3.0, 3.0]
     figsize = (5.0, 4.5)
-    n_resolution = 120
     vf_color = "blue"
     traj_color = "#DB4914"
     # traj_color = "blue"
     traj_base_color = "#808080"
-    it_max = 160
+    it_max = 320
     lw = 4
 
     start_integration = np.array([-2.005, 0])
     pos_traj_base = function_integrator(
-        start_integration, circular_ds.evaluate, it_max=it_max
+        start_integration, circular_ds.evaluate, it_max=it_max, stepsize=0.05
     )
 
     fig, ax = plt.subplots(figsize=figsize)
-    start_integration = np.array([-2.03659, 0])
+    start_integration = np.array([-2.0151, 0])
     pos_traj_global = function_integrator(
-        start_integration, obstacle_avoider.evaluate, it_max=it_max
+        start_integration, obstacle_avoider.evaluate, it_max=it_max, stepsize=0.05
     )
     ax.plot(
         pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
@@ -524,9 +533,12 @@ def convergence_direction_comparison_for_circular_dynamis(
 
     fig, ax = plt.subplots(figsize=figsize)
     # traj_color = "#FF9B00"
-    start_integration = np.array([-2.03659, 0])
+    start_integration = np.array([-2.0076, 0])
     pos_traj_global = function_integrator(
-        start_integration, obstacle_avoider_globally_straight.evaluate, it_max=it_max
+        start_integration,
+        obstacle_avoider_globally_straight.evaluate,
+        it_max=it_max,
+        stepsize=0.05,
     )
     ax.plot(
         pos_traj_base[0, :],
@@ -574,6 +586,7 @@ if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
 
+    # plt.close('all')
     plt.ion()
 
     # inverted_star_obstacle_avoidance(visualize=True, save_figure=True)
@@ -581,8 +594,10 @@ if (__name__) == "__main__":
     # quiver_single_circle_linear_repulsive(visualize=True, save_figure=False)
     # integration_smoothness_around_ellipse(visualize=True, save_figure=True)
 
-    convergence_direction_comparison_for_circular_dynamis(
-        visualize=True, save_figure=True
+    convergence_direction_comparison_for_circular_dynamics(
+        visualize=True,
+        save_figure=True,
+        # n_resolution=30,
     )
 
     print("--- done ---")
