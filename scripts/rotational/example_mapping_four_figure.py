@@ -34,6 +34,8 @@ from roam.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 
+from roam.nonlinear_rotation_avoider import get_convergence_weight
+
 
 class CircularEnvironment:
     def __init__(self):
@@ -71,10 +73,20 @@ def get_environment_obstacle_top_right():
     # attractor_position = np.array([1.0, -1.0])
     attractor_position = np.array([0.0, 0.0])
     center = np.array([2.2, 0.0])
+    obstacle = StarshapedFlower(
+        center_position=center,
+        radius_magnitude=0.2,
+        number_of_edges=5,
+        radius_mean=0.75,
+        orientation=33 / 180 * pi,
+        distance_scaling=1,
+        # tail_effect=False,
+        # is_boundary=True,
+    )
     obstacle = Ellipse(
         center_position=center,
         axes_length=np.array([2.0, 1.0]),
-        orientation=45 * math.pi / 180.0,
+        # orientation=45 * math.pi / 180.0,
         # margin_absolut=0.3,
     )
 
@@ -120,23 +132,58 @@ def _test_base_gamma(
             np.linspace(x_lim[0], x_lim[1], nx), np.linspace(y_lim[0], y_lim[1], ny)
         )
         positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
-        gammas = np.zeros(positions.shape[1])
 
+        attractor_position = dynamics._get_position_after_deflating_obstacle(
+            dynamics.attractor_position, in_obstacle_frame=False
+        )
+
+        gammas = np.zeros(positions.shape[1])
+        convergence_weights = np.zeros_like(gammas)
         ### Basic Obstacle Transformation ###
         for pp in range(positions.shape[1]):
             gammas[pp] = dynamics.obstacle.get_gamma(
                 positions[:, pp], in_global_frame=True
             )
 
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            pos_shrink = dynamics._get_position_after_deflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+            pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
+                pos_shrink,
+                attractor_position,
+                in_obstacle_frame=False,
+            )
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
+
         fig, ax = plt.subplots(figsize=figsize)
+        # cs = ax.contourf(
+        #     positions[0, :].reshape(nx, ny),
+        #     positions[1, :].reshape(nx, ny),
+        #     gammas.reshape(nx, ny),
+        #     cmap="binary",
+        #     extend="max",
+        #     vmin=1.0,
+        #     levels=np.linspace(1, 10, 9),
+        # )
         cs = ax.contourf(
             positions[0, :].reshape(nx, ny),
             positions[1, :].reshape(nx, ny),
-            gammas.reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
             cmap="binary",
-            extend="max",
-            vmin=1.0,
-            levels=np.linspace(1, 10, 9),
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 1, 10),
+            zorder=-1,
         )
         # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
 
@@ -146,8 +193,9 @@ def _test_base_gamma(
             "*",
             color=kwargs["attractor_color"],
             linewidth=12,
-            markeredgewidth=1.2,
-            markersize=15,
+            markeredgewidth=0.9,
+            markersize=20,
+            markeredgecolor="black",
             zorder=3,
         )
 
@@ -157,7 +205,7 @@ def _test_base_gamma(
             [dynamics.attractor_position[1], dynamics.attractor_position[1]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=3,
+            linewidth=kwargs["linewidth"] / 2.0,
             zorder=2,
         )
         # ax.plot(
@@ -259,8 +307,13 @@ def test_obstacle_inflation(
         positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
         gammas = np.zeros(positions.shape[1])
 
+        attractor_position = dynamics._get_position_after_deflating_obstacle(
+            dynamics.attractor_position, in_obstacle_frame=False
+        )
+
         ### Do before the trafo ###
         gammas_shrink = np.zeros_like(gammas)
+        convergence_weights = np.zeros_like(gammas)
         for pp in range(positions.shape[1]):
             # Do the reverse operation to obtain an 'even' grid
             pos_shrink = dynamics._get_position_after_inflating_obstacle(
@@ -271,20 +324,47 @@ def test_obstacle_inflation(
                 pos_shrink, in_global_frame=True
             )
 
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
+                pos_shrink,
+                attractor_position,
+                in_obstacle_frame=False,
+            )
+            # pos_shrink = dynamics._get_position_after_inflating_obstacle(
+            #     pos_shrink,
+            #     in_obstacle_frame=False,
+            # )
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
+
         # Transpose attractor
         attractor_position = dynamics._get_position_after_deflating_obstacle(
             dynamics.attractor_position, in_obstacle_frame=False
         )
 
         fig, ax = plt.subplots(figsize=figsize)
+        # cs = ax.contourf(
+        #     positions[0, :].reshape(nx, ny),
+        #     positions[1, :].reshape(nx, ny),
+        #     gammas_shrink.reshape(nx, ny),
+        #     cmap="binary",
+        #     extend="max",
+        #     vmin=1.0,
+        #     levels=np.linspace(1, 10, 9),
+        # )
         cs = ax.contourf(
             positions[0, :].reshape(nx, ny),
             positions[1, :].reshape(nx, ny),
-            gammas_shrink.reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
             cmap="binary",
-            extend="max",
-            vmin=1.0,
-            levels=np.linspace(1, 10, 9),
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 1, 10),
+            zorder=-1,
+            label=r"$w^c",
         )
 
         # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
@@ -295,9 +375,12 @@ def test_obstacle_inflation(
             "*",
             color=kwargs["attractor_color"],
             linewidth=12,
-            markeredgewidth=1.2,
-            markersize=15,
+            # markeredgewidth=1.2,
+            markeredgewidth=0.9,
+            markersize=20,
+            markeredgecolor="black",
             zorder=3,
+            label=r"$f(\xi)",
         )
 
         # ax.plot(
@@ -326,8 +409,9 @@ def test_obstacle_inflation(
             [attractor_position[1], dynamics.attractor_position[1]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=3,
+            linewidth=kwargs["linewidth"] / 2.0,
             zorder=2,
+            label=r"$f(\xi)",
         )
         ax.set_aspect("equal", adjustable="box")
         ax.set_xlim(x_lim)
@@ -416,6 +500,7 @@ def test_inverse_projection_around_obstacle(
         )
 
         gammas_shrink = np.zeros_like(gammas)
+        convergence_weights = np.zeros_like(gammas)
         for pp in range(positions.shape[1]):
             # Do the reverse operation to obtain an 'even' grid
             pos_shrink = dynamics._get_unfolded_position_opposite_kernel_point(
@@ -431,15 +516,36 @@ def test_inverse_projection_around_obstacle(
                 pos_shrink, in_global_frame=True
             )
 
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
+
         fig, ax = plt.subplots(figsize=figsize)
+        # cs = ax.contourf(
+        #     positions[0, :].reshape(nx, ny),
+        #     positions[1, :].reshape(nx, ny),
+        #     gammas_shrink.reshape(nx, ny),
+        #     cmap="binary",
+        #     extend="max",
+        #     vmin=1.0,
+        #     levels=np.linspace(1, 10, 9),
+        # )
         cs = ax.contourf(
             positions[0, :].reshape(nx, ny),
             positions[1, :].reshape(nx, ny),
-            gammas_shrink.reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
             cmap="binary",
-            extend="max",
-            vmin=1.0,
-            levels=np.linspace(1, 10, 9),
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 1, 10),
+            zorder=-1,
         )
 
         # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
@@ -450,7 +556,7 @@ def test_inverse_projection_around_obstacle(
             y_lim,
             kwargs["linestyle"],
             color=kwargs["attractor_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
         # Split lines
@@ -459,7 +565,7 @@ def test_inverse_projection_around_obstacle(
             [y_lim[0], y_lim[0]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
         ax.plot(
@@ -467,7 +573,7 @@ def test_inverse_projection_around_obstacle(
             [y_lim[1], y_lim[1]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
 
@@ -588,46 +694,57 @@ def test_inverse_projection_and_deflation_around_obstacle(
         )
 
         gammas_shrink = np.zeros_like(gammas)
+        convergence_weights = np.zeros_like(gammas)
         for pp in range(positions.shape[1]):
             # do the reverse operation to obtain an 'even' grid
             pos_shrink = positions[:, pp]
-            # pos_shrink = np.array([-0.47, -0.06])
-            # print(pos_shrink)
 
             pos_shrink = dynamics._get_position_after_deflating_obstacle(
                 pos_shrink, in_obstacle_frame=False
             )
-            # print(pos_shrink)
             if np.allclose(pos_shrink, dynamics.obstacle.center_position):
                 gammas_shrink[pp] = 1
+                convergence_weights[pp] = 1
                 continue
 
             pos_shrink = dynamics._get_unfolded_position_opposite_kernel_point(
                 pos_shrink, attractor_position, in_obstacle_frame=False
             )
-            # print(pos_shrink)
             pos_shrink = dynamics._get_position_after_inflating_obstacle(
                 pos_shrink, in_obstacle_frame=False
             )
-            # print(pos_shrink)
             gammas_shrink[pp] = dynamics.obstacle.get_gamma(
                 pos_shrink, in_global_frame=True
             )
-            # breakpoint()
+
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
 
         fig, ax = plt.subplots(figsize=figsize)
+        # cs = ax.contourf(
+        #     positions[0, :].reshape(nx, ny),
+        #     positions[1, :].reshape(nx, ny),
+        #     gammas_shrink.reshape(nx, ny),
+        #     cmap="binary",
+        #     extend="max",
+        #     vmin=1.0,
+        #     levels=np.linspace(1, 10, 9),
+        #     zorder=-1,
+        # )
         cs = ax.contourf(
             positions[0, :].reshape(nx, ny),
             positions[1, :].reshape(nx, ny),
-            gammas_shrink.reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
             cmap="binary",
-            extend="max",
-            vmin=1.0,
-            levels=np.linspace(1, 10, 9),
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 1, 6),
             zorder=-1,
         )
-
-        # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
 
         # attractor line
         ax.plot(
@@ -635,7 +752,7 @@ def test_inverse_projection_and_deflation_around_obstacle(
             y_lim,
             kwargs["linestyle"],
             color=kwargs["attractor_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
         # split lines
@@ -644,7 +761,7 @@ def test_inverse_projection_and_deflation_around_obstacle(
             [y_lim[0], y_lim[0]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
         ax.plot(
@@ -652,7 +769,7 @@ def test_inverse_projection_and_deflation_around_obstacle(
             [y_lim[1], y_lim[1]],
             kwargs["linestyle"],
             color=kwargs["opposite_color"],
-            linewidth=7,
+            linewidth=kwargs["linewidth"],
             zorder=3,
         )
         ax.set_aspect("equal", adjustable="box")
@@ -752,8 +869,8 @@ def test_obstacle_partially_rotated():
 
 def plot_four_mappings():
     setup = {
-        "attractor_color": "#db6e14",
-        "opposite_color": "#96a83d",
+        "attractor_color": "#BD5E11",
+        "opposite_color": "#4E8212",
         "obstacle_color": "#b35f5b",
         "initial_color": "#a430b3",
         "final_color": "#30a0b3",
@@ -762,15 +879,17 @@ def plot_four_mappings():
         "y_lim": [-3.0, 3.0],
         "n_resolution": 100,
         "n_vectors": 8,
-        "linestyle": ":",
+        "linestyle": "--",
+        "linewidth": 10,
         "figure_name": "circular_motion",
+        "weights_alpha": 0.7,
     }
-    _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
+    # _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
     test_obstacle_inflation(visualize=True, **setup, save_figure=True)
-    test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=True)
-    test_inverse_projection_and_deflation_around_obstacle(
-        visualize=1, **setup, save_figure=True
-    )
+    # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=True)
+    # test_inverse_projection_and_deflation_around_obstacle(
+    #     visualize=1, **setup, save_figure=True
+    # )
 
 
 if (__name__) == "__main__":

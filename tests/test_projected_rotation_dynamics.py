@@ -218,7 +218,8 @@ def test_obstacle_inflation(
         for pp in range(positions.shape[1]):
             # Do the reverse operation to obtain an 'even' grid
             pos_shrink = dynamics._get_position_after_inflating_obstacle(
-                positions[:, pp]
+                positions[:, pp],
+                in_obstacle_frame=False,
             )
             gammas_shrink[pp] = dynamics.obstacle.get_gamma(
                 pos_shrink, in_global_frame=True
@@ -286,7 +287,9 @@ def test_obstacle_inflation(
             positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
 
             for pp in range(positions.shape[1]):
-                pos = dynamics._get_position_after_inflating_obstacle(positions[:, pp])
+                pos = dynamics._get_position_after_inflating_obstacle(
+                    positions[:, pp], in_obstacle_frame=False
+                )
                 velocity = dynamics._get_lyapunov_gradient(pos)
                 ax.quiver(
                     positions[0, pp],
@@ -537,7 +540,7 @@ def test_inverse_projection_around_obstacle(
     )
     assert np.allclose(pos_shrink, attractor_position)
 
-    # center of the obstacle is the 'stable' point
+    # Center of the obstacle is the 'stable' point -> gets projected to center
     position = dynamics.obstacle.center_position
     pos_shrink = dynamics._get_unfolded_position_opposite_kernel_point(
         position,
@@ -570,7 +573,7 @@ def test_inverse_projection_and_deflation_around_obstacle(
 
         ### do before trafo ###
         attractor_position = dynamics._get_position_after_deflating_obstacle(
-            dynamics.attractor_position
+            dynamics.attractor_position, in_obstacle_frame=False
         )
 
         gammas_shrink = np.zeros_like(gammas)
@@ -578,16 +581,22 @@ def test_inverse_projection_and_deflation_around_obstacle(
             # do the reverse operation to obtain an 'even' grid
             pos_shrink = positions[:, pp]
             # pos_shrink = np.array([3.0, 1.0])
-            pos_shrink = dynamics._get_position_after_deflating_obstacle(pos_shrink)
+            pos_shrink = dynamics._get_position_after_deflating_obstacle(
+                pos_shrink, in_obstacle_frame=False
+            )
 
             if np.allclose(pos_shrink, dynamics.obstacle.center_position):
                 gammas_shrink[pp] = 1
                 continue
 
             pos_shrink = dynamics._get_unfolded_position_opposite_kernel_point(
-                pos_shrink, attractor_position
+                pos_shrink,
+                attractor_position,
+                in_obstacle_frame=False,
             )
-            pos_shrink = dynamics._get_position_after_inflating_obstacle(pos_shrink)
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                pos_shrink, in_obstacle_frame=False
+            )
 
             gammas_shrink[pp] = dynamics.obstacle.get_gamma(
                 pos_shrink, in_global_frame=True
@@ -650,7 +659,9 @@ def test_inverse_projection_and_deflation_around_obstacle(
             )
             positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
             for pp in range(positions.shape[1]):
-                pos = dynamics._get_position_after_inflating_obstacle(positions[:, pp])
+                pos = dynamics._get_position_after_inflating_obstacle(
+                    positions[:, pp], in_obstacle_frame=False
+                )
                 velocity = dynamics._get_projected_lyapunov_gradient(pos)
                 ax.quiver(
                     pos[0],
@@ -900,6 +911,44 @@ def test_full_projection_pipeline_challenging():
     assert LA.norm(projected_position[1]) > 10, "No variation expected."
 
 
+def test_projection_inversion():
+    dynamics = get_environment_obstacle_top_right()
+    attractor_position = dynamics.attractor_position
+
+    # Unfolding in global frame
+    pos = np.array([2.0, 0.5])
+    pos_unfolded = dynamics._get_unfolded_position_opposite_kernel_point(
+        pos,
+        attractor_position,
+        in_obstacle_frame=False,
+    )
+
+    pos_folded = dynamics._get_folded_position_opposite_kernel_point(
+        pos_unfolded,
+        attractor_position,
+        in_obstacle_frame=False,
+    )
+    assert np.allclose(pos, pos_folded)
+
+    # Unfolding in local frame
+    pos = np.array([-1.0, 0.0])
+    # unfolding is done in this visualization
+    pos_unfolded = dynamics._get_unfolded_position_opposite_kernel_point(
+        pos,
+        attractor_position,
+        # in_obstacle_frame=False,
+        in_obstacle_frame=True,
+    )
+
+    pos_folded = dynamics._get_folded_position_opposite_kernel_point(
+        pos_unfolded,
+        attractor_position,
+        # in_obstacle_frame=False,
+        in_obstacle_frame=True,
+    )
+    assert np.allclose(pos, pos_folded)
+
+
 if (__name__) == "__main__":
     setup = {
         "attractor_color": "#db6e14",
@@ -921,6 +970,8 @@ if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
+    test_projection_inversion()
+
     # _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
     # test_obstacle_inflation(visualize=True, **setup, save_figure=True)
 
@@ -932,13 +983,13 @@ if (__name__) == "__main__":
     # test_inverse_projection_around_obstacle(visualize=False)
     # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=True)
 
-    # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=False)
+    test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=False)
     # test_inverse_projection_around_obstacle(visualize=False, **setup, save_figure=False)
 
-    test_obstacle_inflation(visualize=False)
+    # test_obstacle_inflation(visualize=True, **setup)
 
     # test_inverse_projection_and_deflation_around_obstacle(
-    #     visualize=1, **setup, save_figure=True
+    #     visualize=1, **setup, save_figure=False
     # )
 
     # test_full_projection_pipeline()

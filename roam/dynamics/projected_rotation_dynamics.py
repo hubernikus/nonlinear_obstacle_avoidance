@@ -197,7 +197,9 @@ class ProjectedRotationDynamics:
         attractor_position: Vector,
         in_obstacle_frame: bool = True,
     ) -> Vector:
-        """Returns the relative position folded with respect to the dynamics center."""
+        """Returns the relative position folded with respect to the dynamics center.
+        obstacle_center position is 'stable'
+        """
 
         # Copy just in case - but probably not needed
         # relative_position = np.copy(relative_position)
@@ -253,6 +255,9 @@ class ProjectedRotationDynamics:
 
         transformed_position = basis @ transformed_position
         transformed_position = transformed_position * dist_attr_obs
+
+        if not in_obstacle_frame:
+            transformed_position = transformed_position + self.obstacle.center_position
 
         return transformed_position
 

@@ -46,6 +46,10 @@ from roam.dynamics.projected_rotation_dynamics import (
 )
 
 
+def get_convergence_weight(gamma: float) -> float:
+    return min(1 / gamma, 1)
+
+
 class ObstacleConvergenceDynamics(Protocol):
     def evaluate_convergence_around_obstacle(
         self, position: npt.ArrayLike, obstacle: Obstacle
