@@ -757,21 +757,16 @@ class RotationalAvoider(BaseAvoider):
             LA.norm(dir_convergence.as_angle()) < convergence_radius
             or self.tail_rotation
         ):
-            dir_convergence = RotationalAvoider.get_tangent_convergence_direction(
+            dir_convergence_tangent = RotationalAvoider.get_tangent_convergence_direction(
                 dir_convergence=dir_convergence,
                 dir_reference=dir_reference,
                 # base=base,
                 convergence_radius=convergence_radius,
             )
+        else:
+            dir_convergence_tangent = dir_convergence
 
         dir_initial = UnitDirection(base).from_vector(nonlinear_velocity)
-        # rotated_direction = self._get_projected_velocity(
-        #     dir_convergence_tangent=dir_convergence,
-        #     dir_initial_velocity=dir_initial,
-        #     weight=weight,
-        #     convergence_radius=math.pi / 2,
-        # )
-        # return rotated_direction.as_vector()
 
         if False:
             angle_margin = math.pi * 0.7
@@ -784,31 +779,33 @@ class RotationalAvoider(BaseAvoider):
                 weight = weight * (1 - (ang_norm - ang_min) / (angle_margin - ang_min))
                 #     return dir_initial.as_vector()
 
-        conv_vector = dir_convergence.as_vector()
-        if (dot_weights := np.dot(conv_vector, dir_initial.as_vector())) < 0:
-            # When the two 'tangents' are far apart use the normal as fill-in
-            # this ensure continuous value even far away
-            dot_weights = (-1) * dot_weights
-            # normal_vector = base[:, 0]
+        # conv_vector = dir_convergence_tangent.as_vector()
+        # if (dot_weights := np.dot(conv_vector, dir_initial.as_vector())) < 0:
+        #     # When the two 'tangents' are far apart use the normal as fill-in
+        #     # this ensure continuous value even far away
+        #     dot_weights = (-1) * dot_weights
+        #     # normal_vector = base[:, 0]
 
-            # null_vector = get_directional_weighted_sum(
-            #     null_direction=conv_vector,
-            #     weights=np.array([(1 - dot_weights), dot_weights]),
-            #     directions=np.vstack((conv_vector, normal_vector)).T,
-            # )
-            null_direction = copy.deepcopy(dir_convergence)
-            null_direction = null_direction.from_angle(
-                null_direction.as_angle() * dot_weights
-            )
-            null_vector = null_direction.as_vector()
+        #     # null_vector = get_directional_weighted_sum(
+        #     #     null_direction=conv_vector,
+        #     #     weights=np.array([(1 - dot_weights), dot_weights]),
+        #     #     directions=np.vstack((conv_vector, normal_vector)).T,
+        #     # )
+        #     null_direction = copy.deepcopy(dir_convergence)
+        #     null_direction = null_direction.from_angle(
+        #         null_direction.as_angle() * dot_weights
+        #     )
+        #     null_vector = null_direction.as_vector()
 
-        else:
-            null_vector = conv_vector
+        # else:
+        #     null_vector = conv_vector
 
         rotated_velocity = get_directional_weighted_sum(
-            null_direction=null_vector,
+            null_direction=dir_convergence.as_vector(),
             weights=np.array([weight, (1 - weight)]),
-            directions=np.vstack((conv_vector, dir_initial.as_vector())).T,
+            directions=np.vstack(
+                (dir_convergence_tangent.as_vector(), dir_initial.as_vector())
+            ).T,
         )
 
         return rotated_velocity

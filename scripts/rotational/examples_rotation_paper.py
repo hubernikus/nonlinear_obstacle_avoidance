@@ -430,12 +430,11 @@ def convergence_direction_comparison_for_circular_dynamics(
     obstacle_environment.append(
         StarshapedFlower(
             center_position=center,
-            radius_magnitude=0.2,
-            number_of_edges=5,
+            radius_magnitude=0.3,
+            number_of_edges=4,
             radius_mean=0.75,
-            orientation=33 / 180 * pi,
+            orientation=30 / 180 * pi,
             distance_scaling=1,
-            # tail_effect=False,
             # is_boundary=True,
         )
     )
@@ -489,7 +488,7 @@ def convergence_direction_comparison_for_circular_dynamics(
     )
 
     fig, ax = plt.subplots(figsize=figsize)
-    start_integration = np.array([-2.0151, 0])
+    start_integration = np.array([-2.060, 0])
     pos_traj_global = function_integrator(
         start_integration, obstacle_avoider.evaluate, it_max=it_max, stepsize=0.05
     )
@@ -536,7 +535,7 @@ def convergence_direction_comparison_for_circular_dynamics(
 
     fig, ax = plt.subplots(figsize=figsize)
     # traj_color = "#FF9B00"
-    start_integration = np.array([-2.0076, 0])
+    start_integration = np.array([-2.0037, 0])
     pos_traj_global = function_integrator(
         start_integration,
         obstacle_avoider_globally_straight.evaluate,
@@ -600,7 +599,7 @@ if (__name__) == "__main__":
     convergence_direction_comparison_for_circular_dynamics(
         visualize=True,
         save_figure=True,
-        n_resolution=30,
+        n_resolution=100,
     )
 
     print("--- done ---")

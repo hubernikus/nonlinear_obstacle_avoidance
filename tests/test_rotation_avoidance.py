@@ -22,6 +22,7 @@ from vartools.dynamical_systems import LinearSystem, ConstantValue
 from vartools.dynamical_systems import QuadraticAxisConvergence
 from vartools.dynamical_systems import CircularStable
 from vartools.directional_space import UnitDirection
+from vartools.states import ObjectPose
 
 # DirectionBase
 from vartools.dynamical_systems import plot_vectorfield
@@ -34,6 +35,7 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
+from roam.dynamics.circular_dynamics import SimpleCircularDynamics
 from roam.dynamics import WavyLinearDynamics
 from roam.rotation_container import RotationContainer
 from roam.avoidance import obstacle_avoidance_rotational
@@ -995,8 +997,49 @@ def test_tangent_finding():
         normal=normal,
         reference=reference,
     )
-
     assert projected[0] > 0 and projected[1] < 0
+
+
+def test_simple_convergence_in_limit_cycle():
+    obstacle_environment = RotationContainer()
+    center = np.array([2.2, 0.0])
+    obstacle_environment.append(
+        StarshapedFlower(
+            center_position=center,
+            radius_magnitude=0.3,
+            number_of_edges=4,
+            radius_mean=0.75,
+            orientation=10 / 180 * math.pi,
+            distance_scaling=1,
+            # is_boundary=True,
+        )
+    )
+
+    attractor_position = np.array([0.0, 0])
+    circular_ds = SimpleCircularDynamics(
+        radius=2.0,
+        pose=ObjectPose(
+            position=attractor_position,
+        ),
+    )
+
+    # Approximate limit cycle with circular.
+    convergence_dynamics = LinearSystem(attractor_position=attractor_position)
+    obstacle_avoider_globally_straight = RotationalAvoider(
+        initial_dynamics=circular_ds,
+        obstacle_environment=obstacle_environment,
+        convergence_system=convergence_dynamics,
+    )
+
+    # Move continuously up
+    position1 = np.array([1.2734, -1.0926])
+    velocity1 = obstacle_avoider_globally_straight.evaluate(position1)
+    assert velocity1[1] > 0
+
+    # A close position should have close velocity values
+    position2 = np.array([1.2703, -1.1460])
+    velocity2 = obstacle_avoider_globally_straight.evaluate(position2)
+    assert np.allclose(velocity1, velocity2, atol=1e-1)
 
 
 if (__name__) == "__main__":
@@ -1022,6 +1065,7 @@ if (__name__) == "__main__":
     # test_double_ellipse(visualize=True)
     # test_stable_linear_avoidance(visualize=True)
 
-    _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
+    # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
+    test_simple_convergence_in_limit_cycle()
 
     print("[Rotational Tests] Done tests")

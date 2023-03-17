@@ -76,10 +76,10 @@ def get_environment_obstacle_top_right():
     center = np.array([2.2, 0.0])
     obstacle = StarshapedFlower(
         center_position=center,
-        radius_magnitude=0.2,
-        number_of_edges=5,
+        radius_magnitude=0.3,
+        number_of_edges=4,
         radius_mean=0.75,
-        orientation=33 / 180 * pi,
+        orientation=10 / 180 * pi,
         distance_scaling=1,
         # tail_effect=False,
         # is_boundary=True,
@@ -93,17 +93,17 @@ def get_environment_obstacle_top_right():
 
     reference_velocity = np.array([2, 0.1])
 
-    dynamics = ProjectedRotationDynamics(
-        obstacle=obstacle,
-        attractor_position=attractor_position,
-        reference_velocity=reference_velocity,
-    )
-
     circular_ds = SimpleCircularDynamics(
         radius=2.0,
         pose=ObjectPose(
             position=attractor_position,
         ),
+    )
+    dynamics = ProjectedRotationDynamics(
+        obstacle=obstacle,
+        attractor_position=attractor_position,
+        reference_velocity=reference_velocity,
+        initial_dynamics=circular_ds,
     )
 
     return dynamics
@@ -194,12 +194,12 @@ def _test_base_gamma(
             convergence_weights.reshape(nx, ny),
             cmap="binary",
             alpha=kwargs["weights_alpha"],
-            extend="max",
+            # extend="max",
             # vmin=1.0,
-            levels=np.linspace(0, 1, 10),
+            levels=np.linspace(0, 1, 11),
             zorder=-1,
         )
-        cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
+        cbar = fig.colorbar(cs, ticks=np.linspace(0, 1.0, 6))
 
         ax.plot(
             dynamics.attractor_position[0],
@@ -257,7 +257,7 @@ def _test_base_gamma(
                 pos = dynamics._get_position_after_inflating_obstacle(
                     positions[:, pp], in_obstacle_frame=False
                 )
-                velocity = dynamics._get_lyapunov_gradient(pos)
+                velocity = dynamics.initial_dynamics.evaluate(pos)
                 ax.quiver(
                     pos[0],
                     pos[1],
@@ -269,16 +269,21 @@ def _test_base_gamma(
                     zorder=1,
                 )
 
-                velocity_rotation = dynamics._get_vector_rotation_of_modulation(
-                    pos, velocity
+                # velocity_rotation = dynamics._get_vector_rotation_of_modulation(
+                #     pos, velocity
+                # )
+                velocity_rotation = dynamics.evaluate_convergence_around_obstacle(
+                    pos, dynamics.obstacle
                 )
 
-                velocity_mod = velocity_rotation.rotate(velocity)
+                # velocity_mod = velocity_rotation.rotate(velocity)
                 ax.quiver(
                     pos[0],
                     pos[1],
-                    velocity_mod[0],
-                    velocity_mod[1],
+                    # velocity_mod[0],
+                    # velocity_mod[1],
+                    velocity_rotation[0],
+                    velocity_rotation[1],
                     color=kwargs["final_color"],
                     scale=10.0,
                     width=0.01,
@@ -444,7 +449,8 @@ def test_obstacle_inflation(
                 pos = dynamics._get_position_after_inflating_obstacle(
                     positions[:, pp], in_obstacle_frame=False
                 )
-                velocity = dynamics._get_lyapunov_gradient(pos)
+                # velocity = dynamics._get_lyapunov_gradient(pos)
+                velocity = dynamics.initial_dynamics.evaluate(pos)
                 ax.quiver(
                     positions[0, pp],
                     positions[1, pp],
@@ -712,7 +718,6 @@ def test_inverse_projection_and_deflation_around_obstacle(
         for pp in range(positions.shape[1]):
             # do the reverse operation to obtain an 'even' grid
             pos_shrink = positions[:, pp]
-
             pos_shrink = dynamics._get_position_after_deflating_obstacle(
                 pos_shrink, in_obstacle_frame=False
             )
@@ -807,11 +812,29 @@ def test_inverse_projection_and_deflation_around_obstacle(
                 np.linspace(x_lim[0], x_lim[1], nx), np.linspace(y_lim[0], y_lim[1], ny)
             )
             positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
+            velocities = np.zeros_like(positions)
             for pp in range(positions.shape[1]):
                 pos = dynamics._get_position_after_inflating_obstacle(
                     positions[:, pp], in_obstacle_frame=False
                 )
-                velocity = dynamics._get_projected_lyapunov_gradient(pos)
+
+                pos_revert = positions[:, pp]
+                pos_revert = dynamics._get_unfolded_position_opposite_kernel_point(
+                    pos_revert, attractor_position, in_obstacle_frame=False
+                )
+                pos_revert = dynamics._get_position_after_inflating_obstacle(
+                    pos_revert, in_obstacle_frame=False
+                )
+
+                velocity = dynamics.initial_dynamics.evaluate(pos_revert)
+                base_rotation = dynamics._get_vector_rotation_of_modulation(
+                    pos_revert, dynamics.obstacle.center_position - attractor_position
+                )
+
+                print("vel", velocity)
+                velocity = base_rotation.rotate(velocity)
+                print("vel a", velocity)
+
                 ax.quiver(
                     pos[0],
                     pos[1],
@@ -821,9 +844,10 @@ def test_inverse_projection_and_deflation_around_obstacle(
                     scale=10.0,
                     width=0.01,
                 )
-
+                breakpoint()
                 velocity_rotation = dynamics._get_vector_rotation_of_modulation(
-                    pos, velocity
+                    pos,
+                    velocity,
                 )
 
                 velocity_mod = velocity_rotation.rotate(velocity)
@@ -836,7 +860,7 @@ def test_inverse_projection_and_deflation_around_obstacle(
                     scale=10.0,
                     width=0.01,
                 )
-
+            breakpoint()
             ax.set_xticks([])
             ax.set_yticks([])
 
@@ -892,18 +916,18 @@ def plot_four_mappings():
         "x_lim": [-3.0, 3.4],
         "y_lim": [-3.0, 3.0],
         "n_resolution": 100,
-        "n_vectors": 8,
+        "n_vectors": 12,
         "linestyle": "--",
         "linewidth": 10,
         "figure_name": "circular_motion",
         "weights_alpha": 0.7,
     }
-    _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
+    # _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
     # test_obstacle_inflation(visualize=True, **setup, save_figure=True)
     # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=True)
-    # test_inverse_projection_and_deflation_around_obstacle(
-    #     visualize=1, **setup, save_figure=True
-    # )
+    test_inverse_projection_and_deflation_around_obstacle(
+        visualize=1, **setup, save_figure=True
+    )
 
 
 if (__name__) == "__main__":
