@@ -25,22 +25,18 @@ from vartools.directional_space import UnitDirection
 
 # DirectionBase
 from vartools.dynamical_systems import plot_vectorfield
+from vartools.math import get_intersection_with_circle
 
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
-
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from vartools.math import (
-    get_intersection_with_circle,
-)
+from roam.dynamics import WavyLinearDynamics
 from roam.rotation_container import RotationContainer
-from roam.avoidance import (
-    obstacle_avoidance_rotational,
-)
+from roam.avoidance import obstacle_avoidance_rotational
 from roam.avoidance import RotationalAvoider
 from roam.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
@@ -249,7 +245,6 @@ def test_convergence_tangent(visualize=True):
         positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
         vectors = np.zeros(positions.shape)
         for it in range(positions.shape[1]):
-
             linear_velocity = initial_dynamics.evaluate(position)
 
             normal = obstacle.get_normal_direction(
@@ -906,7 +901,10 @@ def test_stable_linear_avoidance(visualize=False):
 
 
 def _test_obstacle_and_hull_avoidance(visualize=False, save_figure=False):
-    initial_dynamics = LinearSystem(attractor_position=np.array([4.0, 0]))
+    attractor_position = np.array([3.0, 2.0])
+    # initial_dynamics = LinearSystem(attractor_position=attractor_position)
+    initial_dynamics = WavyLinearDynamics(attractor_position=attractor_position)
+    convergence_dynamics = LinearSystem(attractor_position=attractor_position)
 
     rotation_container = RotationContainer()
     rotation_container.set_convergence_directions(converging_dynamics=initial_dynamics)
@@ -921,20 +919,22 @@ def _test_obstacle_and_hull_avoidance(visualize=False, save_figure=False):
 
     rotation_container.append(
         StarshapedFlower(
-            center_position=np.array([1, -2]),
+            center_position=np.array([2, -2]),
             radius_magnitude=0.5,
             radius_mean=1.5,
             number_of_edges=3,
             # axes_length=np.array([4, 2]),
             orientation=30 / 90.0 * math.pi,
+            distance_scaling=0.5,
         )
     )
 
     rotation_container.append(
         Cuboid(
             center_position=np.array([-2.5, 2]),
-            axes_length=np.array([3, 2.5]),
+            axes_length=np.array([3, 1.5]),
             orientation=120 / 90.0 * math.pi,
+            distance_scaling=0.5,
         )
     )
 
@@ -943,6 +943,7 @@ def _test_obstacle_and_hull_avoidance(visualize=False, save_figure=False):
             center_position=np.array([0, 0]),
             axes_length=np.array([12, 9]),
             is_boundary=True,
+            distance_scaling=3,
         )
     )
 
@@ -1004,7 +1005,7 @@ if (__name__) == "__main__":
 
     # test_intersection_with_circle()
 
-    test_convergence_tangent(visualize=False)
+    # test_convergence_tangent(visualize=False)
     # test_rotating_towards_tangent()
 
     # test_single_circle_linear(visualize=True)
@@ -1021,6 +1022,6 @@ if (__name__) == "__main__":
     # test_double_ellipse(visualize=True)
     # test_stable_linear_avoidance(visualize=True)
 
-    # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
+    _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
 
     print("[Rotational Tests] Done tests")

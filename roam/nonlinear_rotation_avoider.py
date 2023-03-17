@@ -920,6 +920,6 @@ if (__name__) == "__main__":
     # test_multiobstacle_nonlinear_avoider(visualize=True)
 
     # test_circular_single_obstacle(visualize=True)
-    # test_circular_dynamics_with_two_circles(visualize=True, n_resolution=20)
+    _test_circular_dynamics_with_two_circles(visualize=True, n_resolution=20)
 
     print("Done")

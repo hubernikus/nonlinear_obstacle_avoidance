@@ -25,7 +25,6 @@ class WavyLinearDynamics(DynamicalSystem):
         maximum_deviation: float = math.pi * 0.3,  # Just below pi / 2
         **kwargs
     ):
-
         super().__init__(attractor_position=attractor_position)
         if self.dimension != 2:
             raise NotImplementedError("This vectorfield is limited to 2-D.")

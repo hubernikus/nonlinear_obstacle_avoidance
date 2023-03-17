@@ -7,55 +7,54 @@ import warnings
 import copy
 from functools import partial
 import math
+from typing import Optional, Callable
 
 import numpy as np
 from numpy import pi
 import matplotlib.pyplot as plt
 
 from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
-from roam.dynamics import WavyLinearDynamics
+from vartools.states import ObjectPose
+from vartools.dynamical_systems import plot_dynamical_system_streamplot
+from vartools.visualization import VectorfieldPlotter
 
 # from vartools.dynamical_systems import SinusAttractorSystem
 # from vartools.dynamical_systems import BifurcationSpiral
 
-from vartools.dynamical_systems import plot_dynamical_system_streamplot
-
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
-
 from dynamic_obstacle_avoidance.avoidance import obs_avoidance_interpolation_moving
 from dynamic_obstacle_avoidance.avoidance import ModulationAvoider
-
-from roam.multiboundary_container import (
-    MultiBoundaryContainer,
-)
-
-from roam.rotation_container import RotationContainer
-from roam.avoidance import (
-    obstacle_avoidance_rotational,
-)
-from roam.avoidance import RotationalAvoider
-
 from dynamic_obstacle_avoidance.visualization import (
     Simulation_vectorFields,
     plot_obstacles,
 )
+from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
+    plot_obstacle_dynamics,
+)
 
-from vartools.visualization import VectorfieldPlotter
+
+from roam.multiboundary_container import MultiBoundaryContainer
+from roam.dynamics import WavyLinearDynamics
+from roam.rotation_container import RotationContainer
+from roam.avoidance import obstacle_avoidance_rotational
+from roam.avoidance import RotationalAvoider
+from roam.dynamics.circular_dynamics import SimpleCircularDynamics
+
 
 # plt.close('all')
 plt.ion()
 
 
 def function_integrator(
-    start_point,
-    dynamics,
-    stopping_functor,
+    start_point: np.ndarray,
+    dynamics: Callable[[np.ndarray], np.ndarray],
+    stopping_functor: Optional[Callable[[np.ndarray], bool]] = None,
     stepsize: float = 0.1,
     err_abs: float = 1e-1,
     it_max: int = 100,
-):
+) -> np.ndarray:
     points = np.zeros((start_point.shape[0], it_max + 1))
     points[:, 0] = start_point
 
@@ -415,6 +414,162 @@ def integration_smoothness_around_ellipse(visualize=False, save_figure=False):
                 )
 
 
+def convergence_direction_comparison_for_circular_dynamis(
+    visualize=True, save_figure=False
+):
+    # from vartools.dynamical_systems import CircularStable
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Ellipse(
+            center_position=np.array([2.0, 0.0]),
+            axes_length=np.array([2.0, 1.0]),
+            orientation=45 * math.pi / 180.0,
+            # margin_absolut=0.3,
+        )
+    )
+
+    # circular_ds = CircularStable(radius=2.5, maximum_velocity=2.0)
+    attractor_position = np.array([0.0, 0])
+    circular_ds = SimpleCircularDynamics(
+        radius=2.0,
+        pose=ObjectPose(
+            position=attractor_position,
+        ),
+    )
+
+    # Simple Setup
+    convergence_dynamics = LinearSystem(attractor_position=attractor_position)
+    obstacle_avoider_globally_straight = RotationalAvoider(
+        initial_dynamics=circular_ds,
+        obstacle_environment=obstacle_environment,
+        convergence_system=convergence_dynamics,
+    )
+
+    # Convergence direction [local]
+
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=circular_ds.pose.position,
+        initial_dynamics=circular_ds,
+        reference_velocity=lambda x: x - circular_ds.center_position,
+    )
+
+    obstacle_avoider = NonlinearRotationalAvoider(
+        initial_dynamics=circular_ds,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    x_lim = [-3.0, 3.4]
+    y_lim = [-3.0, 3.0]
+    figsize = (5.0, 4.5)
+    n_resolution = 120
+    vf_color = "blue"
+    traj_color = "#DB4914"
+    # traj_color = "blue"
+    traj_base_color = "#808080"
+    it_max = 160
+    lw = 4
+
+    start_integration = np.array([-2.005, 0])
+    pos_traj_base = function_integrator(
+        start_integration, circular_ds.evaluate, it_max=it_max
+    )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    start_integration = np.array([-2.03659, 0])
+    pos_traj_global = function_integrator(
+        start_integration, obstacle_avoider.evaluate, it_max=it_max
+    )
+    ax.plot(
+        pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
+    )
+    ax.plot(
+        pos_traj_base[0, :],
+        pos_traj_base[1, :],
+        # "--",
+        linewidth=lw,
+        color=traj_base_color,
+        zorder=-3,
+    )
+
+    plot_obstacle_dynamics(
+        obstacle_container=obstacle_environment,
+        # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
+        dynamics=obstacle_avoider.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        ax=ax,
+        n_grid=n_resolution,
+        do_quiver=False,
+        # do_quiver=True,
+        vectorfield_color=vf_color,
+        attractor_position=attractor_position,
+    )
+    plot_obstacles(
+        ax=ax,
+        obstacle_container=obstacle_environment,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        noTicks=True,
+        # show_ticks=False,
+    )
+
+    if save_figure:
+        figname = "rotational_avoidance_local_convergence_direction"
+        plt.savefig(
+            "figures/" + figname + figtype,
+            bbox_inches="tight",
+        )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    # traj_color = "#FF9B00"
+    start_integration = np.array([-2.03659, 0])
+    pos_traj_global = function_integrator(
+        start_integration, obstacle_avoider_globally_straight.evaluate, it_max=it_max
+    )
+    ax.plot(
+        pos_traj_base[0, :],
+        pos_traj_base[1, :],
+        # "--",
+        linewidth=lw,
+        color=traj_base_color,
+        zorder=-3,
+    )
+    plt.plot(
+        pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
+    )
+
+    plot_obstacle_dynamics(
+        obstacle_container=obstacle_environment,
+        # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
+        dynamics=obstacle_avoider_globally_straight.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        ax=ax,
+        n_grid=n_resolution,
+        do_quiver=False,
+        # do_quiver=True,
+        vectorfield_color=vf_color,
+        attractor_position=attractor_position,
+    )
+    plot_obstacles(
+        ax=ax,
+        obstacle_container=obstacle_environment,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        noTicks=True,
+        # show_ticks=False,
+    )
+
+    if save_figure:
+        figname = "rotational_avoidance_global_convergence_direction"
+        plt.savefig(
+            "figures/" + figname + figtype,
+            bbox_inches="tight",
+        )
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
@@ -425,5 +580,9 @@ if (__name__) == "__main__":
     # visualization_inverted_ellipsoid(visualize=True, save_figure=True)
     # quiver_single_circle_linear_repulsive(visualize=True, save_figure=False)
     # integration_smoothness_around_ellipse(visualize=True, save_figure=True)
+
+    convergence_direction_comparison_for_circular_dynamis(
+        visualize=True, save_figure=True
+    )
 
     print("--- done ---")
