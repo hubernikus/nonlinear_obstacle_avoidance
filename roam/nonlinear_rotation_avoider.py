@@ -407,6 +407,7 @@ def test_nonlinear_avoider(
             # weight="bold",
             fontsize=12,
         )
+        cbar.ax.set_ylabel(f"$w^c$", rotation=0, labelpad=10, backgroundcolor="white")
         # cbar.ax.set_xticklabels(labels=cbar.ax.get_yticklabels(), weight="bold")
 
         if savefig:
@@ -915,11 +916,11 @@ if (__name__) == "__main__":
     # figtype = ".png"
 
     # test_nonlinear_avoider(visualize=True, savefig=False)
-    # test_nonlinear_avoider(visualize=True, savefig=False, n_resolution=10)
+    test_nonlinear_avoider(visualize=True, savefig=False, n_resolution=10)
 
     # test_multiobstacle_nonlinear_avoider(visualize=True)
 
     # test_circular_single_obstacle(visualize=True)
-    _test_circular_dynamics_with_two_circles(visualize=True, n_resolution=20)
+    # _test_circular_dynamics_with_two_circles(visualize=True, n_resolution=20)
 
     print("Done")
