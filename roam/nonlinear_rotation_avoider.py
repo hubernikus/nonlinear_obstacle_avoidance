@@ -119,6 +119,10 @@ class NonlinearRotationalAvoider(BaseAvoider):
     def n_obstacles(self):
         return len(self._rotation_avoider.obstacle_environment)
 
+    @property
+    def obstacle_environment(self):
+        return self._rotation_avoider.obstacle_environment
+
     def evaluate_initial_dynamics(self, position: np.ndarray) -> np.ndarray:
         return self._rotation_avoider.initial_dynamics.evaluate(position)
 
