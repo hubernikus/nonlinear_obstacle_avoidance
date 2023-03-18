@@ -1061,7 +1061,7 @@ if (__name__) == "__main__":
         "n_vectors": 10,
         "linestyle": "--",
         "linewidth": 10,
-        "figure_name": "circular_motion",
+        "figure_name": "linear_spiral_motion",
         "weights_alpha": 0.7,
     }
 
