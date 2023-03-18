@@ -922,7 +922,7 @@ def _test_obstacle_partially_rotated():
     pos_close_to_center[0] = pos_close_to_center[0] + dist_surf
 
     pos = dynamics._get_position_after_deflating_obstacle(
-        pos_close_to_center, in_obstacle_frame=False
+p        pos_close_to_center, in_obstacle_frame=False
     )
 
     assert np.allclose(pos, dynamics.obstacle.center_position, atol=dist_surf / 2.0)

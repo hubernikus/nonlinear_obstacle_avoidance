@@ -584,11 +584,171 @@ def convergence_direction_comparison_for_circular_dynamics(
         )
 
 
+def convergence_direction_comparison_for_linear_dynamics(
+    visualize=True, save_figure=False, n_resolution=120, fig_basename="roam_linear_ds_"
+):
+    obstacle_environment = RotationContainer()
+    center = np.array([2.2, 0.0])
+    obstacle_environment.append(
+        StarshapedFlower(
+            center_position=center,
+            radius_magnitude=0.3,
+            number_of_edges=4,
+            radius_mean=0.75,
+            orientation=30 / 180 * pi,
+            distance_scaling=1,
+            # is_boundary=True,
+        )
+    )
+
+    # circular_ds = CircularStable(radius=2.5, maximum_velocity=2.0)
+    attractor_position = np.array([0.0, 0])
+    initial_ds = LinearSystem(
+        attractor_position=np.zeros(2),
+        A_matrix=np.array([[-1, -2], [2, -1]]),
+        maximum_velocity=1.0,
+    )
+
+    # Simple Setup
+    convergence_dynamics = LinearSystem(attractor_position=attractor_position)
+    obstacle_avoider_globally_straight = RotationalAvoider(
+        initial_dynamics=initial_ds,
+        obstacle_environment=obstacle_environment,
+        convergence_system=convergence_dynamics,
+    )
+
+    # Convergence direction [local]
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=initial_ds.pose.position,
+        initial_dynamics=initial_ds,
+        reference_velocity=lambda x: x - initial_ds.center_position,
+    )
+
+    obstacle_avoider = NonlinearRotationalAvoider(
+        initial_dynamics=initial_ds,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+        # Currently not working... -> rotational summing needs to be improved..
+        # convergence_radius=math.pi * 3 / 4,
+    )
+
+    x_lim = [-3.0, 3.4]
+    y_lim = [-3.0, 3.0]
+    figsize = (5.0, 4.5)
+    vf_color = "blue"
+    traj_color = "#DB4914"
+    # traj_color = "blue"
+    traj_base_color = "#808080"
+    it_max = 320
+    lw = 4
+
+    # start_integration = np.array([x_lim[0], -2.7])
+    start_integration = np.array([0, y_lim[0]])
+    pos_traj_base = function_integrator(
+        start_integration, initial_ds.evaluate, it_max=it_max, stepsize=0.05
+    )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    pos_traj_global = function_integrator(
+        start_integration, obstacle_avoider.evaluate, it_max=it_max, stepsize=0.05
+    )
+    ax.plot(
+        pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
+    )
+    ax.plot(
+        pos_traj_base[0, :],
+        pos_traj_base[1, :],
+        # "--",
+        linewidth=lw,
+        color=traj_base_color,
+        zorder=-3,
+    )
+
+    plot_obstacle_dynamics(
+        obstacle_container=obstacle_environment,
+        # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
+        dynamics=obstacle_avoider.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        ax=ax,
+        n_grid=n_resolution,
+        do_quiver=False,
+        # do_quiver=True,
+        vectorfield_color=vf_color,
+        attractor_position=attractor_position,
+    )
+    plot_obstacles(
+        ax=ax,
+        obstacle_container=obstacle_environment,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        noTicks=True,
+        # show_ticks=False,
+    )
+
+    if save_figure:
+        figname = "local_convergence_direction"
+        plt.savefig(
+            "figures/" + fig_basename + figname + figtype,
+            bbox_inches="tight",
+        )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    # traj_color = "#FF9B00"
+    pos_traj_global = function_integrator(
+        start_integration,
+        obstacle_avoider_globally_straight.evaluate,
+        it_max=it_max,
+        stepsize=0.05,
+    )
+    ax.plot(
+        pos_traj_base[0, :],
+        pos_traj_base[1, :],
+        # "--",
+        linewidth=lw,
+        color=traj_base_color,
+        zorder=-3,
+    )
+    plt.plot(
+        pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
+    )
+
+    plot_obstacle_dynamics(
+        obstacle_container=obstacle_environment,
+        # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
+        dynamics=obstacle_avoider_globally_straight.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        ax=ax,
+        n_grid=n_resolution,
+        do_quiver=False,
+        # do_quiver=True,
+        vectorfield_color=vf_color,
+        attractor_position=attractor_position,
+    )
+    plot_obstacles(
+        ax=ax,
+        obstacle_container=obstacle_environment,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        noTicks=True,
+        # show_ticks=False,
+    )
+
+    if save_figure:
+        figname = "global_convergence_direction"
+        plt.savefig(
+            "figures/" + fig_basename + figname + figtype,
+            bbox_inches="tight",
+        )
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
 
-    # plt.close('all')
+    plt.close("all")
     plt.ion()
 
     # inverted_star_obstacle_avoidance(visualize=True, save_figure=True)
@@ -596,7 +756,13 @@ if (__name__) == "__main__":
     # quiver_single_circle_linear_repulsive(visualize=True, save_figure=False)
     # integration_smoothness_around_ellipse(visualize=True, save_figure=True)
 
-    convergence_direction_comparison_for_circular_dynamics(
+    # convergence_direction_comparison_for_circular_dynamics(
+    #     visualize=True,
+    #     save_figure=True,
+    #     n_resolution=100,
+    # )
+
+    convergence_direction_comparison_for_linear_dynamics(
         visualize=True,
         save_figure=True,
         n_resolution=100,
