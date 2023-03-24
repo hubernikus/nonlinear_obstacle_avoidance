@@ -34,19 +34,19 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
 )
 
 
-from roam.rotation_container import RotationContainer
-from roam.avoidance import obstacle_avoidance_rotational
-from roam.avoidance import RotationalAvoider
-from roam.rotation_container import RotationContainer
-from roam.vector_rotation import VectorRotationXd
-from roam.datatypes import Vector
-from roam.dynamics.circular_dynamics import SimpleCircularDynamics
-from roam.nonlinear_rotation_avoider import NonlinearRotationalAvoider
-from roam.dynamics.projected_rotation_dynamics import (
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import obstacle_avoidance_rotational
+from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.vector_rotation import VectorRotationXd
+from nonlinear_avoidance.datatypes import Vector
+from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
+from nonlinear_avoidance.nonlinear_rotation_avoider import NonlinearRotationalAvoider
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 
-from roam.nonlinear_rotation_avoider import get_convergence_weight
+from nonlinear_avoidance.nonlinear_rotation_avoider import get_convergence_weight
 
 
 class CircularEnvironment:

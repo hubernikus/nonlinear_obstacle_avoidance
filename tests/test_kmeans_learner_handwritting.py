@@ -3,7 +3,7 @@ Tests (and visualizations) for KmeansMotionLearner and KMeansObstacle.
 
 To run, in the ipython environment:
 >>>
-run roam/tests/test_kmeans_learner_handwritting.py
+run nonlinear_avoidance/tests/test_kmeans_learner_handwritting.py
 
 """
 
@@ -22,14 +22,14 @@ import matplotlib.pyplot as plt
 
 from vartools.handwritting_handler import HandwrittingHandler
 
-# from roam.kmeans_learner import KMeansObstacle
-from roam.kmeans_learner import (
+# from nonlinear_avoidance.kmeans_learner import KMeansObstacle
+from nonlinear_avoidance.kmeans_learner import (
     KMeansMotionLearner,
     create_kmeans_learner_from_learner,
 )
 
 
-from roam.visualization.kmean_plotting import (
+from nonlinear_avoidance.visualization.kmean_plotting import (
     plot_boundaries,
     plot_normals,
     plot_gamma,
@@ -40,8 +40,8 @@ from roam.visualization.kmean_plotting import (
     plot_gamma_of_learner,
 )
 
-# from roam.tests import helper_functions
-import roam.visualization.kmean_plotting as helper_functions
+# from nonlinear_avoidance.tests import helper_functions
+import nonlinear_avoidance.visualization.kmean_plotting as helper_functions
 
 
 # fig_dir = "/home/lukas/Code/dynamic_obstacle_avoidance/figures/"

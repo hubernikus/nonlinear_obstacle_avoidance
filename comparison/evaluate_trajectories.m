@@ -1,8 +1,8 @@
 clc; clear all; close all;
 % All path m7erging are specifical for linux / unix
 
-%datapath = "/home/lukas/Code/roam/comparison/data";
-datapath = "/home/lukas/Code/nonlinear_obstacle_avoidance/roam/comparison/data";
+%datapath = "/home/lukas/Code/nonlinear_avoidance/comparison/data";
+datapath = "/home/lukas/Code/nonlinear_obstacle_avoidance/nonlinear_avoidance/comparison/data";
 inputfile = "initial_positions.csv";
 
 outputfolder = "guiding_field";

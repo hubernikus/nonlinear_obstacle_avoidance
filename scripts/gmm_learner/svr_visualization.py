@@ -8,9 +8,9 @@ __date__ = "2021-05-16"
 
 import matplotlib.pyplot as plt
 
-# from roam.gmm_learner.learner.directional import DirectionalGMM
-# from roam.gmm_learner.learner.gpr_directional import DirectionalGPR
-from roam.gmm_learner.learner.svr_directional import DirectionalSVR
+# from nonlinear_avoidance.gmm_learner.learner.directional import DirectionalGMM
+# from nonlinear_avoidance.gmm_learner.learner.gpr_directional import DirectionalGPR
+from nonlinear_avoidance.gmm_learner.learner.svr_directional import DirectionalSVR
 
 
 if (__name__) == "__main__":

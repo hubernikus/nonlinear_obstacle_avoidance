@@ -34,15 +34,10 @@ Install all requirements:
 pip install -r requirements.txt && pip install -e .
 ```
 
-Make sure to install submodules:
+Make sure to install the required submodules:
 ``` bash
-mkdir libraries_source && cd libraries_source
-git clone https://github.com/epfl-lasa/dynamic_obstacle_avoidance.git
-cd dynamic_obstacle_avoidance && pip install -r requirements.txt && pip install -e . && cd ..
-git clone https://github.com/hubernikus/various_tools
-cd various_tool && pip install -r requirements.txt && pip install -e . && cd ..
+pip install "git+https://github.com/hubernikus/various_tools.git"
+pip install "git+https://github.com/hubernikus/dynamic_obstacle_avoidance.git"
 ```
 
-
-
-
+If you need to modify certain elements of the software, its advised to clones these repositories to better browser them. 

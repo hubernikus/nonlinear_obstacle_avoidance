@@ -32,11 +32,11 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from vartools.math import (
     get_intersection_with_circle,
 )
-from roam.rotation_container import RotationContainer
-from roam.avoidance import (
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import (
     obstacle_avoidance_rotational,
 )
-from roam.avoidance import RotationalAvoider
+from nonlinear_avoidance.avoidance import RotationalAvoider
 
 from dynamic_obstacle_avoidance.visualization import Simulation_vectorFields
 

@@ -9,9 +9,9 @@ import os
 
 import matplotlib.pyplot as plt
 
-# from roam.gmm_learner.learner.directional import DirectionalGMM
-from roam.gmm_learner.learner.directional_gmm import DirectionalGMM
-from roam.gmm_learner.graph import GraphGMM
+# from nonlinear_avoidance.gmm_learner.learner.directional import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.learner.directional_gmm import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.graph import GraphGMM
 
 
 if (__name__) == "__main__":

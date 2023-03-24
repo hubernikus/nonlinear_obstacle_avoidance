@@ -23,7 +23,7 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.gmm_obstacle import GmmObstacle
+from nonlinear_avoidance.gmm_obstacle import GmmObstacle
 
 
 def collision_sample_space(obstacle_container, num_samples, x_lim, y_lim):

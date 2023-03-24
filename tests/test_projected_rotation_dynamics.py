@@ -24,13 +24,13 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.avoidance import (
+from nonlinear_avoidance.avoidance import (
     obstacle_avoidance_rotational,
 )
-from roam.rotation_container import RotationContainer
-from roam.vector_rotation import VectorRotationXd
-from roam.datatypes import Vector
-from roam.dynamics.projected_rotation_dynamics import (
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.vector_rotation import VectorRotationXd
+from nonlinear_avoidance.datatypes import Vector
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 

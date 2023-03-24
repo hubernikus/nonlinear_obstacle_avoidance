@@ -34,16 +34,16 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
 
-from roam.multiboundary_container import MultiBoundaryContainer
-from roam.dynamics import WavyLinearDynamics
-from roam.rotation_container import RotationContainer
-from roam.avoidance import obstacle_avoidance_rotational
-from roam.avoidance import RotationalAvoider
-from roam.dynamics.circular_dynamics import SimpleCircularDynamics
-from roam.dynamics.projected_rotation_dynamics import (
+from nonlinear_avoidance.multiboundary_container import MultiBoundaryContainer
+from nonlinear_avoidance.dynamics import WavyLinearDynamics
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import obstacle_avoidance_rotational
+from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
-from roam.nonlinear_rotation_avoider import NonlinearRotationalAvoider
+from nonlinear_avoidance.nonlinear_rotation_avoider import NonlinearRotationalAvoider
 
 
 def function_integrator(

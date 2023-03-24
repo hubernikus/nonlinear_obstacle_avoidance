@@ -35,12 +35,12 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.dynamics.circular_dynamics import SimpleCircularDynamics
-from roam.dynamics import WavyLinearDynamics
-from roam.rotation_container import RotationContainer
-from roam.avoidance import obstacle_avoidance_rotational
-from roam.avoidance import RotationalAvoider
-from roam.dynamics.projected_rotation_dynamics import (
+from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
+from nonlinear_avoidance.dynamics import WavyLinearDynamics
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import obstacle_avoidance_rotational
+from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 

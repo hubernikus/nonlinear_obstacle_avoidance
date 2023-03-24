@@ -23,16 +23,16 @@ from dynamic_obstacle_avoidance.visualization import (
     plot_obstacles,
 )
 
-from roam.multiboundary_container import (
+from nonlinear_avoidance.multiboundary_container import (
     MultiBoundaryContainer,
 )
-from roam.multihull_convergence import (
+from nonlinear_avoidance.multihull_convergence import (
     get_desired_radius,
 )
-from roam.multihull_convergence import (
+from nonlinear_avoidance.multihull_convergence import (
     multihull_attraction,
 )
-from roam.avoidance import RotationalAvoider
+from nonlinear_avoidance.avoidance import RotationalAvoider
 from vartools.math import (
     get_intersection_with_circle,
 )

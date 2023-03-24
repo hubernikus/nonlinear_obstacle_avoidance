@@ -2,8 +2,8 @@
 # Github: hubernikus
 # Created: 2022-04-23
 
-from roam.graph_handler import GraphElement
-from roam.graph_handler import GraphHandler
+from nonlinear_avoidance.graph_handler import GraphElement
+from nonlinear_avoidance.graph_handler import GraphHandler
 
 
 def test_graph_element():

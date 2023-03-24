@@ -9,9 +9,9 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
-from roam.vector_rotation import VectorRotationXd
-from roam.vector_rotation import VectorRotationTree
-from roam.vector_rotation import VectorRotationSequence
+from nonlinear_avoidance.vector_rotation import VectorRotationXd
+from nonlinear_avoidance.vector_rotation import VectorRotationTree
+from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
 
 def test_cross_rotation_2d(visualize=False, savefig=False):

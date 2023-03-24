@@ -31,18 +31,18 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.rotation_container import RotationContainer
-from roam.avoidance import (
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import (
     obstacle_avoidance_rotational,
 )
 
 # from dynamic_obstacle_avoidance.containers import ObstacleContainer
-from roam.kmeans_learner import (
+from nonlinear_avoidance.kmeans_learner import (
     KMeansMotionLearner,
 )
-from roam.datatypes import Vector
+from nonlinear_avoidance.datatypes import Vector
 
-import roam.visualization.kmean_plotting as helper_functions
+import nonlinear_avoidance.visualization.kmean_plotting as helper_functions
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 

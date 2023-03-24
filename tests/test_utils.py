@@ -1,6 +1,6 @@
 import numpy as np
 
-from roam.utils import project_point_onto_ray
+from nonlinear_avoidance.utils import project_point_onto_ray
 
 
 def test_project_point_onto_ray():

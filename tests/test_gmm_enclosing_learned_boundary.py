@@ -13,12 +13,12 @@ import matplotlib.pyplot as plt
 
 # from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes
 from dynamic_obstacle_avoidance.obstacles import Ellipse
-from roam.rotation_container import RotationContainer
-from roam.avoidance import RotationalAvoider
-from roam.multihull_convergence import (
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.multihull_convergence import (
     multihull_attraction,
 )
-from roam.multiboundary_container import (
+from nonlinear_avoidance.multiboundary_container import (
     MultiBoundaryContainer,
 )
 
@@ -26,15 +26,15 @@ from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 
-# from roam.gmm_learner.learner.directional import DirectionalGMM
-from roam.gmm_learner.learner.directional_gmm import DirectionalGMM
-from roam.gmm_learner.graph import GraphGMM
-from roam.gmm_learner.learner.visualizer import (
+# from nonlinear_avoidance.gmm_learner.learner.directional import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.learner.directional_gmm import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.graph import GraphGMM
+from nonlinear_avoidance.gmm_learner.learner.visualizer import (
     plot_position_data,
     plot_graph_and_gaussians,
     plot_obstacle_wall_environment,
 )
-from roam.gmm_learner.visualization.gmm_visualization import (
+from nonlinear_avoidance.gmm_learner.visualization.gmm_visualization import (
     draw_gaussians,
     draw_obstacle_patches,
 )

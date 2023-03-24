@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from math import pi
 
-from roam.gmm_learner.math_tools import rk4
+from nonlinear_avoidance.gmm_learner.math_tools import rk4
 
 # RK4
 dx = 0.1  # TODO maybe change with time

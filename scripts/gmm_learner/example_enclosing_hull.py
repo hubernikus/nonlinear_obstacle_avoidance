@@ -16,8 +16,8 @@ from vartools.dynamical_systems import LinearSystem
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from roam.avoidance import RotationalAvoider
-from roam.rotation_container import RotationContainer
+from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.rotation_container import RotationContainer
 from dynamic_obstacle_avoidance.visualization import (
     Simulation_vectorFields,
     plot_obstacles,
@@ -26,12 +26,12 @@ from dynamic_obstacle_avoidance.visualization.gamma_field_visualization import (
     gamma_field_multihull,
 )
 
-# from roam.gmm_learner.learner.directional import DirectionalGMM
-from roam.gmm_learner.learner.directional_gmm import DirectionalGMM
-from roam.gmm_learner.graph import GraphGMM
+# from nonlinear_avoidance.gmm_learner.learner.directional import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.learner.directional_gmm import DirectionalGMM
+from nonlinear_avoidance.gmm_learner.graph import GraphGMM
 
-# roam.gmm_learner/visualization/
-from roam.gmm_learner.visualization.convergence_direction import (
+# nonlinear_avoidance.gmm_learner/visualization/
+from nonlinear_avoidance.gmm_learner.visualization.convergence_direction import (
     test_convergence_direction_multihull,
 )
 

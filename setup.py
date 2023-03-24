@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = "roam"
+package_name = "nonlinear_avoidance"
 
 setup(
     name=package_name,

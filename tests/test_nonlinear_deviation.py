@@ -30,18 +30,18 @@ from vartools.directional_space import get_angle_space_inverse
 from vartools.directional_space import get_angle_space, get_angle_space_of_array
 from vartools.directional_space import get_directional_weighted_sum
 
-from roam.dynamics import ConstantRegressor
-from roam.dynamics import MultiOutputSVR
-from roam.dynamics import DirectionalSystem
-from roam.dynamics import DeviationOfConstantFlow
+from nonlinear_avoidance.dynamics import ConstantRegressor
+from nonlinear_avoidance.dynamics import MultiOutputSVR
+from nonlinear_avoidance.dynamics import DirectionalSystem
+from nonlinear_avoidance.dynamics import DeviationOfConstantFlow
 
-from roam.dynamics import DeviationOfLinearDS
-from roam.dynamics import (
+from nonlinear_avoidance.dynamics import DeviationOfLinearDS
+from nonlinear_avoidance.dynamics import (
     PerpendicularDeviatoinOfLinearDS,
 )
 
 
-from roam.datatypes import Vector, VectorArray
+from nonlinear_avoidance.datatypes import Vector, VectorArray
 
 Basis = np.ndarray
 DeviationVector = np.ndarray

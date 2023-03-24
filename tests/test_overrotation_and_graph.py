@@ -16,12 +16,12 @@ from vartools.dynamical_systems import LinearSystem, SinusAttractorSystem
 from vartools.dynamical_systems import ConstVelocityDecreasingAtAttractor
 
 from dynamic_obstacle_avoidance.obstacles import Ellipse
-from roam.multiboundary_container import (
+from nonlinear_avoidance.multiboundary_container import (
     MultiBoundaryContainer,
 )
 
 # Rename when moving to different library...
-from roam.multihull_convergence import (
+from nonlinear_avoidance.multihull_convergence import (
     get_desired_radius,
     multihull_attraction,
 )
