@@ -5,7 +5,7 @@ Library for the Rotation (Modulation Imitation) of Linear Systems
 # GitHub: hubernikus
 # Created: 2022-01-19
 
-# import warnings
+import warnings
 import os
 import math
 from typing import Optional
@@ -73,12 +73,12 @@ def integrate_trajectory(
             print(f"Converged at it={ii}")
             return positions[:, :ii]
 
-    print(f"Maximum iterations of {ii} reached.")
+    print(f"Maximum iterations of {int(ii)} reached.")
     return positions
 
 
 def create_initial_dynamics():
-    return SimpleCircularDynamics()
+    return SimpleCircularDynamics(dimension=2)
 
 
 # def create_initial_dynamics():
@@ -231,7 +231,7 @@ def visualize_circular_dynamics_multiobstacle_nonlinear(
 
 
 def visualize_circular_dynamics_multiobstacle_modulation(
-    n_resolution=20, visualize=True
+    n_resolution=20, visualize: bool = True
 ):
     obstacle_environment = create_six_obstacle_environment()
     initial_dynamics = create_initial_dynamics()
@@ -569,7 +569,7 @@ def plot_trajectory_comparison(datapath, savefig=False):
 
     # Plot base circle
     angles = np.linspace(0, 2 * math.pi, 100)
-    traj_base = np.vstack((np.cos(angles), np.sin(angles))) * initial_ds.R
+    traj_base = np.vstack((np.cos(angles), np.sin(angles))) * initial_ds.radius
     ax.plot(traj_base[0, :], traj_base[1, :], color="gray", **line_kwargs, zorder=-1)
 
     center_position = np.zeros(2)
@@ -605,14 +605,22 @@ def plot_trajectory_comparison(datapath, savefig=False):
     indexes = np.zeros(len(positions), dtype=int)
     for pp, pos in enumerate(positions):
         value_index = np.ones(start_positions.shape[1], dtype=bool)
-        for dd in range(start_positions.shape[0]):
-            value_index = np.logical_and(
-                value_index, np.abs(start_positions[dd, :] - pos[dd]) < abs_tol
+        # for dd in range(start_positions.shape[0]):
+        #     # value_index = np.logical_and(
+        #     #     value_index, np.abs(start_positions[dd, :] - pos[dd]) < abs_tol
+        #     # )
+        #     value_index = np.logical_and(
+        #         value_index, np.abs(start_positions[dd, :] - pos[dd]) < abs_tol
+        #     )
+        indexes[pp] = np.argmin(
+            LA.norm(
+                start_positions - np.tile(pos, (start_positions.shape[1], 1)).T, axis=0
             )
-        try:
-            indexes[pp] = np.where(value_index)[0][0]
-        except:
-            breakpoint()
+        )
+        # try:
+        #     indexes[pp] = np.where(value_index)[0][0]
+        # except:
+        #     breakpoint()
 
         filename = f"trajectory{indexes[pp]:03d}.csv"
         for aa, folder in enumerate(datafolders):
@@ -683,9 +691,9 @@ if (__name__) == "__main__":
     #     datapath=datapath,
     #     store_to_file=True,
     # )
-    evaluate_nonlinear_trajectories()
-    evaluate_modulated_trajectories()
-    evaluate_original_trajectories()
+    # evaluate_nonlinear_trajectories()
+    # evaluate_modulated_trajectories()
+    # evaluate_original_trajectories()
 
     # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
     # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)
@@ -696,4 +704,4 @@ if (__name__) == "__main__":
     # visualize_trajectories(datapath, datafolder="original_trajectories")
 
     # create_base_circles_to_file(datapath=datapath)
-    # plot_trajectory_comparison(datapath=datapath, savefig=False)
+    plot_trajectory_comparison(datapath=datapath, savefig=False)

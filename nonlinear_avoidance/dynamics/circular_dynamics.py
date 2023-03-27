@@ -309,7 +309,7 @@ def test_rotation_circle(visualize=False):
 
 
 def _test_simple_dynamcis(visualize=False):
-    initial_ds = SimpleCircularDynamics()
+    initial_ds = SimpleCircularDynamics(dimension=2)
 
     if visualize:
         import matplotlib.pyplot as plt
@@ -406,6 +406,7 @@ def _animation_of_circular_subdynamics(visualize=False):
                 ds_of_base = SimpleCircularDynamics(
                     # base_matrix=base_matrix,
                     radius=4,
+                    dimension=2,
                 )
                 dimension = main_ds.dimension
 
@@ -486,5 +487,5 @@ if (__name__) == "__main__":
     # _test_simple_dynamcis(visualize=True)
     # test_3d_simple_dynamics(visualize=True)
 
-    _animation_of_circular_subdynamics(visualize=True)
+    # _animation_of_circular_subdynamics(visualize=True)
     print("Done tests")

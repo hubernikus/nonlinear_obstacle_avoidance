@@ -1,4 +1,4 @@
-#!/USSR/bin/python3
+j  #!/USSR/bin/python3
 """ Script to show lab environment on computer """
 # Author: Lukas Huber
 # License: BSD (c) 2021
