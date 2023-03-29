@@ -5,7 +5,7 @@ import numpy as np
 
 from vartools.states import Pose
 
-from dynamic_obstacle_avoidance.obstacles import obstacle
+from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
@@ -35,18 +35,18 @@ class BlockArchObstacle:
             Cuboid(
                 axes_length=[wall_width, axes_length[1]],
                 pose=Pose(delta_pos, orientation=0.0),
-            )
+            ),
             reference_position=[0, -delta_pos],
-            parent_id = 0,
+            parent_id=0,
         )
 
         self.add_component(
             Cuboid(
                 axes_length=[wall_width, axes_length[1]],
-                pose=np.array([-delta_pos[0], delta_pos[1]]), orientation=0.0),
-            )
+                pose=Pose(np.array([-delta_pos[0], delta_pos[1]]), orientation=0.0),
+            ),
             reference_position=[0, -delta_pos],
-            parent_id = 0,
+            parent_id=0,
         )
 
     @property
@@ -68,10 +68,8 @@ class BlockArchObstacle:
 
     def set_root(self, obstacle: Obstacle) -> None:
         self._obstacle_list.append(obstacle)
-        obs_id = 0 # Obstacle ID
-        self._graph.add_node(
-            obs_id, references_children=[], indeces_children=[]
-        )
+        obs_id = 0  # Obstacle ID
+        self._graph.add_node(obs_id, references_children=[], indeces_children=[])
 
     def add_component(
         self,
@@ -99,7 +97,6 @@ class BlockArchObstacle:
         # )
         self._graph.nodes[parent_ind]["indeces_children"].append(new_id)
         self._graph.add_edge(parent_ind, new_id)
-
 
     def update_obstacles(self, delta_time):
         # Update all positions of the moved obstacles
@@ -141,7 +138,9 @@ def test_2d_blocky_arch(visualize=False):
     dimension: int = 2
 
     multi_block = BlockArchObstacle(
-        wall_width=0.4, axes_length=np.array([3, 5]), pose=Pose(np.array([0, 0], orientation=0)
+        wall_width=0.4,
+        axes_length=np.array([3, 5]),
+        pose=Pose(np.array([0, 0], orientation=0)),
     )
 
     multibstacle_avoider = MultiObstacleAvoider(obstacle=multi_block)
