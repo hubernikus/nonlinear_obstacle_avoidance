@@ -1,3 +1,6 @@
+"""
+Multi-Body obstacles to avoid humansg
+"""
 from __future__ import annotations  # Self typing
 
 from dataclasses import dataclass, field
