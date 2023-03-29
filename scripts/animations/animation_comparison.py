@@ -46,17 +46,23 @@ class ComparisonAnimator(Animator):
             obstacle_container=my_animator.obstacle_environment,
             x_lim=my_animator.x_lim,
             y_lim=my_animator.y_lim,
-            # noTicks=True,
+            noTicks=True,
             # show_ticks=False,
         )
 
 
 class ComparisonSingleAnimator(Animator):
     def setup(
-        self, datafolder: str, trajectory_color: str, datapath: str, shared_figure=False
+        self,
+        datafolder: str,
+        trajectory_color: str,
+        datapath: str,
+        shared_figure=False,
+        figsize: tuple[float, float] = (6, 5),
     ):
         if not shared_figure:
-            self.fig, self.ax = plt.subplots(figsize=(6, 5))
+            self.fig, self.ax = plt.subplots(figsize=figsize, dpi=200)
+            self.fig.tight_layout()
 
         self.trajectory_color = trajectory_color
 
@@ -185,7 +191,7 @@ class ComparisonSingleAnimator(Animator):
                 obstacle_container=self.obstacle_environment,
                 x_lim=self.x_lim,
                 y_lim=self.y_lim,
-                # noTicks=True,
+                noTicks=True,
                 # show_ticks=False,
             )
 
@@ -236,25 +242,27 @@ def main(save_animation=None) -> None:
         #     it += 1
         #     continue
         my_animator = ComparisonSingleAnimator(
-            dt_sleep=0.005,
-            dt_simulation=0.005,
+            dt_sleep=1e-5,
+            dt_simulation=1 / 60.0,
             it_max=501,
             animation_name=f"comparison_multi_obstacle_{label}",
             file_type=".gif",
         )
-        my_animator.setup(folder, color, datapath)
+        my_animator.setup(folder, color, datapath, figsize=(4.0, 3.5))
         my_animator.run(save_animation=save_animation)
 
         print("Done one")
+        # break
 
     print("Now were out.")
 
 
 def run_all_animation_in_figure() -> None:
-    my_animator = ComparisonAnimator(dt_sleep=0.005, dt_simulation=0.005, it_max=501)
+    my_animator = ComparisonAnimator(dt_sleep=0.005, dt_simulation=1e-2, it_max=501)
     my_animator.setup()
     my_animator.run()
 
 
 if (__name__) == "__main__":
+    plt.close("all")
     main(save_animation=True)
