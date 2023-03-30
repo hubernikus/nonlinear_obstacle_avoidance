@@ -461,11 +461,10 @@ if (__name__) == "__main__":
     )
 
     plt.ion()
-    test_single_ellipse(visualize=False)
-
-    test_tree_with_two_children(visualize=False, savefig=False)
-    test_orthonormal_tangent_finding()
+    # test_single_ellipse(visualize=False)
+    # test_tree_with_two_children(visualize=False, savefig=False)
+    # test_orthonormal_tangent_finding()
     test_tripple_ellipse_in_the_face(visualize=False, savefig=False)
-    test_triple_ellipse_environment(visualize=False)
+    # test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")

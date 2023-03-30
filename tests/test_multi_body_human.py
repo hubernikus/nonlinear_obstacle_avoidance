@@ -292,6 +292,6 @@ if (__name__) == "__main__":
 
     # test_2d_blocky_arch(visualize=True)
     # test_2d_human_with_linear(visualize=True)
-    test_2d_human_with_circular(visualize=True, savefig=True)
+    test_2d_human_with_circular(visualize=True, savefig=False)
 
     print("[INFO] Done.")

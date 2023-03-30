@@ -269,6 +269,6 @@ def multi_arch_obstacle(self):
 
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
-    test_2d_blocky_arch_rotated(visualize=True)
+    # test_2d_blocky_arch_rotated(visualize=True)
 
     print("Tests done.")

@@ -5,7 +5,10 @@ for now limited to 2D (in order to find intersections easily).
 """
 
 import math
-from typing import Optional, Protocol
+from dataclasses import dataclass
+
+# from collections import namedtuple
+from typing import Optional, Protocol, Hashable
 
 import numpy as np
 from numpy import linalg
@@ -23,6 +26,36 @@ from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
 from nonlinear_avoidance.datatypes import Vector
+
+NodeType = Hashable
+# NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
+
+
+@dataclass(slots=True)
+class NodeKey:
+    """Returns simple (and reversible) hash-key."""
+
+    # TODO: what should actually be stored (!?)
+    # Maybe lighten / simplify -> share min / supr among classes
+    # don't store input
+    obstacle: int
+    component: int
+    relative_level: int
+
+    minimum_value: int = -10
+    suprenum_value: int = 100
+
+    _hash: int = -1
+
+    def __post_init__(self):
+        val_range = self.suprenum_value - self.minimum_value
+        o_val = self.obstacle - self.minimum_value
+        c_val = self.component - self.minimum_value
+        r_val = self.relative_level - self.minimum_value
+        self._hash = o_val * (val_range * val_range) + c_val * val_range + r_val
+
+    def __hash__(self) -> int:
+        return self._hash
 
 
 class HierarchyObstacle(Protocol):
@@ -48,11 +81,12 @@ class MultiObstacleAvoider:
     # TODO: future implementation should include multiple obstacles
     def __init__(
         self,
-        obstacle: HierarchyObstacle,
+        obstacle: Optional[HierarchyObstacle] = None,
         initial_dynamics: Optional[DynamicalSystem] = None,
         convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
         convergence_radius: float = math.pi * 5e-2,
         smooth_continuation_power: float = 0.1,
+        obstacle_list: Optional[list[HierarchyObstacle]] = None,
     ):
         if initial_dynamics is not None:
             self.initial_dynamics = initial_dynamics
@@ -62,17 +96,17 @@ class MultiObstacleAvoider:
         self.convergence_radius = convergence_radius
         self.smooth_continuation_power = smooth_continuation_power
 
-        self.obstacle = obstacle
+        # self.obstacle = obstacle
+        if obstacle is None:
+            self.obstacle_list = obstacle_list
+        else:
+            self.obstacle_list = [obstacle]
 
         # An ID number which does not co-inside with the obstacle
-        self._BASE_VEL_ID = -1
+        self._BASE_VEL_ID = NodeKey(-1, -1, -1)
         self.gamma_power_scaling = 0.5
 
-        self._tangent_tree = VectorRotationTree()
-
-    @property
-    def n_components(self) -> int:
-        return self.obstacle.n_components
+        self._tangent_tree: VectorRotationTree
 
     def evaluate(self, position: Vector) -> Vector:
         velocity = self.initial_dynamics.evaluate(position)
@@ -82,12 +116,7 @@ class MultiObstacleAvoider:
         if self.convergence_dynamics is None:
             convergence_direction = velocity
         else:
-            convergence_direction = (
-                self.convergence_dynamics.evaluate_convergence_around_obstacle(
-                    position,
-                    obstacle=self.obstacle.get_component(self.obstacle.root_idx),
-                )
-            )
+            convergence_direction = None
 
         return self.get_tangent_direction(position, velocity, convergence_direction)
 
@@ -95,8 +124,8 @@ class MultiObstacleAvoider:
         self,
         position: Vector,
         velocity: Vector,
-        linearized_velocity: Vector,
-        # linearized_velocity: Optional[Vector] = None,
+        # linearized_velocity: Vector,
+        linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
         # if linearized_velocity is None:
         #     root_obs = self.obstacle.get_component(self.obstacle.root_id)
@@ -109,93 +138,144 @@ class MultiObstacleAvoider:
         if not linalg.norm(velocity):
             return velocity
 
-        base_velocity = linearized_velocity
+        # base_velocity = linearized_velocity
+        self._tangent_tree = VectorRotationTree()
+        self._tangent_tree.set_root(
+            root_idx=self._BASE_VEL_ID,
+            direction=velocity,
+        )
 
-        gamma_values = np.zeros(self.obstacle.n_components)
-        for ii in range(self.obstacle.n_components):
-            obs = self.obstacle.get_component(ii)
+        # The base node should be equal to the (initial velocity)
+        node_list: list[NodeType] = []
+        component_weights: list[list[np.ndarray]] = []
+        obstacle_gammas = np.zeros(len(self.obstacle_list))
+
+        # for obs_idx, obstacle in enumerate([self.obstacle]):
+        for obs_idx, obstacle in enumerate(self.obstacle_list):
+            if linearized_velocity is None:
+                local_velocity = (
+                    self.convergence_dynamics.evaluate_convergence_around_obstacle(
+                        position,
+                        obstacle=obstacle.get_component(obstacle.root_idx),
+                    )
+                )
+            else:
+                local_velocity = linearized_velocity
+
+            gamma_values, gamma_weights = self.compute_gamma_and_weights(
+                obstacle=obstacle, position=position, base_velocity=local_velocity
+            )
+
+            # obstacle, base_velocity, position, obs_idx: int, gamma_weights
+            node_list += self.populate_tangent_tree(
+                obstacle=obstacle,
+                base_velocity=local_velocity,
+                position=position,
+                obs_idx=obs_idx,
+                gamma_weights=gamma_weights,
+            )
+
+            component_weights.append(
+                gamma_weights[gamma_weights > 0]
+                * (1 / np.min(gamma_values)) ** self.gamma_power_scaling
+            )
+
+            obstacle_gammas = np.min(gamma_values)
+
+        # Flatten weights over the obstacles
+        obstacle_weights = compute_weights(obstacle_gammas)
+        weights = np.concatenate(
+            ww * cc for ww, cc in zip(obstacle_weights, component_weights)
+        )
+
+        # Remaining weight to the initial velocity
+        node_list.append(self._BASE_VEL_ID)
+        weights = np.hstack((weights, [1 - np.sum(weights)]))
+        breakpoint()
+        weighted_tangent = self._tangent_tree.get_weighted_mean(
+            node_list=node_list, weights=weights
+        )
+
+        return weighted_tangent
+
+    def compute_gamma_and_weights(
+        self, position, obstacle, base_velocity
+    ) -> tuple[np.ndarray, np.ndarray]:
+        gamma_values = np.zeros(obstacle.n_components)
+        for ii in range(obstacle.n_components):
+            obs = obstacle.get_component(ii)
             gamma_values[ii] = obs.get_gamma(position, in_global_frame=True)
 
         gamma_weights = compute_weights(gamma_values)
 
-        # Evaluate rotation weight, to ensure smoothness in space (!)
-        idx_root = self.obstacle.root_idx
-        normal = self.obstacle.get_component(idx_root).get_normal_direction(
+        normal = obstacle.get_component(obstacle.root_idx).get_normal_direction(
             position, in_global_frame=True
         )
-        reference = self.obstacle.get_component(idx_root).get_reference_direction(
+        reference = obstacle.get_component(obstacle.root_idx).get_reference_direction(
             position, in_global_frame=True
         )
 
         rotation_weight = RotationalAvoider.get_rotation_weight(
             normal_vector=normal,
             reference_vector=reference,
-            convergence_vector=linearized_velocity,
+            convergence_vector=base_velocity,
             convergence_radius=self.convergence_radius,
             gamma_value=min(gamma_values),
             smooth_continuation_power=self.smooth_continuation_power,
         )
 
         if not (gamma_sum := sum(gamma_weights)) or not rotation_weight:
-            return velocity
+            return np.zeros_like(gamma_weights), np.zeros_like(gamma_weights)
 
         gamma_weights = gamma_weights / gamma_sum * rotation_weight
+        return gamma_values, gamma_weights
 
-        self._tangent_tree = VectorRotationTree()
-        self._tangent_tree.set_root(
-            root_idx=self._BASE_VEL_ID,
-            direction=velocity,
-        )
+    def populate_tangent_tree(
+        self, obstacle, base_velocity, position, obs_idx: int, gamma_weights
+    ) -> list[NodeType]:
+        # Evaluate rotation weight, to ensure smoothness in space (!)
+        node_list = []
         self._tangent_tree.add_node(
+            node_id=NodeKey(obs_idx, obstacle.root_idx, -1),
             parent_id=self._BASE_VEL_ID,
-            node_id=self.obstacle.root_idx,
             direction=base_velocity,
         )
 
-        # The base node should be equal to the (initial velocity)
-        node_list = [self._BASE_VEL_ID]
-
-        for obs_id in range(self.obstacle.n_components):
-            if gamma_weights[obs_id] <= 0:
+        for comp_id in range(obstacle.n_components):
+            if gamma_weights[comp_id] <= 0:
                 continue
 
-            node_list.append((obs_id, obs_id))
-            self._update_tangent_branch(position, obs_id, base_velocity)
+            node_list.append((comp_id, comp_id))
+            self._update_tangent_branch(
+                position, comp_id, base_velocity, obstacle, obs_idx
+            )
 
-        weights = (
-            gamma_weights[gamma_weights > 0]
-            * (1 / np.min(gamma_values)) ** self.gamma_power_scaling
-        )
-
-        # Remaining weight to the initial velocity
-        weights = np.hstack(([1 - np.sum(weights)], weights))
-        weighted_tangent = self._tangent_tree.get_weighted_mean(
-            node_list=node_list, weights=weights
-        )
-        return weighted_tangent
+        return node_list
 
     def _update_tangent_branch(
         self,
         position: Vector,
-        obs_id: int,
+        comp_id: int,
         base_velocity: np.ndarray,
+        obstacle,
+        obs_idx: NodeType,
     ) -> None:
         # TODO: predict at start the size (slight speed up)
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
         surface_points: list[Vector] = [position]
-        parents_tree: list[int] = [obs_id]
+        parents_tree: list[int] = [comp_id]
 
-        obs = self.obstacle.get_component(obs_id)
+        obs = obstacle.get_component(comp_id)
         normal_directions = [obs.get_normal_direction(position, in_global_frame=True)]
         reference_directions = [
             obs.get_reference_direction(position, in_global_frame=True)
         ]
 
-        while parents_tree[-1] != self.obstacle.root_idx:
-            obs = self.obstacle.get_component(parents_tree[-1])
+        while parents_tree[-1] != obstacle.root_idx:
+            obs = obstacle.get_component(parents_tree[-1])
 
-            new_id = self.obstacle.get_parent_idx(parents_tree[-1])
+            new_id = obstacle.get_parent_idx(parents_tree[-1])
             if new_id is None:
                 # TODO: We should not reach this?! -> remove(?)
                 breakpoint()
@@ -207,7 +287,7 @@ class MultiObstacleAvoider:
 
             parents_tree.append(new_id)
 
-            obs_parent = self.obstacle.get_component(new_id)
+            obs_parent = obstacle.get_component(new_id)
             ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
 
             # intersection = get_intersection_with_ellipse(
@@ -241,9 +321,10 @@ class MultiObstacleAvoider:
             reference=reference_directions[-1],
         )
 
+        # Should this not be the normal parent ?
         self._tangent_tree.add_node(
-            node_id=(obs_id, parents_tree[-1]),
-            parent_id=self._BASE_VEL_ID,
+            node_id=NodeKey(obs_idx, comp_id, parents_tree[-1]),
+            parent_id=NodeKey(obs_idx, comp_id, -1),
             direction=tangent,
         )
 
@@ -259,8 +340,9 @@ class MultiObstacleAvoider:
             )
 
             self._tangent_tree.add_node(
-                node_id=(obs_id, rel_id),
-                parent_id=(obs_id, parents_tree[ii + 1]),
+                # node_id=NodeKey(obs_idx, comp_id, rel_id),
+                node_id=NodeKey(obs_idx, comp_id, parents_tree[ii]),
+                parent_id=NodeKey(obs_idx, comp_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
 
@@ -271,3 +353,16 @@ def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
         ax=ax,
         **kwargs,
     )
+
+
+def test_hashable_node_key():
+    node_key = NodeKey(-10, -10, -10, minimum_value=-10)
+    assert 0 == hash(node_key)
+
+    node_key1 = NodeKey(8, 7, 8)
+    node_key2 = NodeKey(8, 7, 8)
+    assert node_key1 == node_key2
+
+
+if (__name__) == "__main__":
+    test_node_key()

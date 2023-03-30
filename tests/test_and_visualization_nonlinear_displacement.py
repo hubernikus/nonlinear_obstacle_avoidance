@@ -292,7 +292,10 @@ class TestProjectionOfDisplacement(unittest.TestCase):
 
 
 if (__name__) == "__main__":
-    unittest.main(argv=["first-arg-is-ignored"], exit=False)
+    # unittest.main(argv=["first-arg-is-ignored"], exit=False)
+
+    tester = TestProjectionOfDisplacement()
+    tester.test_radius_pi()
 
     visualize = False
     if visualize:

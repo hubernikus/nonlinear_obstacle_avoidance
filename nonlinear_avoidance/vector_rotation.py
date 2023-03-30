@@ -10,8 +10,7 @@ from __future__ import annotations  # Not needed from python 3.10 onwards
 import copy
 import warnings
 import math
-from typing import Optional
-
+from typing import Optional, Hashable
 from dataclasses import dataclass
 
 import numpy as np
@@ -25,7 +24,7 @@ from vartools.linalg import get_orthogonal_basis
 
 from nonlinear_avoidance.datatypes import Vector, VectorArray
 
-NodeType = int
+NodeType = Hashable
 
 
 def rotate_direction(
@@ -284,7 +283,7 @@ class VectorRotationTree:
         if root_idx is not None:
             self.set_root(root_idx, root_direction)
 
-    def set_root(self, root_idx, direction):
+    def set_root(self, root_idx: NodeType, direction: Vector):
         # To easier find the root again (!)
         self._graph.add_node(
             root_idx,
@@ -329,7 +328,6 @@ class VectorRotationTree:
                 parent_id,
                 node_id,
             )
-
             level = self._graph.nodes[parent_id]["level"] + 1
 
         elif child_id is not None:
@@ -443,7 +441,9 @@ class VectorRotationTree:
 
         return successor_list
 
-    def get_weighted_mean(self, node_list: list[int], weights: list[float]) -> Vector:
+    def get_weighted_mean(
+        self, node_list: list[NodeType], weights: list[float]
+    ) -> Vector:
         """Evaluate the weighted mean of the graph."""
 
         if not math.isclose((weight_sum := np.sum(weights)), 1.0, rel_tol=1e-4):
