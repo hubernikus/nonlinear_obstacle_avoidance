@@ -33,7 +33,7 @@ class HierarchyObstacle(Protocol):
         ...
 
     @property
-    def root_id(self) -> int:
+    def root_idx(self) -> int:
         ...
 
     def get_parent_idx(self, idx_obs: int) -> Optional[int]:
@@ -86,7 +86,7 @@ class MultiObstacleAvoider:
             convergence_direction = (
                 self.convergence_dynamics.evaluate_convergence_around_obstacle(
                     position,
-                    obstacle=self.obstacle.get_component(self.obstacle.root_id),
+                    obstacle=self.obstacle.get_component(self.obstacle.root_idx),
                 )
             )
 
@@ -120,7 +120,7 @@ class MultiObstacleAvoider:
         gamma_weights = compute_weights(gamma_values)
 
         # Evaluate rotation weight, to ensure smoothness in space (!)
-        idx_root = self.obstacle.root_id
+        idx_root = self.obstacle.root_idx
         normal = self.obstacle.get_component(idx_root).get_normal_direction(
             position, in_global_frame=True
         )
@@ -144,12 +144,12 @@ class MultiObstacleAvoider:
 
         self._tangent_tree = VectorRotationTree()
         self._tangent_tree.set_root(
-            root_id=self._BASE_VEL_ID,
+            root_idx=self._BASE_VEL_ID,
             direction=velocity,
         )
         self._tangent_tree.add_node(
             parent_id=self._BASE_VEL_ID,
-            node_id=self.obstacle.root_id,
+            node_id=self.obstacle.root_idx,
             direction=base_velocity,
         )
 
@@ -193,7 +193,7 @@ class MultiObstacleAvoider:
             obs.get_reference_direction(position, in_global_frame=True)
         ]
 
-        while parents_tree[-1] != self.obstacle.root_id:
+        while parents_tree[-1] != self.obstacle.root_idx:
             obs = self.obstacle.get_component(parents_tree[-1])
 
             new_id = self.obstacle.get_parent_idx(parents_tree[-1])

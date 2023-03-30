@@ -278,16 +278,16 @@ class VectorRotationTree:
     # as it might happend at  zero-level
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
-    def __init__(self, root_id: int = None, root_direction: Vector = None) -> None:
+    def __init__(self, root_idx: int = None, root_direction: Vector = None) -> None:
         self._graph = nx.DiGraph()
 
-        if root_id is not None:
-            self.set_root(root_id, root_direction)
+        if root_idx is not None:
+            self.set_root(root_idx, root_direction)
 
-    def set_root(self, root_id, direction):
+    def set_root(self, root_idx, direction):
         # To easier find the root again (!)
         self._graph.add_node(
-            root_id,
+            root_idx,
             level=0,
             direction=direction,
             weight=0,
@@ -296,11 +296,11 @@ class VectorRotationTree:
 
         self._dimension = direction.shape[0]
         # To easier find the root again (!)
-        self._root_id = root_id
+        self._root_idx = root_idx
 
     @property
     def root(self) -> NodeType:
-        return self._graph.nodes(self._root_id)
+        return self._graph.nodes(self._root_idx)
 
     @property
     def dimension(self) -> int:
