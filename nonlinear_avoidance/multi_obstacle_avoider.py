@@ -82,7 +82,7 @@ class MultiObstacleAvoider:
         convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
         convergence_radius: float = math.pi * 5e-2,
         smooth_continuation_power: float = 0.1,
-        obstacle_list: Optional[list[HierarchyObstacle]] = None,
+        obstacle_container: Optional[list[HierarchyObstacle]] = None,
     ):
         if initial_dynamics is not None:
             self.initial_dynamics = initial_dynamics
@@ -94,7 +94,7 @@ class MultiObstacleAvoider:
 
         # self.obstacle = obstacle
         if obstacle is None:
-            self.obstacle_list = obstacle_list
+            self.obstacle_list = obstacle_container
         else:
             self.obstacle_list = [obstacle]
 

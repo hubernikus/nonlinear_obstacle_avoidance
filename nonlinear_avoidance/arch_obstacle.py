@@ -1,7 +1,8 @@
 """
 Create 'Arch'-Obstacle which might be often used
 """
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Iterator
 import numpy as np
 import numpy.typing as npt
 
@@ -14,6 +15,42 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
+
+
+@dataclass(slots=True)
+class MultiObstacleContainer:
+    _obstacle_list: list[HierarchyObstacle] = field(default_factory=list)
+
+    def get_gamma(self, position: np.ndarray, in_global_frame: bool = True) -> float:
+        if not in_global_frame:
+            raise NotImplementedError()
+        gammas = np.zeros(len(self._obstacle_list))
+        for oo, obs in enumerate(self._obstacle_list):
+            gammas[oo] = obs.get_gamma(position, in_global_frame=True)
+
+        return min(gammas)
+
+    def append(self, obstacle: HierarchyObstacle) -> None:
+        self._obstacle_list.append(obstacle)
+
+    def __iter__(self) -> Iterator[int]:
+        return iter(self._obstacle_list)
+
+    def __len__(self) -> int:
+        return len(self._obstacle_list)
+
+    def is_in_free_space(
+        self, position: np.ndarray, in_global_frame: bool = True
+    ) -> bool:
+        if not in_global_frame:
+            raise NotImplementedError()
+        for obs in self:
+            if obs.is_in_free_space(position, in_global_frame=True):
+                continue
+            return False
+
+        return True
 
 
 class BlockArchObstacle:
@@ -274,12 +311,90 @@ def test_2d_blocky_arch_rotated(visualize=False):
     ), "Expected to go backwards"
 
 
-def multi_arch_obstacle(self):
-    pass
+def test_multi_arch_obstacle(visualize=False):
+    container = MultiObstacleContainer()
+    container.append(
+        BlockArchObstacle(
+            wall_width=0.4,
+            axes_length=np.array([3.0, 5]),
+            pose=Pose(np.array([-1.0, -2.5]), orientation=90 * np.pi / 180.0),
+        )
+    )
+
+    container.append(
+        BlockArchObstacle(
+            wall_width=0.4,
+            axes_length=np.array([3.0, 5]),
+            pose=Pose(np.array([1.0, 2.0]), orientation=-90 * np.pi / 180.0),
+        )
+    )
+
+    multibstacle_avoider = MultiObstacleAvoider(obstacle_container=container)
+
+    velocity = np.array([-1.0, 0])
+    linearized_velociy = np.array([-1.0, 0])
+
+    if visualize:
+        import matplotlib.pyplot as plt
+        from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
+        from dynamic_obstacle_avoidance.visualization import plot_obstacles
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        x_lim = [-5, 5.0]
+        y_lim = [-5, 5.0]
+        n_grid = 20
+
+        for multi_obs in container:
+            plot_obstacles(
+                obstacle_container=multi_obs._obstacle_list,
+                ax=ax,
+                x_lim=x_lim,
+                y_lim=y_lim,
+                draw_reference=True,
+                noTicks=False,
+                # reference_point_number=True,
+                show_obstacle_number=True,
+                # ** kwargs,
+            )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                container.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            # obstacle_container=triple_ellipses._obstacle_list,
+            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
+                x, velocity, linearized_velociy
+            ),
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=True,
+            # vectorfield_color=vf_color,
+        )
+
+    position = np.array([-0.19, -0.35])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] < 0, "Expected to continue to the left."
+    assert averaged_direction[1] < 0, "Expected to rotate down."
+
+    position = np.array([-2.4, -0.19])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] < 0, "Expected to continue to the left."
+    assert averaged_direction[1] > 0, "Expected to rotate down."
 
 
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
-    test_2d_blocky_arch_rotated(visualize=True)
+    # test_2d_blocky_arch_rotated(visualize=True)
+    test_multi_arch_obstacle(visualize=True)
 
     print("Tests done.")
