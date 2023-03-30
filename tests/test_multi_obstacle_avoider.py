@@ -464,7 +464,7 @@ if (__name__) == "__main__":
     # test_single_ellipse(visualize=False)
     # test_tree_with_two_children(visualize=False, savefig=False)
     # test_orthonormal_tangent_finding()
-    test_tripple_ellipse_in_the_face(visualize=False, savefig=False)
+    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
     # test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")

@@ -338,7 +338,6 @@ class VectorRotationTree:
             raise ValueError(
                 "Argument 'level' is needed, if no parent or child is provided"
             )
-
         self._graph.add_node(
             node_id,
             level=level,

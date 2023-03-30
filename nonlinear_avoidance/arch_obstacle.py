@@ -253,6 +253,7 @@ def test_2d_blocky_arch_rotated(visualize=False):
             # vectorfield_color=vf_color,
         )
 
+    print("Doing")
     # Test positions [which has been prone to a rounding error]
     position = np.array([0.25, -3.99])
     averaged_direction = multibstacle_avoider.get_tangent_direction(
@@ -262,6 +263,16 @@ def test_2d_blocky_arch_rotated(visualize=False):
     assert averaged_direction[0] < 0, "Velocity is not going left."
     assert averaged_direction[1] < 0, "Avoiding downwards expected."
 
+    # On the surface of a leg
+    position = np.array([-1.35486, -3.01399])
+    averaged_direction = multibstacle_avoider.get_tangent_direction(
+        position, velocity, linearized_velociy
+    )
+    assert averaged_direction[0] > 0, "Expected to go backwards"
+    assert np.isclose(
+        averaged_direction[0], -averaged_direction[1], atol=1e-1
+    ), "Expected to go backwards"
+
 
 def multi_arch_obstacle(self):
     pass
@@ -269,6 +280,6 @@ def multi_arch_obstacle(self):
 
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
-    # test_2d_blocky_arch_rotated(visualize=True)
+    test_2d_blocky_arch_rotated(visualize=True)
 
     print("Tests done.")

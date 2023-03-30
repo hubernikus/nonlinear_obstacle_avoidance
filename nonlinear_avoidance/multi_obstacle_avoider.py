@@ -7,7 +7,7 @@ for now limited to 2D (in order to find intersections easily).
 import math
 from dataclasses import dataclass
 
-# from collections import namedtuple
+from collections import namedtuple
 from typing import Optional, Protocol, Hashable
 
 import numpy as np
@@ -28,34 +28,30 @@ from nonlinear_avoidance.nonlinear_rotation_avoider import ObstacleConvergenceDy
 from nonlinear_avoidance.datatypes import Vector
 
 NodeType = Hashable
-# NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
+NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 
 
-@dataclass(slots=True)
-class NodeKey:
-    """Returns simple (and reversible) hash-key."""
+# @dataclass(slots=True)
+# class NodeKey:
+#     """Returns simple (and reversible) hash-key."""
 
-    # TODO: what should actually be stored (!?)
-    # Maybe lighten / simplify -> share min / supr among classes
-    # don't store input
-    obstacle: int
-    component: int
-    relative_level: int
+#     # TODO: what should actually be stored (!?)
+#     # Maybe lighten / simplify -> share min / supr among classes
+#     # don't store input
+#     _hash: int = -1
 
-    minimum_value: int = -10
-    suprenum_value: int = 100
+#     MINIMUM: int = -10
+#     SUPRENUM: int = 100
 
-    _hash: int = -1
+#     def __post_init__(self):
+#         val_range = self.SUPRENUM - self.MINIMUM
+#         o_val = self.obstacle - self.MINIMUM
+#         c_val = self.component - self.MINIMUM
+#         r_val = self.relative_level - self.MINIMUM
+#         self._hash = o_val * (val_range * val_range) + c_val * val_range + r_val
 
-    def __post_init__(self):
-        val_range = self.suprenum_value - self.minimum_value
-        o_val = self.obstacle - self.minimum_value
-        c_val = self.component - self.minimum_value
-        r_val = self.relative_level - self.minimum_value
-        self._hash = o_val * (val_range * val_range) + c_val * val_range + r_val
-
-    def __hash__(self) -> int:
-        return self._hash
+#     def __hash__(self) -> int:
+#         return self._hash
 
 
 class HierarchyObstacle(Protocol):
@@ -180,18 +176,17 @@ class MultiObstacleAvoider:
                 * (1 / np.min(gamma_values)) ** self.gamma_power_scaling
             )
 
-            obstacle_gammas = np.min(gamma_values)
+            obstacle_gammas[obs_idx] = np.min(gamma_values)
 
         # Flatten weights over the obstacles
         obstacle_weights = compute_weights(obstacle_gammas)
         weights = np.concatenate(
-            ww * cc for ww, cc in zip(obstacle_weights, component_weights)
+            [ww * cc for ww, cc in zip(obstacle_weights, component_weights)]
         )
 
         # Remaining weight to the initial velocity
         node_list.append(self._BASE_VEL_ID)
         weights = np.hstack((weights, [1 - np.sum(weights)]))
-        breakpoint()
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
@@ -236,7 +231,7 @@ class MultiObstacleAvoider:
         # Evaluate rotation weight, to ensure smoothness in space (!)
         node_list = []
         self._tangent_tree.add_node(
-            node_id=NodeKey(obs_idx, obstacle.root_idx, -1),
+            node_id=NodeKey(obs_idx, -1, -1),
             parent_id=self._BASE_VEL_ID,
             direction=base_velocity,
         )
@@ -245,7 +240,7 @@ class MultiObstacleAvoider:
             if gamma_weights[comp_id] <= 0:
                 continue
 
-            node_list.append((comp_id, comp_id))
+            node_list.append((obs_idx, comp_id, comp_id))
             self._update_tangent_branch(
                 position, comp_id, base_velocity, obstacle, obs_idx
             )
@@ -263,6 +258,9 @@ class MultiObstacleAvoider:
         # TODO: predict at start the size (slight speed up)
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
+
+        # print(f"Tangent Obst {obs_idx}.")
+        # print(f"Tangent Compon {comp_id}.")
         surface_points: list[Vector] = [position]
         parents_tree: list[int] = [comp_id]
 
@@ -324,12 +322,12 @@ class MultiObstacleAvoider:
         # Should this not be the normal parent ?
         self._tangent_tree.add_node(
             node_id=NodeKey(obs_idx, comp_id, parents_tree[-1]),
-            parent_id=NodeKey(obs_idx, comp_id, -1),
+            parent_id=NodeKey(obs_idx, -1, -1),
             direction=tangent,
         )
-
         # Iterate over all but last one
         for ii in reversed(range(len(parents_tree) - 1)):
+            # print(f"Add Node {ii}")
             rel_id = parents_tree[ii]
 
             # Re-project tangent
@@ -364,5 +362,28 @@ def test_hashable_node_key():
     assert node_key1 == node_key2
 
 
+# def _test_named_tuple():
+#     aa = NodeKey(1, 1, 1)
+#     bb = NodeKey(1, 1, 1)
+
+#     assert aa == bb
+
+#     import networkx as nx
+
+#     graph = nx.Graph()
+#     graph.add_node(aa)
+
+#     graph.add_node(bb)
+
+#     out_aa = graph.nodes[bb]
+#     print("All good.")
+#     print(out_aa)
+#     breakpoint()
+
+
 if (__name__) == "__main__":
-    test_node_key()
+    # test_hashable_node_key()
+
+    # _test_named_tuple()
+
+    print("done")
