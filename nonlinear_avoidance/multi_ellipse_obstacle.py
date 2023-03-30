@@ -18,10 +18,11 @@ from vartools.linalg import get_orthogonal_basis
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
+from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.geometry import get_intersection_of_obstacles
-from nonlinear_avoidance.datatypes import Vector
+from nonlinear_avoidance.multi_obstacle_avoider import plot_multi_obstacle
 
 # TODO:
 #   - smoothing to ensure consistency at convergence limit, i.e., add lambda to each branch
@@ -70,7 +71,7 @@ class MultiEllipseObstacle(Obstacle):
     def __init__(self):
         self._obstacle_list = []
 
-        self._root_id: Optional[int] = None
+        self._root_idx: Optional[int] = None
         self._parent_list: list[Optional[int]] = []
         self._children_list: list[list[int]] = []
 
@@ -79,8 +80,8 @@ class MultiEllipseObstacle(Obstacle):
         return len(self._obstacle_list)
 
     @property
-    def root_id(self) -> int:
-        return self._root_id
+    def root_idx(self) -> int:
+        return self._root_idx
 
     # def get_obstacle_list(self) -> ObstacleContainer:
     #     return self._obstacle_list
@@ -89,9 +90,9 @@ class MultiEllipseObstacle(Obstacle):
         return self._obstacle_list[idx_obs]
 
     def set_root(self, obs_id: int):
-        if self._root_id:
+        if self._root_idx:
             raise NotImplementedError("Make sure to delete first.")
-        self._root_id = obs_id
+        self._root_idx = obs_id
         self._parent_list[obs_id] = -1
 
     def set_parent(self, obs_id: int, parent_id: int):
@@ -165,11 +166,3 @@ class MultiEllipseObstacle(Obstacle):
 
     def weights(self):
         pass
-
-
-def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
-    plot_obstacles(
-        obstacle_container=multi_obstacle._obstacle_list,
-        ax=ax,
-        **kwargs,
-    )

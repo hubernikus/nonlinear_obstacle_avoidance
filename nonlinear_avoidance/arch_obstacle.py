@@ -263,6 +263,10 @@ def test_2d_blocky_arch_rotated(visualize=False):
     assert averaged_direction[1] < 0, "Avoiding downwards expected."
 
 
+def multi_arch_obstacle(self):
+    pass
+
+
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
     test_2d_blocky_arch_rotated(visualize=True)

@@ -671,27 +671,3 @@ class VectorRotationTree:
 def create_zero_vector_rotation(dimension: int) -> VectorRotationXd:
     """Creates a zero vector rotation object."""
     return VectorRotationXd(base=np.eye((dimension, 2)), rotation_angle=0.0)
-
-
-def test_simple_triple_branch():
-    new_tree = VectorRotationTree()
-
-    # Simplified node
-    new_tree.set_root(-1, direction=np.array([1, 0]))
-
-    # Add three specific nodes
-    new_tree.add_node((0, 0), direction=np.array([1, 0]), parent_id=-1)
-    new_tree.add_node((1, 1), direction=np.array([0, 1]), parent_id=-1)
-    new_tree.add_node((2, 2), direction=np.array([0, -1]), parent_id=-1)
-
-    node_list = [-1, (0, 0), (1, 1), (2, 2)]
-    weights = np.array([0.2128574, 0.02090366, 0.74444571, 0.02179324])
-
-    averaged_dir = new_tree.get_weighted_mean(node_list=node_list, weights=weights)
-
-    # Main weight on up-direction -> go right-up
-    assert averaged_dir[0] > 0 and averaged_dir[1] > 0
-
-
-if (__name__) == "__main__":
-    test_simple_triple_branch()
