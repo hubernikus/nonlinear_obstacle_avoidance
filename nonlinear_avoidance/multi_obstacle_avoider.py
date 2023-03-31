@@ -22,14 +22,19 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
+from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
-from nonlinear_avoidance.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
-from nonlinear_avoidance.datatypes import Vector
+from nonlinear_avoidance.nonlinear_rotation_avoider import (
+    ObstacleConvergenceDynamics,
+    ConvergenceDynamicsWithoutSingularity,
+)
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
 
 NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
-
 
 # @dataclass(slots=True)
 # class NodeKey:
@@ -83,11 +88,18 @@ class MultiObstacleAvoider:
         convergence_radius: float = math.pi * 5e-2,
         smooth_continuation_power: float = 0.1,
         obstacle_container: Optional[list[HierarchyObstacle]] = None,
+        create_convergence_dynamics: bool = False,
     ):
         if initial_dynamics is not None:
             self.initial_dynamics = initial_dynamics
 
-        self.convergence_dynamics = convergence_dynamics
+        if create_convergence_dynamics:
+            # TODO: [Refactor] -> this implementation should happens somewhere else..
+            self.convergence_dynamics = (
+                MultiObstacleAvoider.create_local_convergence_dynamics(initial_dynamics)
+            )
+        else:
+            self.convergence_dynamics = convergence_dynamics
 
         self.convergence_radius = convergence_radius
         self.smooth_continuation_power = smooth_continuation_power
@@ -103,6 +115,34 @@ class MultiObstacleAvoider:
         self.gamma_power_scaling = 0.5
 
         self._tangent_tree: VectorRotationTree
+
+    @classmethod
+    def create_local_convergence_dynamics(
+        initial_dynamics: DynamicalSystem,
+        reference_dynamics: Optional[DynamicalSystem] = None,
+    ) -> ObstacleConvergenceDynamics:
+        """So far this"""
+        if hasattr(initial_dynamics, "attractor_position"):
+            # TODO: so far this is for stable systems only (!)
+            if reference_dynamics is None:
+                reference_functor = lambda x: x - initial_dynamics.attractor
+            else:
+                reference_functor = reference_dynamics.evaluate
+
+            return ProjectedRotationDynamics(
+                attractor_position=initial_dynamics.attractor_position,
+                initial_dynamics=initial_dynamics,
+                reference_velocity=reference_functor,
+            )
+        else:
+            if reference_dynamics is None:
+                reference_velocity = np.zeros(self.initial_dynamics.dimension)
+                reference_velocity[0] = 1.0
+                reference_dynamics = ConstantValue(reference_velocity)
+
+            return ConvergenceDynamicsWithoutSingularity(
+                initial_dynamics, reference_dynamics
+            )
 
     def evaluate(self, position: Vector) -> Vector:
         velocity = self.initial_dynamics.evaluate(position)
@@ -386,4 +426,4 @@ if (__name__) == "__main__":
 
     # _test_named_tuple()
 
-    print("done")
+    print("Done")

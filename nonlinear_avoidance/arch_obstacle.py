@@ -9,13 +9,19 @@ import numpy.typing as npt
 import networkx as nx
 
 from vartools.states import Pose
-
+from vartools.dynamical_systems import LinearSystem
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
+from nonlinear_avoidance.nonlinear_rotation_avoider import (
+    SingularityConvergenceDynamics,
+)
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
 
 
 @dataclass(slots=True)
@@ -329,7 +335,20 @@ def test_multi_arch_obstacle(visualize=False):
         )
     )
 
-    multibstacle_avoider = MultiObstacleAvoider(obstacle_container=container)
+    attractor = np.array([-4, 4.0])
+    initial_dynamics = LinearSystem(attractor_position=attractor, maximum_velocity=1.0)
+
+    # rotation_projector = ProjectedRotationDynamics(
+    #     attractor_position=initial_dynamics.attractor_position,
+    #     initial_dynamics=initial_dynamics,
+    #     reference_velocity=lambda x: x - attractor,
+    # )
+    multibstacle_avoider = MultiObstacleAvoider(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        # convergence_dynamics=rotation_projector,
+        create_convergence_dynamics=True,
+    )
 
     velocity = np.array([-1.0, 0])
     linearized_velociy = np.array([-1.0, 0])
@@ -364,9 +383,10 @@ def test_multi_arch_obstacle(visualize=False):
                 container.get_gamma(x, in_global_frame=True) <= 1
             ),
             # obstacle_container=triple_ellipses._obstacle_list,
-            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
-                x, velocity, linearized_velociy
-            ),
+            # dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
+            #     x, velocity, linearized_velociy
+            # ),
+            dynamics=multibstacle_avoider.evaluate,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -395,6 +415,6 @@ def test_multi_arch_obstacle(visualize=False):
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
     # test_2d_blocky_arch_rotated(visualize=True)
-    test_multi_arch_obstacle(visualize=True)
+    test_multi_arch_obstacle(visualize=False)
 
     print("Tests done.")

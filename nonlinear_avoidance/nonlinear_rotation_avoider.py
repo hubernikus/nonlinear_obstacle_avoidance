@@ -62,7 +62,7 @@ class ObstacleConvergenceDynamics(Protocol):
         ...
 
 
-class LinearConvergenceDynamics:
+class ConvergenceDynamicsWithoutSingularity:
     def __init__(
         self, convergence_dynamics: DynamicalSystem, initial_dynamics: DynamicalSystem
     ) -> None:
@@ -81,7 +81,11 @@ class LinearConvergenceDynamics:
         return self.convergence_dynamics.evaluate(position)
 
 
-class NonlinearRotationalAvoider(BaseAvoider):
+class LinearConvergenceDynamics(ConvergenceDynamicsWithoutSingularity):
+    pass
+
+
+class SingularityConvergenceDynamics(BaseAvoider):
     """
     NonlinearRotationalAvoider -> Rotational Obstacle Avoidance by additionally considering initial dynamics
     """
@@ -150,8 +154,15 @@ class NonlinearRotationalAvoider(BaseAvoider):
             **kwargs,
         )
 
+    def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
+        # TODO: test this...
+        raise NotImplementedError()
+
     def _compute_gamma_weights(self, position: np.ndarray):
-        pass
+        raise NotImplementedError()
+
+    def evaluate_convergence_around_obstacle(self, position, obstacle):
+        raise NotImplementedError()
 
     def evaluate_weighted_dynamics(
         self, position: np.ndarray, initial_velocity: np.ndarray
@@ -250,6 +261,8 @@ class NonlinearRotationalAvoider(BaseAvoider):
             weights=weights,
             directions=local_velocities,
         )
-        # breakpoint()
-
         return initial_norm * averaged_direction
+
+
+class NonlinearRotationalAvoider(SingularityConvergenceDynamics):
+    pass
