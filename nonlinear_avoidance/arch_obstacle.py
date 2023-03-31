@@ -60,7 +60,13 @@ class MultiObstacleContainer:
 
 
 class BlockArchObstacle:
-    def __init__(self, wall_width: float, axes_length: np.ndarray, pose: Pose):
+    def __init__(
+        self,
+        wall_width: float,
+        axes_length: np.ndarray,
+        pose: Pose,
+        margin_absolut: float = 0,
+    ):
         self.dimension = 2
 
         self.pose = pose
@@ -75,6 +81,7 @@ class BlockArchObstacle:
             Cuboid(
                 axes_length=np.array([wall_width, axes_length[1]]),
                 pose=Pose(np.zeros(self.dimension), orientation=0.0),
+                margin_absolut=margin_absolut,
             ),
         )
 
@@ -83,6 +90,7 @@ class BlockArchObstacle:
             Cuboid(
                 axes_length=np.array([axes_length[0], wall_width]),
                 pose=Pose(delta_pos, orientation=0.0),
+                margin_absolut=margin_absolut,
             ),
             reference_position=np.array([-delta_pos[0], 0.0]),
             parent_ind=0,
@@ -92,6 +100,7 @@ class BlockArchObstacle:
             Cuboid(
                 axes_length=np.array([axes_length[0], wall_width]),
                 pose=Pose(np.array([delta_pos[0], -delta_pos[1]]), orientation=0.0),
+                margin_absolut=margin_absolut,
             ),
             reference_position=np.array([-delta_pos[0], 0.0]),
             parent_ind=0,
