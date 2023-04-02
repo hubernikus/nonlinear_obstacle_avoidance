@@ -98,7 +98,7 @@ class RotationContainer(BaseContainer):
                 continue
 
             # Nonzero / not at attractor
-            reference_radius = self[it_obs].get_reference_length()
+            reference_radius = self[it_obs].get_characteristic_length()
 
             ds_direction = get_angle_space(
                 direction=local_velocity,

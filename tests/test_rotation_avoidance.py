@@ -1042,6 +1042,80 @@ def test_simple_convergence_in_limit_cycle():
     assert np.allclose(velocity1, velocity2, atol=1e-1)
 
 
+def test_axes_following_rotation(visualize=False, x_lim=[-4, 4], y_lim=[-4, 4]):
+    attractor = np.array([8.0, 0])
+
+    initial_dynamics = QuadraticAxisConvergence(
+        stretching_factor=10,
+        maximum_velocity=1.0,
+        dimension=2,
+        attractor_position=attractor,
+    )
+
+    environment = RotationContainer()
+    environment.append(
+        Ellipse(
+            center_position=np.array([0, 0]),
+            axes_length=np.array([3, 5]),
+            orientation=0.0 / 180 * math.pi,
+            is_boundary=False,
+            tail_effect=False,
+            distance_scaling=0.5,
+        )
+    )
+
+    avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=environment,
+        convergence_system=LinearSystem(attractor)
+        # convergence_radius=math.pi * 0.7,
+    )
+
+    if visualize:
+        plt.close("all")
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        plot_obstacles(
+            ax=ax,
+            obstacle_container=environment,
+            x_range=x_lim,
+            y_range=y_lim,
+            # noTicks=True,
+            showLabel=False,
+            alpha_obstacle=0.9,
+        )
+
+        plot_vectorfield = True
+        if plot_vectorfield:
+            plot_obstacle_dynamics(
+                obstacle_container=environment,
+                collision_check_functor=lambda x: (
+                    environment.get_minimum_gamma(x) <= 1
+                ),
+                dynamics=avoider.evaluate,
+                attractor_position=initial_dynamics.attractor_position,
+                x_lim=x_lim,
+                y_lim=y_lim,
+                ax=ax,
+                do_quiver=False,
+                show_ticks=True,
+            )
+
+    # Just in front towards the top of the ellipse
+    position = np.array([-1.28, 1.82])
+    rotated_dynamics = avoider.avoid(position)
+    assert (
+        rotated_dynamics[0] > 0 and rotated_dynamics[1] > 0
+    ), "Expected to avoid towards top-right."
+
+    # Just in front, towards the center of the ellipse
+    position = np.array([-1.74, 0.55])
+    rotated_dynamics = avoider.avoid(position)
+    assert (
+        rotated_dynamics[0] > 0 and rotated_dynamics[1] > 0
+    ), "Expected to avoid towards top-right."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
@@ -1066,6 +1140,7 @@ if (__name__) == "__main__":
     # test_stable_linear_avoidance(visualize=True)
 
     # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
-    test_simple_convergence_in_limit_cycle()
+    # test_simple_convergence_in_limit_cycle()
+    test_axes_following_rotation(visualize=False)
 
     print("[Rotational Tests] Done tests")

@@ -724,11 +724,8 @@ class RotationalAvoider(BaseAvoider):
         -------
         converging_velocity: Weighted summing in direction-space to 'emulate' the modulation.
         """
-        if weight >= 1:
-            weight = 1
-
-        elif weight <= 0:
-            weight = 0
+        # Put int range
+        weight = max(0, min(1, weight))
 
         dir_convergence = UnitDirection(base).from_vector(convergence_vector)
         dir_reference = UnitDirection(base).from_vector(reference_vector)
@@ -799,7 +796,6 @@ class RotationalAvoider(BaseAvoider):
 
         # else:
         #     null_vector = conv_vector
-
         rotated_velocity = get_directional_weighted_sum(
             null_direction=dir_convergence.as_vector(),
             weights=np.array([weight, (1 - weight)]),
