@@ -6,14 +6,26 @@ from dataclasses import dataclass
 import bpy
 import bmesh
 
+import mathutils
+
+
 import numpy as np
 
+from vartools.angle_math import get_orientation_from_direction
 from nonlinear_avoidance.vector_rotation import directional_vector_addition
 
 from rotational_mesh import RotationalMesh
 from materials import create_color, hex_to_rgba
 
 # from create_arrow import create_arrow
+
+
+def get_quat_from_direction(direction, null_vector=np.array([0, 0, 1.0])):
+    rotation = get_orientation_from_direction(direction, null_vector=null_vector)
+    quat = rotation.as_quat()
+    return [quat[3], quat[0], quat[1], quat[2]]
+    # mathutils.Quaternion((0.7071068, 0.0, 0.7071068, 0.0))
+
 
 Vertice = tuple[float]
 
@@ -138,8 +150,10 @@ class ArrowBlender:
             depth=shaft_depth,
             location=(0.0, 0.0, shaft_depth * 0.5),
         )  # location will be set
-        obj = bpy.context.object
-        bm.from_mesh(obj.to_mesh())
+        shaft_obj = bpy.context.object
+
+        # obj = bpy.context.object
+        # bm.from_mesh(obj.to_mesh())
 
         # Add cone
         head_depth = length * (1 - ratio_shaft_length)
@@ -150,17 +164,29 @@ class ArrowBlender:
             # location=tuple(root),
             location=(0, 0, shaft_depth + head_depth * 0.5),
         )
-        obj = bpy.context.object
-        bm.from_mesh(obj.to_mesh())
+        head_obj = bpy.context.object
 
+        # Merge obstacles
+        bpy.ops.object.select_all(action="DESELECT")
+        shaft_obj.select_set(True)
+        head_obj.select_set(True)
+        bpy.ops.object.join()
+        self.object = bpy.context.object
+        # Reset origin
+        saved_location = bpy.context.scene.cursor.location.xyz  # returns a vector
+        bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
+        bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
+        bpy.context.scene.cursor.location.xyz = saved_location
+        bpy.ops.object.select_all(action="DESELECT")
+
+        # Set center
         breakpoint()
-        # mesh_copy = bpy.data.meshes.new("meshCopy")
-        self.object = bpy.data.objects.new("arrow" + name, bm.to_mesh())
+        self.object.location = tuple(root)
 
-        # mesh_copy.to_mesh(self.object.data)
-        # mesh_copy.free()
-
-        # self.object = bpy.data.objects.new("arrow" + name, bm)
+        # ?! why is this the wro
+        self.object.rotation_mode = "QUATERNION"
+        quat = get_quat_from_direction(direction, null_vector=[0, 0, 1])
+        self.object.rotation_quaternion = quat
 
     @classmethod
     def from_root_to_tip(cls, root, tip, name=""):
