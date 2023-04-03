@@ -7,16 +7,27 @@ import math
 
 from pathlib import Path
 
-from nonlinear_avoidance.vector_rotation import VectorRotationXd
+from nonlinear_avoidance.vector_rotation import directional_vector_addition
 
 Vertice = tuple[float]
 
 
+def is_even(value: int) -> bool:
+    return not (value % 2)
+
+
+def is_odd(value: int) -> bool:
+    return value % 2
+
+
 class RotationalMesh:
-    def __init__(self, n_lattitude, n_longitude, it_max: int = 100) -> None:
+    def __init__(self, n_lattitude, n_longitude, it_max: int = 10) -> None:
         self.radius = 1.0
 
         self.it_max = it_max
+        if is_odd(n_lattitude):
+            raise ValueError("Even number required.")
+
         self.n_lattitude = n_lattitude
         self.n_longitude = n_longitude
 
@@ -39,11 +50,13 @@ class RotationalMesh:
         self.create_edges_and_faces()
         self.evaluate_vector_final()
 
-        self.update_vertices(ii=self.it_max * 0.9)
+        # self.update_vertices(ii=0)
 
         self.mesh = bpy.data.meshes.new("circle_space_mesh")
         self.mesh.from_pydata(self.vertices, self.edges, self.faces)
         self.mesh.update()
+
+        self.create_time_series()
 
         # Make object from mesh
         self.object = bpy.data.objects.new("circle_space_object", self.mesh)
@@ -53,25 +66,44 @@ class RotationalMesh:
         bpy.context.scene.collection.children.link(self.collection)
         self.collection.objects.link(self.object)
 
+        # Create animation
+        # self.object.position
         print("Circle space done.")
+
+    def move_object(self):
+        self.object.keyframe_insert(data_path="location", frame=1)
+
+        self.object.location = (3.0, 0.0, 0.0)
+        self.object.keyframe_insert(data_path="location", frame=10)
+
+        self.object.location = (3.0, 0.0, 3.0)
+        self.object.keyframe_insert(data_path="location", frame=20)
+
+    def create_time_series(self):
+        delta_frame = 5
+        for ii in range(self.it_max + 1):
+            self.update_vertices(ii)
+
+            for jj, vert in enumerate(self.mesh.vertices):
+                vert.co = self.vertices[jj]
+                vert.keyframe_insert("co", frame=ii * delta_frame)
 
     def get_index(self, it_long: int, it_latt: int) -> int:
         if it_latt < 0:
             return 0
         return 1 + it_long + it_latt * self.n_lattitude
 
-    def update_vertices(self, ii):
+    def update_vertices(self, ii: int) -> None:
         frac_weight = ii / self.it_max
         for lo in range(self.n_longitude):
             position_parent = np.array(self.vertices[self.get_index(-1, -1)])
 
             for la in range(self.n_lattitude):
                 index = self.get_index(lo, la)
-                vec_init = self.vector_init[index]
 
-                vector = VectorRotationXd.from_directions(
-                    vec_init, self.vector_final[:, index]
-                ).rotate(vec_init, frac_weight)
+                vector = directional_vector_addition(
+                    self.vector_init[index], self.vector_final[:, index], frac_weight
+                )
                 position_parent = position_parent + vector
                 self.vertices[index] = tuple(position_parent)
 
@@ -81,9 +113,9 @@ class RotationalMesh:
 
         for lo in range(self.n_longitude):
             vect = (
-                dxy * math.cos(lo * delta_long),
-                dxy * math.sin(lo * delta_long),
                 0,
+                dxy * math.sin(lo * delta_long),
+                dxy * math.cos(lo * delta_long),
             )
             for la in range(self.n_lattitude):
                 self.vector_final[:, self.get_index(lo, la)] = vect
@@ -126,16 +158,16 @@ class RotationalMesh:
         delta_long = 2 * math.pi / self.n_longitude
         delta_latt = math.pi / self.n_lattitude
 
-        self.vertices[self.get_index(-1, -1)] = (0.0, 0.0, 1.0)
+        self.vertices[self.get_index(-1, -1)] = (1.0, 0.0, 0.0)
 
         for la in range(self.n_lattitude):
             lattitude = (1 + la) * delta_latt
             sin_ = math.sin(lattitude)
-            zz = math.cos(lattitude)
+            xx = math.cos(lattitude)
 
             for lo in range(self.n_longitude):
                 longitude = lo * delta_long
-                xx = math.cos(longitude) * sin_
+                zz = math.cos(longitude) * sin_
                 yy = math.sin(longitude) * sin_
                 self.vertices[self.get_index(lo, la)] = (xx, yy, zz)
 
@@ -197,7 +229,9 @@ def main():
 
     # create_new_mesh()
     # rotational = RotationalMesh(32, 32)
-    rotational = RotationalMesh(6, 6)
+    rotational = RotationalMesh(12, 12)
+
+    bpy.context.scene.frame_end = 200
 
     # write all meshes starting with a capital letter and
     # set them with fake-user enabled so they aren't lost on re-saving

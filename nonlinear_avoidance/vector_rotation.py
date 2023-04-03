@@ -27,6 +27,23 @@ from nonlinear_avoidance.datatypes import Vector, VectorArray
 NodeType = Hashable
 
 
+def directional_vector_addition(
+    vector1: Vector, vector2: Vector, weight: float
+) -> Vector:
+    if not (norm1 := np.linalg.norm(vector1)):
+        return vector2 * weight
+
+    if not (norm2 := np.linalg.norm(vector2)):
+        return vector1 * (1 - weight)
+
+    vector1 = vector1 / norm1
+    vector2 = vector2 / norm2
+
+    vector = VectorRotationXd.from_directions(vector1, vector2).rotate(vector1, weight)
+
+    return vector * ((1 - weight) * norm1 + weight * norm2)
+
+
 def rotate_direction(
     direction: Vector, base: VectorArray, rotation_angle: float
 ) -> Vector:
@@ -42,7 +59,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods**2))
+    out_direction *= math.sqrt(sum(dot_prods ** 2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -67,7 +84,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
