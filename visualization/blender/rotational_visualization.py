@@ -7,6 +7,8 @@ import math
 
 from pathlib import Path
 
+from nonlinear_avoidance.vector_rotation import VectorRotationXd
+
 Vertice = tuple[float]
 
 
@@ -18,6 +20,8 @@ class RotationalMesh:
         self.n_lattitude = n_lattitude
         self.n_longitude = n_longitude
 
+        self.dimension = 3
+
         self.vertices = [
             (0, 0.0, 0.0) for _ in range(self.n_lattitude * self.n_longitude + 1)
         ]
@@ -27,12 +31,15 @@ class RotationalMesh:
         self.vector_init = [
             (0, 0.0, 0.0) for _ in range(self.n_lattitude * self.n_longitude + 1)
         ]
-        self.vector_final = [
-            (0, 0.0, 0.0) for _ in range(self.n_lattitude * self.n_longitude + 1)
-        ]
+        self.vector_final = np.zeros(
+            (self.dimension, self.n_lattitude * self.n_longitude + 1)
+        )
 
         self.create_vertices()
         self.create_edges_and_faces()
+        self.evaluate_vector_final()
+
+        self.update_vertices(ii=self.it_max * 0.9)
 
         self.mesh = bpy.data.meshes.new("circle_space_mesh")
         self.mesh.from_pydata(self.vertices, self.edges, self.faces)
@@ -53,28 +60,33 @@ class RotationalMesh:
             return 0
         return 1 + it_long + it_latt * self.n_lattitude
 
-    def update_positions(self, ii):
-        frac = ii / self.it_max
+    def update_vertices(self, ii):
+        frac_weight = ii / self.it_max
         for lo in range(self.n_longitude):
-            position_parent = np.array(self.mesh[self.get_index(-1, -1)])
+            position_parent = np.array(self.vertices[self.get_index(-1, -1)])
 
             for la in range(self.n_lattitude):
                 index = self.get_index(lo, la)
-                vector = (1 - frac) * self.vector_init[
-                    index
-                ] + frac * self.vector_final[index]
+                vec_init = self.vector_init[index]
 
+                vector = VectorRotationXd.from_directions(
+                    vec_init, self.vector_final[:, index]
+                ).rotate(vec_init, frac_weight)
                 position_parent = position_parent + vector
-                self.mesh[index] = tupple(position_parent)
+                self.vertices[index] = tuple(position_parent)
 
     def evaluate_vector_final(self):
-        dxy = math.pi / self.n_latt
+        dxy = math.pi / self.n_lattitude
         delta_long = 2 * math.pi / self.n_longitude
 
         for lo in range(self.n_longitude):
-            vect = (dxy * math.cos(lo * delta_long), math.sin(lo * delta_long), 0)
+            vect = (
+                dxy * math.cos(lo * delta_long),
+                dxy * math.sin(lo * delta_long),
+                0,
+            )
             for la in range(self.n_lattitude):
-                self.vector_final[self.get_index(lo, la)] = vect
+                self.vector_final[:, self.get_index(lo, la)] = vect
 
     def create_edges_and_faces(self):
         # + vector init
@@ -116,15 +128,15 @@ class RotationalMesh:
 
         self.vertices[self.get_index(-1, -1)] = (0.0, 0.0, 1.0)
 
-        for lo in range(self.n_longitude):
-            longitude = (1 + lo) * delta_long
-            sin_ = math.sin(longitude)
-            zz = math.cos(longitude)
+        for la in range(self.n_lattitude):
+            lattitude = (1 + la) * delta_latt
+            sin_ = math.sin(lattitude)
+            zz = math.cos(lattitude)
 
-            for la in range(self.n_lattitude):
-                lattitude = la * delta_latt
-                xx = math.sin(lattitude) * sin_
-                yy = math.cos(lattitude) * sin_
+            for lo in range(self.n_longitude):
+                longitude = lo * delta_long
+                xx = math.cos(longitude) * sin_
+                yy = math.sin(longitude) * sin_
                 self.vertices[self.get_index(lo, la)] = (xx, yy, zz)
 
 
