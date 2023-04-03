@@ -4,256 +4,80 @@ from pathlib import Path
 from dataclasses import dataclass
 
 import bpy
+import bmesh
 
 import numpy as np
 
 from nonlinear_avoidance.vector_rotation import directional_vector_addition
 
+from rotational_mesh import RotationalMesh
+from materials import create_color, hex_to_rgba
+
+# from create_arrow import create_arrow
+
 Vertice = tuple[float]
 
 
-def is_even(value: int) -> bool:
-    return not (value % 2)
+def show_render(obj, start, stop):
+    obj.hide_render = True
+    obj.keyframe_insert("hide_render", frame=start)
+    obj.hide_render = False
+    obj.keyframe_insert("hide_render", frame=stop)
 
 
-def is_odd(value: int) -> bool:
-    return value % 2
+def show_viewport(obj, start, stop):
+    obj.hide_viewport = True
+    obj.keyframe_insert("hide_viewport", frame=start)
+    obj.hide_viewport = False
+    obj.keyframe_insert("hide_viewport", frame=stop)
 
 
-def hex_to_rgb(hex_value: "str") -> tuple[float]:
-    if hex_value[0] == "#":
-        hex_value = hex_value[1:]
-    return tuple(int(hex_value[i : i + 2], 16) / 255.0 for i in (0, 2, 4))
+def hide_render(obj, start, stop):
+    # # Make whole object disappear
+    obj.hide_render = False
+    obj.keyframe_insert("hide_render", frame=start)
+    obj.hide_render = True
+    obj.keyframe_insert("hide_render", frame=stop)
 
 
-def hex_to_rgba(hex_value: "str", a_value: float = 1.0) -> tuple[float]:
-    if hex_value[0] == "#":
-        hex_value = hex_value[1:]
-    return tuple([int(hex_value[i : i + 2], 16) / 255.0 for i in (0, 2, 4)] + [a_value])
+def hide_viewpoert(obj, start: int, stop: int):
+    obj.hide_viewport = False
+    obj.keyframe_insert("hide_viewport", frame=start)
+    obj.hide_viewport = True
+    obj.keyframe_insert("hide_viewport", frame=stop)
 
 
-def create_color(
-    color: tuple[float], name: str, obj, use_transparency: bool = False
-) -> None:
-    obj.color = color
-    # Create a material
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    # mat.use_transparency = True
-    # mat.transparency_method = "Z_TRANSPARENCY"
+def make_object_disappear(obj, start: int, stop: int):
+    for mat in obj.data.materials:
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Alpha"].default_value = 1.0
+        bsdf.inputs["Alpha"].keyframe_insert("default_value", frame=start)
+        bsdf.inputs["Base Color"].default_value[3] = 1.0
+        bsdf.inputs["Base Color"].keyframe_insert("default_value", frame=start)
 
-    principled = mat.node_tree.nodes["Principled BSDF"]
-    principled.inputs["Base Color"].default_value = color
+        bsdf.inputs["Alpha"].default_value = 0.0
+        bsdf.inputs["Alpha"].keyframe_insert(data_path="default_value", frame=stop)
+        bsdf.inputs["Base Color"].default_value[3] = 0.0
+        bsdf.inputs["Base Color"].keyframe_insert("default_value", frame=start)
 
-    # principled.inputs["Base Color"].use_transparency = True
-    # mat.transparency_method = "Z_TRANSPARENCY"
-
-    obj.data.materials.append(mat)
+    hide_render(obj, stop, stop + 1)
 
 
-class RotationalMesh:
-    def __init__(self, n_lattitude, n_longitude, it_max: int = 10) -> None:
-        self.radius = 1.0
+def make_object_appear(obj, start: int, stop: int, alpha: float = 1.0):
+    for mat in obj.data.materials:
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Alpha"].default_value = 0.0
+        bsdf.inputs["Alpha"].keyframe_insert("default_value", frame=start)
+        bsdf.inputs["Base Color"].default_value[3] = 0.0
+        bsdf.inputs["Base Color"].keyframe_insert("default_value", frame=start)
 
-        self.it_max = it_max
-        if is_odd(n_lattitude):
-            raise ValueError("Even number required.")
+        bsdf.inputs["Alpha"].default_value = alpha
+        bsdf.inputs["Alpha"].keyframe_insert(data_path="default_value", frame=stop)
+        bsdf.inputs["Base Color"].default_value[3] = alpha
+        bsdf.inputs["Base Color"].keyframe_insert("default_value", frame=start)
 
-        self.n_lattitude = n_lattitude
-        self.n_longitude = n_longitude
-
-        self.dimension = 3
-
-        self.vertices = [
-            (0, 0.0, 0.0) for _ in range(self.n_lattitude * self.n_longitude + 1)
-        ]
-        self.edges = []
-        self.faces = []
-
-        self.vector_init = [
-            (0, 0.0, 0.0) for _ in range(self.n_lattitude * self.n_longitude + 1)
-        ]
-        self.vector_final = np.zeros(
-            (self.dimension, self.n_lattitude * self.n_longitude + 1)
-        )
-
-        self.create_vertices()
-        self.create_edges_and_faces()
-        self.evaluate_vector_final()
-
-        # self.update_vertices(ii=0)
-
-        self.mesh = bpy.data.meshes.new("circle_space_mesh")
-        self.mesh.from_pydata(self.vertices, self.edges, self.faces)
-        self.mesh.update()
-
-        # self.create_time_series()
-
-        # Make object from mesh
-        self.object = bpy.data.objects.new("circle_space_object", self.mesh)
-
-        # Make collection
-        self.collection = bpy.data.collections.new("circle_space_collection")
-        bpy.context.scene.collection.children.link(self.collection)
-        self.collection.objects.link(self.object)
-
-        self.set_colors()
-
-        # Create animation
-        # self.object.position
-        print("Circle space done.")
-
-    def set_colors(self) -> None:
-        create_color(
-            color=(75.0 / 255, 102.0 / 255, 20.0 / 255, 1),
-            name="Green",
-            obj=self.object,
-        )
-        create_color(
-            color=(164.0 / 255, 26.0 / 255, 38.0 / 255, 1),
-            name="Red",
-            obj=self.object,
-        )
-
-        for poly in self.mesh.polygons:
-            keys = []
-            for kk in poly.edge_keys:
-                keys += kk
-
-            # Not that this min-lattitude key only works
-            # due to the way they are structured
-            min_key = min(keys)
-            _, it_latt = self.get_iterators(min_key)
-
-            if it_latt >= self.n_lattitude / 2.0 - 1:
-                poly.material_index = 0
-            else:
-                poly.material_index = 1
-
-    def move_object(self):
-        self.object.keyframe_insert(data_path="location", frame=1)
-
-        self.object.location = (3.0, 0.0, 0.0)
-        self.object.keyframe_insert(data_path="location", frame=10)
-
-        self.object.location = (3.0, 0.0, 3.0)
-        self.object.keyframe_insert(data_path="location", frame=20)
-
-    def make_unfold(self, start: int, stop: int, step: int) -> None:
-        n_it = self.it_max
-
-        # Make sure last frame is in frames
-        frames = np.arange(start, stop + step, step)
-        frames[-1] = stop
-        n_it = frames.shape[0]
-        for ii, frame in enumerate(frames):
-            self.update_vertices((frame - start) / (stop - start))
-
-            for jj, vert in enumerate(self.mesh.vertices):
-                vert.co = self.vertices[jj]
-                vert.keyframe_insert("co", frame=frame)
-
-    def make_fold(self, start: int, stop: int, step: int) -> None:
-        n_it = self.it_max
-
-        # Make sure last frame is in frames
-        frames = np.arange(start, stop + step, step)
-        frames[-1] = stop
-
-        n_it = frames.shape[0]
-        for ii, frame in enumerate(frames):
-            self.update_vertices((stop - frame) / (stop - start))
-
-            for jj, vert in enumerate(self.mesh.vertices):
-                vert.co = self.vertices[jj]
-                vert.keyframe_insert("co", frame=frame)
-
-    def get_index(self, it_long: int, it_latt: int) -> int:
-        if it_latt < 0:
-            return 0
-        return 1 + it_long + it_latt * self.n_longitude
-
-    def get_iterators(self, it: int) -> tuple[int]:
-        it_latt = int((it - 1) / self.n_longitude)
-        it_long = (it - 1) % self.n_longitude
-        return (it_long, it_latt)
-
-    def update_vertices(self, frac_weight: float) -> None:
-        for lo in range(self.n_longitude):
-            position_parent = np.array(self.vertices[self.get_index(-1, -1)])
-
-            for la in range(self.n_lattitude):
-                index = self.get_index(lo, la)
-
-                vector = directional_vector_addition(
-                    self.vector_init[index], self.vector_final[:, index], frac_weight
-                )
-                position_parent = position_parent + vector
-                self.vertices[index] = tuple(position_parent)
-
-    def evaluate_vector_final(self):
-        dxy = math.pi / self.n_lattitude
-        delta_long = 2 * math.pi / self.n_longitude
-
-        for lo in range(self.n_longitude):
-            vect = (
-                0,
-                dxy * math.sin(lo * delta_long),
-                dxy * math.cos(lo * delta_long),
-            )
-            for la in range(self.n_lattitude):
-                self.vector_final[:, self.get_index(lo, la)] = vect
-
-    def create_edges_and_faces(self):
-        # + vector init
-        for ii in range(self.n_longitude):
-            ii_mod = (ii + 1) % self.n_longitude
-            self.edges.append((self.get_index(-1, -1), self.get_index(ii, 0)))
-
-            self.vector_init[self.get_index(ii, 0)] = np.array(
-                self.vertices[self.get_index(ii, 0)]
-            ) - np.array(self.vertices[self.get_index(-1, -1)])
-
-            self.faces.append(
-                (
-                    self.get_index(-1, -1),
-                    self.get_index(ii, 0),
-                    self.get_index(ii_mod, 0),
-                )
-            )
-            for jj in range(1, self.n_lattitude):
-                self.edges.append((self.get_index(ii, jj - 1), self.get_index(ii, jj)))
-                self.edges.append((self.get_index(ii, jj), self.get_index(ii_mod, jj)))
-
-                self.vector_init[self.get_index(ii, jj)] = np.array(
-                    self.vertices[self.get_index(ii, jj)]
-                ) - np.array(self.vertices[self.get_index(ii, jj - 1)])
-
-                self.faces.append(
-                    (
-                        self.get_index(ii, jj),
-                        self.get_index(ii_mod, jj),
-                        self.get_index(ii_mod, jj - 1),
-                        self.get_index(ii, jj - 1),
-                    )
-                )
-
-    def create_vertices(self):
-        delta_long = 2 * math.pi / self.n_longitude
-        delta_latt = math.pi / self.n_lattitude
-
-        self.vertices[self.get_index(-1, -1)] = (1.0, 0.0, 0.0)
-
-        for la in range(self.n_lattitude):
-            lattitude = (1 + la) * delta_latt
-            sin_ = math.sin(lattitude)
-            xx = math.cos(lattitude)
-
-            for lo in range(self.n_longitude):
-                longitude = lo * delta_long
-                zz = math.cos(longitude) * sin_
-                yy = math.sin(longitude) * sin_
-                self.vertices[self.get_index(lo, la)] = (xx, yy, zz)
+    # Hide oject one key frame after
+    show_render(obj, start - 1, start)
 
 
 class CubeObstacle:
@@ -267,31 +91,29 @@ class CubeObstacle:
         # cube_object = bpy.data.objects.new("Cube", cube_mesh)
         create_color(hex_to_rgba("b07c7cff"), "brown", obj=self.object)
 
-    def make_appear(self, start: int, stop: int):
-        self.object.data.materials[0].diffuse_color[3] = 0.0
-        self.object.data.materials[0].keyframe_insert(
-            data_path="diffuse_color",
-            frame=start,
-        )
 
-        self.object.data.materials[0].diffuse_color[3] = 1.0
-        self.object.data.materials[0].keyframe_insert(
-            data_path="diffuse_color", frame=stop
+class MovingSphere:
+    def __init__(self, start_position: np.ndarray, radius: float = 0.2):
+        bpy.ops.mesh.primitive_ico_sphere_add(
+            location=tuple(start_position),
+            align="WORLD",
+            scale=(radius, radius, radius),
         )
+        self.object = bpy.context.object
 
-    def make_disappear(self, start: int, stop: int):
-        self.object.data.materials[0].diffuse_color[3] = 1.0
-        self.object.data.materials[0].keyframe_insert(
-            data_path="diffuse_color",
-            frame=start,
-        )
+        # Make object from mesh
+        # cube_object = bpy.data.objects.new("Cube", cube_mesh)
+        create_color(hex_to_rgba("b07c7cff"), "", obj=self.object)
 
-        self.object.data.materials[0].diffuse_color[3] = 0.0
-        self.object.data.materials[0].keyframe_insert(
-            data_path="diffuse_color", frame=stop
-        )
+    def go_to(self, position, start: int, stop: int) -> None:
+        self.object.keyframe_insert(data_path="location", frame=start)
+        self.object.location = tuple(position)
+        self.object.keyframe_insert(data_path="location", frame=stop)
 
-        pass
+    def follow_path(self, start: int, step: int, path: np.ndarray) -> None:
+        for ii in range(path.shape[1]):
+            self.object.location = tuple(path[:, ii])
+            self.object.keyframe_insert(data_path="location", frame=start + ii * step)
 
 
 def create_point_movement(start_position, end_position):
@@ -300,15 +122,49 @@ def create_point_movement(start_position, end_position):
     )
 
 
-@dataclass
-class VectorBlender:
-    shaft_lenght: float
-    head_length: float
-    shaft_width: float
-    head_widht: float
+class ArrowBlender:
+    def __init__(self, root, direction, name=""):
+        ratio_shaft_length = 0.6
+        ratio_radius_shaft = 0.07
+        ratio_radius_head = 0.2
+        length = np.linalg.norm(direction)
 
-    def __post_init__(self):
-        pass
+        bm = bmesh.new()
+
+        # Add cylinder
+        shaft_depth = length * ratio_shaft_length
+        shaft = bpy.ops.mesh.primitive_cylinder_add(
+            radius=length * ratio_radius_shaft,
+            depth=shaft_depth,
+            location=(0.0, 0.0, shaft_depth * 0.5),
+        )  # location will be set
+        obj = bpy.context.object
+        bm.from_mesh(obj.to_mesh())
+
+        # Add cone
+        head_depth = length * (1 - ratio_shaft_length)
+        head = bpy.ops.mesh.primitive_cone_add(
+            radius1=ratio_radius_head * length,
+            radius2=0.0,
+            depth=head_depth,
+            # location=tuple(root),
+            location=(0, 0, shaft_depth + head_depth * 0.5),
+        )
+        obj = bpy.context.object
+        bm.from_mesh(obj.to_mesh())
+
+        breakpoint()
+        # mesh_copy = bpy.data.meshes.new("meshCopy")
+        self.object = bpy.data.objects.new("arrow" + name, bm.to_mesh())
+
+        # mesh_copy.to_mesh(self.object.data)
+        # mesh_copy.free()
+
+        # self.object = bpy.data.objects.new("arrow" + name, bm)
+
+    @classmethod
+    def from_root_to_tip(cls, root, tip, name=""):
+        return cls(root, tip - root)
 
 
 def print_meshes(filepath: Path):
@@ -333,6 +189,10 @@ def print_meshes(filepath: Path):
             print(mesh.name)
 
 
+def render_video():
+    bpy.context.scene.render.image_settings.file_format = "FFMPEG"
+
+
 def main():
     filepath = Path.home() / "Videos" / "rotational_visualization.blend"
     print_meshes(filepath)
@@ -346,19 +206,30 @@ def main():
 
     new_context = bpy.context.scene
     bpy.context.scene.name = "Main"
+    bpy.context.scene.frame_end = 100
 
     print(f"newScene: {new_context}")
     # bpy.data.scenes[len(bpy.data.scenes) - 1].name = "Main"
 
     cube_obstacle = CubeObstacle([3.0, 0, 0])
-    cube_obstacle.make_disappear(10, 20)
+    # cube_obstacle.make_appear(150, 200)
+    make_object_disappear(cube_obstacle.object, 50, 60)
+    make_object_appear(cube_obstacle.object, 80, 140)
 
-    # Rotational Mesh
+    ### Rotational Mesh
     rotational = RotationalMesh(12, 12)
     rotational.make_unfold(50, 100, 10)
-    rotational.make_fold(150, 200, 10)
+    make_object_appear(rotational.object, 20, 30)
+    # rotational.make_fold(150, 200, 10)
 
-    bpy.context.scene.frame_end = 300
+    agent_start = [-12.0, 1, 0]
+    agent_stop = [0, 0, 0.0]
+    agent = MovingSphere(agent_start)
+    agent.go_to(agent_stop, 0, 30)
+
+    velocity_init = np.array(agent_stop) - np.array(agent_start)
+    velocity_init = velocity_init / np.linalg.norm(velocity_init)
+    velocity_arrow = ArrowBlender(agent_start, velocity_init)
 
     # write all meshes starting with a capital letter and
     # set them with fake-user enabled so they aren't lost on re-saving
