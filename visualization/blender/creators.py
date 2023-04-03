@@ -19,3 +19,25 @@ def create_new_mesh():
 
     # add object to scene collection
     new_collection.objects.link(self.object)
+
+
+def print_meshes(filepath: Path):
+    # load all meshes
+    with bpy.data.libraries.load(str(filepath)) as (data_from, data_to):
+        data_to.meshes = data_from.meshes
+
+        # for mesh in data_to.meshes:
+        #     if mesh is not None:
+        #         breakpoint()
+        #         print(mesh)
+    try:
+        bpy.data.objects["Cube"].select_set(True)
+    except KeyError:
+        print("No Cube in the scene.")
+    else:
+        bpy.ops.object.delete()
+
+    # now operate directly on the loaded data
+    for mesh in data_to.meshes:
+        if mesh is not None:
+            print(mesh.name)

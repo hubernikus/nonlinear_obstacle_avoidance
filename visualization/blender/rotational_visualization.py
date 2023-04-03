@@ -91,6 +91,13 @@ def make_object_appear(obj, start: int, stop: int, alpha: float = 1.0):
     # Hide oject one key frame after
     show_render(obj, start - 1, start)
 
+def move_to(self, position, start: Optional[int], stop: int) -> None:
+    if start is not None:
+        self.object.keyframe_insert(data_path="location", frame=start)
+            
+        self.object.location = tuple(position)
+        self.object.keyframe_insert(data_path="location", frame=stop)
+
 
 class CubeObstacle:
     def __init__(self, position):
@@ -117,8 +124,10 @@ class MovingSphere:
         # cube_object = bpy.data.objects.new("Cube", cube_mesh)
         create_color(hex_to_rgba("b07c7cff"), "", obj=self.object)
 
-    def go_to(self, position, start: int, stop: int) -> None:
-        self.object.keyframe_insert(data_path="location", frame=start)
+    def go_to(self, position, start: Optional[int], stop: int) -> None:
+        if start is not None:
+            self.object.keyframe_insert(data_path="location", frame=start)
+            
         self.object.location = tuple(position)
         self.object.keyframe_insert(data_path="location", frame=stop)
 
@@ -193,28 +202,6 @@ class ArrowBlender:
         return cls(root, tip - root)
 
 
-def print_meshes(filepath: Path):
-    # load all meshes
-    with bpy.data.libraries.load(str(filepath)) as (data_from, data_to):
-        data_to.meshes = data_from.meshes
-
-        # for mesh in data_to.meshes:
-        #     if mesh is not None:
-        #         breakpoint()
-        #         print(mesh)
-    try:
-        bpy.data.objects["Cube"].select_set(True)
-    except KeyError:
-        print("No Cube in the scene.")
-    else:
-        bpy.ops.object.delete()
-
-    # now operate directly on the loaded data
-    for mesh in data_to.meshes:
-        if mesh is not None:
-            print(mesh.name)
-
-
 def render_video():
     bpy.context.scene.render.image_settings.file_format = "FFMPEG"
 
@@ -226,19 +213,14 @@ def main():
     # # Import 'layer' / scene
     if "Main" not in bpy.context.scene.view_layers:
         bpy.context.scene.view_layers.new("Main")
-    # bpy.ops.file.pack_all()
-
-    # bpy.ops.scene.new(type="NEW")
 
     new_context = bpy.context.scene
     bpy.context.scene.name = "Main"
     bpy.context.scene.frame_end = 100
 
     print(f"newScene: {new_context}")
-    # bpy.data.scenes[len(bpy.data.scenes) - 1].name = "Main"
 
     cube_obstacle = CubeObstacle([3.0, 0, 0])
-    # cube_obstacle.make_appear(150, 200)
     make_object_disappear(cube_obstacle.object, 50, 60)
     make_object_appear(cube_obstacle.object, 80, 140)
 
@@ -256,6 +238,7 @@ def main():
     velocity_init = np.array(agent_stop) - np.array(agent_start)
     velocity_init = velocity_init / np.linalg.norm(velocity_init)
     velocity_arrow = ArrowBlender(agent_start, velocity_init)
+    velocity_arrow.
 
     # write all meshes starting with a capital letter and
     # set them with fake-user enabled so they aren't lost on re-saving
