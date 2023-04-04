@@ -1,6 +1,7 @@
 import math
 import shutil
 from pathlib import Path
+from typing import Optional
 from dataclasses import dataclass
 
 import bpy
@@ -16,8 +17,13 @@ from nonlinear_avoidance.vector_rotation import directional_vector_addition
 
 from rotational_mesh import RotationalMesh
 from materials import create_color, hex_to_rgba
+from creators import delete_all_meshes
 
 # from create_arrow import create_arrow
+
+
+def deg_to_euler(value):
+    return tuple([ii * math.pi / 180.0 for ii in value])
 
 
 def get_quat_from_direction(direction, null_vector=np.array([0, 0, 1.0])):
@@ -25,6 +31,84 @@ def get_quat_from_direction(direction, null_vector=np.array([0, 0, 1.0])):
     quat = rotation.as_quat()
     return [quat[3], quat[0], quat[1], quat[2]]
     # mathutils.Quaternion((0.7071068, 0.0, 0.7071068, 0.0))
+
+
+class SeparatingPlane:
+    def __init__(self, scale: float = 2):
+        bpy.ops.mesh.primitive_plane_add(
+            location=(0, 0, 0),
+            rotation=deg_to_euler([0, 90, 0]),
+            scale=(scale, scale, scale),
+        )
+        # self.object.rotation_mode = "XYZ"
+
+        self.object = bpy.context.object
+        self.object.scale = (scale, scale, scale)
+
+
+class SeparatingCircle:
+    def __init__(self, radius: float = 1, color=""):
+        # self.object.rotation_mode = "XYZ"
+        bpy.ops.mesh.primitive_circle_add(
+            location=(0, 0, 0),
+            rotation=deg_to_euler([90, 0, 0]),
+            scale=(radius, radius, radius),
+        )
+
+        self.object = bpy.context.object
+
+    def scale_circle(self, frame1: int, frame2: int):
+        breakpoint()
+        self.object.keyframe_insert("", frame=frame1)
+
+        # self.object.scale
+        # self.object.keyframe_insert("", frame=frame2)
+
+
+class CameraPoser:
+    object = bpy.data.objects["Camera"]
+
+    def store_camera_keyframe(self, frame):
+        self.object.keyframe_insert("rotation_euler", frame=frame)
+        self.object.keyframe_insert("location", frame=frame)
+        self.object.data.keyframe_insert("lens", frame=frame)
+
+    def set_mid_point(self, frame1, frame2, fraction=1.0 / 2):
+        frame = int(fraction * (frame2 - frame1) + frame1)
+        self.object.location = [6, 12, 3.0]
+        self.object.keyframe_insert("location", frame=frame)
+        # self.object.rotation_mode = "XYZ"
+        # self.object.rotation_euler = deg_to_euler([80, 0, 132])
+        # self.object.data.lens = 55
+        # self.store_camera_keyframe(frame)
+
+    def to_global_view(self, start: int, stop: Optional[int] = None):
+        if stop is None:
+            stop = start
+        else:
+            self.store_camera_keyframe(start)
+            self.set_mid_point(start, stop)
+
+        self.object.location = [-12, 16, 6.0]
+        # self.object.rotation_quqaternion = [-0.2, -0.16, 0.6, 0.8]
+        self.object.rotation_mode = "XYZ"
+        self.object.rotation_euler = deg_to_euler([75, 0, 360 - 150])
+        self.object.data.lens = 55
+        self.store_camera_keyframe(stop)
+
+    def to_direction_space(self, start: int, stop: Optional[int] = None):
+        if stop is None:
+            stop = start
+        else:
+            self.store_camera_keyframe(start)
+            self.set_mid_point(start, stop)
+
+        self.object.location = [10.0, 0, 0]
+        self.object.rotation_mode = "XYZ"
+        self.object.rotation_euler = deg_to_euler([90, 0, 90])
+        self.object.data.lens = 25
+
+        self.store_camera_keyframe(stop)
 
 
 Vertice = tuple[float]
@@ -91,12 +175,13 @@ def make_object_appear(obj, start: int, stop: int, alpha: float = 1.0):
     # Hide oject one key frame after
     show_render(obj, start - 1, start)
 
-def move_to(self, position, start: Optional[int], stop: int) -> None:
+
+def move_to(obj, position, start: Optional[int], stop: int) -> None:
     if start is not None:
-        self.object.keyframe_insert(data_path="location", frame=start)
-            
-        self.object.location = tuple(position)
-        self.object.keyframe_insert(data_path="location", frame=stop)
+        obj.keyframe_insert(data_path="location", frame=start)
+
+    obj.location = tuple(position)
+    obj.keyframe_insert(data_path="location", frame=stop)
 
 
 class CubeObstacle:
@@ -127,7 +212,7 @@ class MovingSphere:
     def go_to(self, position, start: Optional[int], stop: int) -> None:
         if start is not None:
             self.object.keyframe_insert(data_path="location", frame=start)
-            
+
         self.object.location = tuple(position)
         self.object.keyframe_insert(data_path="location", frame=stop)
 
@@ -189,7 +274,6 @@ class ArrowBlender:
         bpy.ops.object.select_all(action="DESELECT")
 
         # Set center
-        breakpoint()
         self.object.location = tuple(root)
 
         # ?! why is this the wro
@@ -208,7 +292,13 @@ def render_video():
 
 def main():
     filepath = Path.home() / "Videos" / "rotational_visualization.blend"
-    print_meshes(filepath)
+
+    camera = CameraPoser()
+    camera.to_global_view(0)
+    camera.to_direction_space(20, 40)
+    camera.to_global_view(80, 100)
+
+    delete_all_meshes(filepath)
 
     # # Import 'layer' / scene
     if "Main" not in bpy.context.scene.view_layers:
@@ -226,19 +316,23 @@ def main():
 
     ### Rotational Mesh
     rotational = RotationalMesh(12, 12)
-    rotational.make_unfold(50, 100, 10)
     make_object_appear(rotational.object, 20, 30)
+    rotational.make_unfold(50, 100, 10)
     # rotational.make_fold(150, 200, 10)
 
+    half_plane = SeparatingPlane()
+
+    t_start = 0
+    t_stop = t_start + 30
     agent_start = [-12.0, 1, 0]
     agent_stop = [0, 0, 0.0]
     agent = MovingSphere(agent_start)
-    agent.go_to(agent_stop, 0, 30)
+    agent.go_to(agent_stop, t_start, t_stop)
 
     velocity_init = np.array(agent_stop) - np.array(agent_start)
     velocity_init = velocity_init / np.linalg.norm(velocity_init)
     velocity_arrow = ArrowBlender(agent_start, velocity_init)
-    velocity_arrow.
+    move_to(velocity_arrow.object, agent_stop, t_start, t_stop)
 
     # write all meshes starting with a capital letter and
     # set them with fake-user enabled so they aren't lost on re-saving

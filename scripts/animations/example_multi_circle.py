@@ -201,6 +201,7 @@ def animation_starshape():
 
 if (__name__) == "__main__":
     # def main():
+    plt.style.use("dark_background")
 
     # animation_ellipse()
     animation_starshape()

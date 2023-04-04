@@ -1,5 +1,7 @@
 import bpy
 
+from pathlib import Path
+
 
 def create_new_mesh():
     # make mesh
@@ -21,7 +23,7 @@ def create_new_mesh():
     new_collection.objects.link(self.object)
 
 
-def print_meshes(filepath: Path):
+def delete_all_meshes(filepath: Path):
     # load all meshes
     with bpy.data.libraries.load(str(filepath)) as (data_from, data_to):
         data_to.meshes = data_from.meshes
