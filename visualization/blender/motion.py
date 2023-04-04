@@ -1,5 +1,7 @@
 from typing import Optional
 
+from blender_math import get_quat_from_direction
+
 
 def show_render(obj, start, stop):
     obj.hide_render = True
@@ -75,12 +77,30 @@ def make_appear(obj, start: int, stop: int, alpha: float = 1.0):
     show_render(obj, start - 1, start)
 
 
-def move_to(obj, position, start: Optional[int], stop: int) -> None:
+def move_to(obj, position, frame1: int, frame2=None) -> None:
     if hasattr(obj, "object"):
         obj = obj.object
 
-    if start is not None:
-        obj.keyframe_insert(data_path="location", frame=start)
+    if frame2 is None:
+        frame2 = frame1
+    else:
+        obj.keyframe_insert(data_path="location", frame=frame1)
 
     obj.location = tuple(position)
-    obj.keyframe_insert(data_path="location", frame=stop)
+    obj.keyframe_insert(data_path="location", frame=frame2)
+
+
+def align_with(obj, direction, frame1, frame2=None):
+    if hasattr(obj, "object"):
+        obj = obj.object
+
+    obj.rotation_mode = "QUATERNION"
+
+    if frame2 is None:
+        frame2 = frame1
+    else:
+        obj.keyframe_insert(data_path="rotation_quaternion", frame=frame1)
+
+    quat = get_quat_from_direction(direction, null_vector=[0, 0, 1])
+    obj.rotation_quaternion = quat
+    obj.keyframe_insert(data_path="rotation_quaternion", frame=frame2)

@@ -253,7 +253,9 @@ class SeparatingCircle:
         #     rotation=deg_to_euler([0, 90, 0]),
         #     scale=(radius, radius, radius),
         # )
+        self.initial_radius = radius
         self.radius = radius
+
         dx = 0.05
         head = bpy.ops.mesh.primitive_cone_add(
             radius1=radius - dx * 0.5,
@@ -278,7 +280,7 @@ class SeparatingCircle:
             self.object.keyframe_insert("scale", frame=frame1)
 
         # Update radius
-        self.radius *= scale
+        self.radius = self.initial_radius * scale
 
         # Scale and save
         self.object.scale = (scale, scale, scale)

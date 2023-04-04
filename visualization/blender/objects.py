@@ -76,7 +76,7 @@ class ArrowBlender:
     def __init__(self, root, direction, name="", color: Optional[str] = None):
 
         # Store direction for later conversion
-        self.direction = direction
+        self.direction = np.array(direction)
 
         ratio_shaft_length = 0.6
         ratio_radius_shaft = 0.07
