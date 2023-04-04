@@ -46,12 +46,16 @@ class CameraPoser:
         # self.object.data.lens = 55
         # self.store_camera_keyframe(frame)
 
-    def to_global_view(self, start: int, stop: Optional[int] = None):
+    def to_global_view(
+        self, start: int, stop: Optional[int] = None, do_via_point=False
+    ):
         if stop is None:
             stop = start
         else:
             self.store_camera_keyframe(start)
-            # self.set_mid_point(start, stop)
+
+        if do_via_point:
+            self.set_mid_point(start, stop)
 
         self.object.location = [-12, 16, 6.0]
         # self.object.rotation_quqaternion = [-0.2, -0.16, 0.6, 0.8]
@@ -60,7 +64,11 @@ class CameraPoser:
         self.object.data.lens = 55
         self.store_camera_keyframe(stop)
 
-    def to_midpoint(self, frame1: int, frame2: Optional[int] = None):
+    def to_midpoint(
+        self,
+        frame1: int,
+        frame2: Optional[int] = None,
+    ):
         if frame2 is None:
             frame2 = frame1
         else:
@@ -72,12 +80,16 @@ class CameraPoser:
         self.object.data.lens = 40
         self.store_camera_keyframe(frame2)
 
-    def to_direction_space(self, start: int, stop: Optional[int] = None):
+    def to_direction_space(
+        self, start: int, stop: Optional[int] = None, do_via_point=False
+    ):
         if stop is None:
             stop = start
         else:
             self.store_camera_keyframe(start)
-            # self.set_mid_point(start, stop)
+
+        if do_via_point:
+            self.set_mid_point(start, stop)
 
         self.object.location = [10.0, 0, 0]
         self.object.rotation_mode = "XYZ"
@@ -135,6 +147,79 @@ def create_lights():
     light_object.location = (0, -2, -5)
 
 
+def create_sphere_from_arrow(arrow, frame1, frame2, dir_point_radius=0.1):
+    frame = frame1
+    df = frame2 - frame1
+
+    sphere = MovingSphere(
+        arrow.direction,
+        radius=dir_point_radius,
+        color=arrow.hex_color,
+    )
+    make_disappear(arrow, frame, frame + df)
+    make_appear(sphere, frame, frame + df)
+    return sphere
+
+
+def create_arrow_from_sphere(sphere, frame1, frame2, dir_point_radius=0.1):
+    frame = frame1
+    df = frame2 - frame1
+
+    sphere = MovingSphere(
+        arrow.direction,
+        radius=dir_point_radius,
+        color=arrow.hex_color,
+    )
+    make_disappear(arrow, frame, frame + df)
+    make_appear(sphere, frame, frame + df)
+    return sphere
+
+
+def do_scene_unfolding(scene, frame, df, create_normal: bool = True):
+    scene.half_circle = SeparatingCircle(radius=math.pi * 0.5)
+    make_appear(scene.half_circle, frame + df - 5, frame + df)
+
+    scene.rotational.make_unfold(frame, frame + df, 10)
+    scene.camera.to_direction_space(frame, frame + df)
+
+    if create_normal:
+        scene.normal_point = MovingSphere(
+            -1 * scene.normal_direction,
+            radius=scene.dir_point_radius,
+            color="6d1119ff",
+        )
+        make_appear(scene.normal_point, frame, frame + df)
+
+    # Move velocity point
+    dir_vel = scene.transformer.transform_to_direction_space(
+        scene.velocity_point.location
+    )
+    move_to(scene.velocity_point, dir_vel, frame, frame + df)
+
+
+def do_scene_folding(scene, frame, df):
+    scene.camera.to_midpoint(frame, frame + df)
+    scene.rotational.make_fold(frame, frame + df, 10)
+
+    vec = dir_transformer.transform_from_direction_space(scene.velocity_point.location)
+    move_to(scene.velocity_point, vec, frame, frame + df)
+
+    make_disappear(scene.half_circle, frame, frame + 5)
+    make_disappear(scene.normal_point, frame, frame + df * 0.5)
+
+
+class SceneStorer:
+    def __init__(self):
+        self.dir_point_radius = 0.1
+        self.camera = None
+        self.rotational = None
+        self.normal_point = None
+        self.normal_direction = [-1, 0, 0]
+        self.transformer = None
+        self.half_circle = None
+        self.velocity_point = None
+
+
 def main(render_scene=False):
     dir_point_radius = 0.1
     # Filepath and clean-up
@@ -152,120 +237,66 @@ def main(render_scene=False):
     create_lights()
     # Setup initial elements
     frame = 0
-    df = 120
-    camera = CameraPoser()
-    camera.to_global_view(frame)
+    df = 30
+
+    scene = SceneStorer()
+    scene.camera = CameraPoser()
+    scene.camera.to_global_view(frame)
+
+    cube_obstacle = CubeObstacle([3.0, 0, 0], scale=(0.5, 5, 10))
 
     ### Movement of Agent
-    cube_obstacle = CubeObstacle([3.0, 0, 0])
+    agent = MovingSphere([0, -3, 0])
+    velocity_arrow = ArrowBlender(agent.position, direction=[0, 1, 0], color="0000ffff")
+    # Velocity step
+    end_position = agent.location + velocity_arrow.direction * 5
+    move_to(agent, end_position, frame, frame + df)
+    move_to(velocity_arrow.object, end_position, frame, frame + df)
 
-    # Setup Agent
-    agent_start = [-12.0, -6, 0]
-    agent_stop = [0, 0, 0.0]
-    agent = MovingSphere(agent_start)
-    agent.go_to(agent_stop, frame, frame + df)
-
-    # Setup velocity arrow
-    velocity_init = np.array(agent_stop) - np.array(agent_start)
-    velocity_init = velocity_init / np.linalg.norm(velocity_init)
-    velocity_arrow = ArrowBlender(agent_start, velocity_init, color="0000ffff")
-    move_to(velocity_arrow.object, agent_stop, frame, frame + df)
-
-    ### Pause
-    frame = frame + 10
-
-    ### Create Obstacle Normal
-    frame = frame + df
-    df = 10
-
-    normal_vector = np.array([-1, 0, 0])
-    dir_transformer = DirectionalSpaceTransformer.from_vector(
-        (-1) * normal_vector, center=[1, 0.0, 0]
-    )
-    normal_start = [2, 0, 0]
-    normal_arrow = ArrowBlender(normal_start, normal_vector, color="6d1119ff")
-    make_appear(normal_arrow, frame, frame + df)
-
-    # Rotation-Mesh
+    ### Create Rotation-Mesh
     frame = frame + df
     df = 30
-    rotational = RotationalMesh(32, 32)
+    scene.rotational = RotationalMesh(32, 32)
     make_appear(rotational.object, frame, frame + df)
     camera.to_midpoint(frame, frame + df)
 
     ### Convert vectors to points
     frame = frame + df
     df = 30
-    normal_point = MovingSphere(
-        -1 * normal_arrow.direction,
-        radius=dir_point_radius,
-        color=normal_arrow.hex_color,
+    velocity_point = create_sphere_from_arrow(velocity_arrow, frame, frame + df)
+    normal_point = arrow_to_sphere(
+        frame, frame + df, color="6d1119ff", direction=[-1, 0, 0]
     )
-    make_appear(normal_point, frame, frame + df)
-
-    velocity_point = MovingSphere(
-        velocity_arrow.direction,
-        radius=dir_point_radius,
-        color=velocity_arrow.hex_color,
-    )
-    make_appear(velocity_point, frame, frame + df)
-    make_disappear(normal_arrow, frame, frame + df)
-    make_disappear(velocity_arrow, frame, frame + df)
-
-    ### Plane
-    frame = frame + df
-    df = 30
-    half_plane = SeparatingPlane()
-    make_appear(half_plane.object, frame, frame + 1, alpha=0.6)
+    # ### Plane
+    # frame = frame + df
+    # df = 30
+    # half_plane = SeparatingPlane()
+    # make_appear(half_plane.object, frame, frame + 1, alpha=0.6)
 
     ### Unfold
     frame = frame + df
     df = 110
-    make_disappear(half_plane, frame, frame + 1)  # Get out fast
     make_disappear(cube_obstacle, frame, frame + df * 0.5)  # Get out fast
-    half_circle = SeparatingCircle(radius=math.pi * 0.5)
-    make_appear(half_circle, frame + df - 5, frame + df)
+    do_scene_unfolding(scene, rame, frame + df)
 
-    rotational.make_unfold(frame, frame + df, 10)
-    camera.to_direction_space(frame, frame + df)
-
-    dir_nor = dir_transformer.transform_to_direction_space(
-        (-1) * normal_arrow.direction
-    )
-    move_to(normal_point, dir_nor, frame, frame + df)
-    dir_vel = dir_transformer.transform_to_direction_space(velocity_arrow.direction)
-    move_to(velocity_point, dir_vel, frame, frame + df)
-    # rotational.make_fold(150, 200, 10)
-    # Todo -> update vectors
-
-    ### Create surface line
+    ### Break
     frame = frame + df
     df = 10
-    surface_point = get_circle_point(velocity_point, normal_point, half_circle.radius)
-    surf_line = Line3D(normal_point.location, surface_point, color="000000")
-    make_appear(surf_line, frame + df - 1, frame + df)
 
     ### Move Vector ()
     frame = frame + df
     df = 40
     move_to(velocity_point, surface_point, frame, frame + df)
 
-    ### Pause
+    ### Break
     frame = frame + df
     df = 10
-    make_disappear(surf_line, frame, frame + 1)
 
     ### Fold
     frame = frame + df
     df = 30
-    camera.to_midpoint(frame, frame + df)
-    rotational.make_fold(frame, frame + df, 10)
+    do_scene_folding(scene, frame, df)
     make_appear(cube_obstacle, frame + df * 0.3, frame + df * 0.4)
-
-    vel_vector = dir_transformer.transform_from_direction_space(velocity_point.location)
-    move_to(velocity_point, vel_vector, frame, frame + df)
-    make_disappear(normal_point, frame, frame + df * 0.5)
-    make_disappear(half_circle, frame, frame + 5)
 
     ### Points to vector
     frame = frame + df
@@ -275,7 +306,6 @@ def main(render_scene=False):
     )
     make_appear(modulated_arrow, frame, frame + df)
     make_disappear(velocity_point, frame, frame + df)
-    make_disappear(rotational, frame, frame + df)
 
     ### Pause
     frame = frame + 10
@@ -283,7 +313,6 @@ def main(render_scene=False):
     ### Move out of the scene
     frame = frame + df
     df = 40
-    # camera.to_global_view(frame, frame + df * 0.6)
     camera.to_final_move(frame - 10, frame + df * 0.5)
     final_position = agent.location + modulated_arrow.direction * 10
     print(f"Final position {np.round(final_position,2 )}")

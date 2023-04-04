@@ -26,9 +26,9 @@ class Line3D:
 
 
 class CubeObstacle:
-    def __init__(self, position):
+    def __init__(self, position, scale=(1, 1, 1)):
         bpy.ops.mesh.primitive_cube_add(
-            location=tuple(position), align="WORLD", scale=(1, 1, 1)
+            location=tuple(position), align="WORLD", scale=scale
         )
         self.object = bpy.context.object
 
