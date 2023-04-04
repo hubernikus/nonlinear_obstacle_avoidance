@@ -23,7 +23,7 @@ def create_color(
     mat.diffuse_color = color
     mat.use_nodes = True
     # if use_transparency:
-    mat.blend_method = "BLEND"
+    # mat.blend_method = "BLEND"
 
     # mat.transparency_method = "Z_TRANSPARENCY"
     # mat.use_transparency = True

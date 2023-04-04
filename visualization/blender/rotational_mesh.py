@@ -1,5 +1,6 @@
 import bpy
 
+from typing import Optional
 import math
 import shutil
 from pathlib import Path
@@ -8,8 +9,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from nonlinear_avoidance.vector_rotation import directional_vector_addition
-
-from materials import create_color
+from blender_math import get_quat_from_direction, deg_to_euler
+from materials import create_color, hex_to_rgba
 
 Vertice = tuple[float]
 
@@ -62,6 +63,8 @@ class RotationalMesh:
 
         # Make object from mesh
         self.object = bpy.data.objects.new("circle_space_object", self.mesh)
+        polygons = self.object.data.polygons
+        polygons.foreach_set("use_smooth", [True] * len(polygons))
 
         # Make collection
         self.collection = bpy.data.collections.new("circle_space_collection")
@@ -225,3 +228,58 @@ class RotationalMesh:
                 zz = math.cos(longitude) * sin_
                 yy = math.sin(longitude) * sin_
                 self.vertices[self.get_index(lo, la)] = (xx, yy, zz)
+
+
+class SeparatingPlane:
+    def __init__(self, scale: float = 2):
+        bpy.ops.mesh.primitive_plane_add(
+            location=(0, 0, 0),
+            rotation=deg_to_euler([0, 90, 0]),
+            scale=(scale, scale, scale),
+        )
+        # self.object.rotation_mode = "XYZ"
+
+        self.object = bpy.context.object
+        self.object.scale = (scale, scale, scale)
+
+        create_color(hex_to_rgba("0b50f0ff"), "brown", obj=self.object)
+
+
+class SeparatingCircle:
+    def __init__(self, radius: float, color=""):
+        # self.object.rotation_mode = "XYZ"
+        # bpy.ops.mesh.primitive_circle_add(
+        #     location=(1, 0, 0),
+        #     rotation=deg_to_euler([0, 90, 0]),
+        #     scale=(radius, radius, radius),
+        # )
+        self.radius = radius
+        dx = 0.05
+        head = bpy.ops.mesh.primitive_cone_add(
+            radius1=radius - dx * 0.5,
+            radius2=radius + dx * 0.5,
+            depth=0.0,
+            # location=tuple(root),
+            location=(1, 0, 0),
+            rotation=deg_to_euler([0, 90, 0]),
+            end_fill_type="NOTHING",
+        )
+
+        self.object = bpy.context.object
+        polygons = self.object.data.polygons
+        polygons.foreach_set("use_smooth", [True] * len(polygons))
+
+        create_color(hex_to_rgba("0b50f0ff"), "brown", obj=self.object)
+
+    def scale(self, scale: float, frame1: int, frame2: Optional[int] = None):
+        if frame2 is None:
+            frame2 = frame1
+        else:
+            self.object.keyframe_insert("scale", frame=frame1)
+
+        # Update radius
+        self.radius *= scale
+
+        # Scale and save
+        self.object.scale = (scale, scale, scale)
+        self.object.keyframe_insert("scale", frame=frame2)

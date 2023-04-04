@@ -216,12 +216,12 @@ def main(render_scene=False):
     frame = frame + df
     df = 30
     half_plane = SeparatingPlane()
-    make_appear(half_plane.object, frame, frame + df, alpha=0.6)
+    make_appear(half_plane.object, frame, frame + 1, alpha=0.6)
 
     ### Unfold
     frame = frame + df
     df = 110
-    make_disappear(half_plane, frame, frame + df * 0.5)  # Get out fast
+    make_disappear(half_plane, frame, frame + 1)  # Get out fast
     make_disappear(cube_obstacle, frame, frame + df * 0.5)  # Get out fast
     half_circle = SeparatingCircle(radius=math.pi * 0.5)
     make_appear(half_circle, frame + df - 5, frame + df)
@@ -299,7 +299,7 @@ def main(render_scene=False):
     # Ouput settings
     # bpy.context.space_data.context = "OUTPUT"
     # filepath = Path.home() / "Videos" / "direction_space.mp4"
-    videopath = Path.home() / "Videos" / "direction_space.mp4"
+    videopath = Path.home() / "Videos" / "direction_space"
     bpy.context.scene.render.filepath = str(videopath)
     bpy.context.scene.render.image_settings.file_format = "FFMPEG"
 
@@ -307,28 +307,11 @@ def main(render_scene=False):
     bpy.data.libraries.write(str(filepath), {new_context})
 
     if render_scene:
-        # outpath = Path.home() / "Videos" / "direction_space.mp4"
-        # image_name = bpy.path.basename(str(outpath))
-        # bpy.context.scene.render.filepath += "-" + image_name
-        # Render still image, automatically write to output path
         bpy.ops.render.render(write_still=False)
         print(f"Rendered to: {filepath}")
 
 
-def test_check_blender():
-    blender_bin = shutil.which("blender")
-
-    if blender_bin:
-        print("Found:", blender_bin)
-        bpy.app.binary_path = blender_bin
-    else:
-        print("Unable to find blender!")
-
-
 if (__name__) == "__main__":
-    # test_check_blender()
-
-    main(render_scene=True)
-    # scene_introduction()
+    main(render_scene=False)
 
     print("Done")
