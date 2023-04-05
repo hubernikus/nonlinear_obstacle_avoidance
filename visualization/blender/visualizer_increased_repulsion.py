@@ -32,6 +32,9 @@ from objects import ArrowBlender, MovingSphere, CubeObstacle, Line3D
 class CameraPoser:
     object = bpy.data.objects["Camera"]
 
+    def __init(sefl):
+        self.view_it = []
+
     def store_camera_keyframe(self, frame):
         self.object.keyframe_insert("rotation_euler", frame=frame)
         self.object.keyframe_insert("location", frame=frame)
@@ -46,21 +49,27 @@ class CameraPoser:
         # self.object.data.lens = 55
         # self.store_camera_keyframe(frame)
 
-    def to_global_view(
-        self, start: int, stop: Optional[int] = None, do_via_point=False
-    ):
+    def to_global0(self, start: int, stop=None):
         if stop is None:
             stop = start
         else:
             self.store_camera_keyframe(start)
 
-        if do_via_point:
-            self.set_mid_point(start, stop)
-
-        self.object.location = [-12, 16, 6.0]
-        # self.object.rotation_quqaternion = [-0.2, -0.16, 0.6, 0.8]
         self.object.rotation_mode = "XYZ"
-        self.object.rotation_euler = deg_to_euler([75, 0, 360 - 150])
+
+        self.object.location = [-13, 19, 6.0]
+        # self.object.rotation_quqaternion = [-0.2, -0.16, 0.6, 0.8]
+        self.object.rotation_euler = deg_to_euler([75, 0, -145])
+        self.object.data.lens = 55
+        self.store_camera_keyframe(stop)
+
+    def to_global1(self, start, stop):
+        self.store_camera_keyframe(start)
+        self.object.rotation_mode = "XYZ"
+
+        self.object.location = [-15, 12, 8.0]
+        # self.object.rotation_quqaternion = [-0.2, -0.16, 0.6, 0.8]
+        self.object.rotation_euler = deg_to_euler([65, 0, -125])
         self.object.data.lens = 55
         self.store_camera_keyframe(stop)
 
@@ -81,22 +90,19 @@ class CameraPoser:
         self.store_camera_keyframe(frame2)
 
     def to_direction_space(
-        self, start: int, stop: Optional[int] = None, do_via_point=False
+        self, frame1: int, frame2: Optional[int] = None, center=[1, 0, 0]
     ):
-        if stop is None:
-            stop = start
+        if frame2 is None:
+            fram2 = frame1
         else:
-            self.store_camera_keyframe(start)
+            self.store_camera_keyframe(frame1)
 
-        if do_via_point:
-            self.set_mid_point(start, stop)
-
-        self.object.location = [10.0, 0, 0]
+        self.object.location = np.array(center) + np.array([-10, 0, 0])
         self.object.rotation_mode = "XYZ"
-        self.object.rotation_euler = deg_to_euler([90, 0, 90])
+        self.object.rotation_euler = deg_to_euler([90, 0, -90])
         self.object.data.lens = 25
 
-        self.store_camera_keyframe(stop)
+        self.store_camera_keyframe(frame2)
 
     def to_final_move(self, frame1, frame2):
         self.store_camera_keyframe(frame1)
@@ -177,10 +183,11 @@ def do_scene_unfolding(scene, agent, frame1, frame2, create_normal: bool = True)
     frame = frame1
     df = frame2 - frame1
 
+    make_appear(scene.rotational, frame, frame + 1)
     make_appear(scene.half_circle, frame + df - 5, frame + df)
 
     scene.rotational.make_unfold(frame, frame + df, 10)
-    scene.camera.to_direction_space(frame, frame + df)
+    scene.camera.to_direction_space(frame, frame + df, center=agent.location)
 
     if create_normal:
         scene.normal_point = MovingSphere(
@@ -188,18 +195,19 @@ def do_scene_unfolding(scene, agent, frame1, frame2, create_normal: bool = True)
             radius=scene.dir_point_radius,
             color="6d1119ff",
         )
-        make_appear(scene.normal_point, frame, frame + df)
+        make_appear(scene.normal_point, frame, frame + 1)
 
 
 def do_scene_folding(scene, frame1, frame2):
     frame = frame1
     df = frame2 - frame1
 
-    scene.camera.to_midpoint(frame, frame + df)
+    # scene.camera.to_midpoint(frame, frame + df)
     scene.rotational.make_fold(frame, frame + df, 10)
 
     make_disappear(scene.half_circle, frame, frame + 5)
-    make_disappear(scene.normal_point, frame, frame + df * 0.5)
+    make_disappear(scene.normal_point, frame, frame + 1)
+    make_disappear(scene.rotational, frame + df - 1, frame + df)
 
 
 class SceneStorer:
@@ -232,28 +240,31 @@ def main(render_scene=False):
     print(f"newScene: {new_context}")
 
     create_lights()
-    # Setup initial elements
-    frame = 0
-    df = 30
 
     scene = SceneStorer()
     scene.camera = CameraPoser()
-    scene.camera.to_global_view(frame)
+    scene.camera.to_global0(0)  # Start at global
 
-    cube_obstacle = CubeObstacle([3.0, 0, 0], scale=(0.5, 10, 5))
+    cube_obstacle = CubeObstacle([3.0, 0, 0], scale=(0.5, 15, 5))
 
     ### Movement of Agent
-    agent = MovingSphere([0, -3, 0])
+    agent = MovingSphere([0, -6, 0])
     velocity_arrow = ArrowBlender(agent.location, direction=[0, 1, 0], color="0000ffff")
-
     # scene.rotational = RotationalMesh(32, 32)
     scene.rotational = RotationalMesh(16, 16)
 
-    # for radius in [math.pi * 3 / 4, math.pi]:
-    for radius in [math.pi * 5 / 8, math.pi]:
+    # Setup initial elements
+    frame = 0
+    df = 30
+    end_position = agent.location + velocity_arrow.direction * 3
+    move_to(agent, end_position, frame, frame + df)
+    move_to(velocity_arrow.object, end_position, frame, frame + df)
 
+    # for radius in [math.pi * 3 / 4, math.pi]:
+    camera_poses = [scene.camera.to_global1, scene.camera.to_global0]
+    for radius, camera_global in zip([math.pi * 5 / 8, math.pi], camera_poses):
         # Velocity step
-        end_position = agent.location + velocity_arrow.direction * 3
+        end_position = agent.location + velocity_arrow.direction * 4
         move_to(agent, end_position, frame, frame + df)
         move_to(velocity_arrow.object, end_position, frame, frame + df)
 
@@ -267,7 +278,7 @@ def main(render_scene=False):
         frame = frame + df
         df = 30
         make_appear(scene.rotational.object, frame, frame + df)
-        scene.camera.to_midpoint(frame, frame + df)
+        # scene.camera.to_midpoint(frame, frame + df)
 
         ### Convert vectors to points
         frame = frame + df
@@ -300,8 +311,6 @@ def main(render_scene=False):
         ### Move Vector ()
         frame = frame + df
         df = 40
-        print("scene.half_circle.radius", scene.half_circle.radius)
-        # scene.half_circle.scale(radius / scene.half_circle.radius, frame, frame + df)
         scene.half_circle.scale(
             radius / scene.half_circle.initial_radius, frame, frame + df
         )
@@ -319,23 +328,32 @@ def main(render_scene=False):
 
         ### Fold
         frame = frame + df
-        df = 30
+        df = 60
         do_scene_folding(scene, frame, frame + df)
         vec = scene.transformer.transform_from_direction_space(velocity_point.location)
         move_to(velocity_point, agent.location + vec, frame, frame + df)
         make_appear(cube_obstacle, frame + df * 0.3, frame + df * 0.4)
+        camera_global(frame, frame + df)
+        make_appear(velocity_arrow, frame, frame + df * 0.5)  # Get out fast
 
         ### Points to vector
         frame = frame + df
         df = 30
         align_with(velocity_arrow, vec, frame, frame + df)
+        make_disappear(velocity_point, frame + df * 0.5, frame)  # Get out fast
+        make_appear(velocity_arrow, frame, frame + df * 0.5)  # Get out fast
+
         velocity_arrow.direction = vec
         # move_to(velocity_arrow, vec, frame, frame + df)
 
         ### Pause
-        frame = frame + 10
+        frame = frame
+        df = 10
 
-    end_position = agent.location + velocity_arrow.direction * 3
+    ### Pause
+    frame = frame + df
+    df = 50
+    end_position = agent.location + velocity_arrow.direction * 7
     move_to(agent, end_position, frame, frame + df)
     move_to(velocity_arrow.object, end_position, frame, frame + df)
 
