@@ -245,16 +245,12 @@ def test_multi_arch_obstacle(visualize=False):
         )
 
     position = np.array([-0.19, -0.35])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
+    averaged_direction = multibstacle_avoider.get_tangent_direction(position, velocity)
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] < 0, "Expected to rotate down."
 
     position = np.array([-2.4, -0.19])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
+    averaged_direction = multibstacle_avoider.get_tangent_direction(position, velocity)
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] > 0, "Expected to rotate down."
 

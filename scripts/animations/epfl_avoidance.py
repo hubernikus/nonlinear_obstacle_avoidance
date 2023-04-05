@@ -61,15 +61,15 @@ def epfl_logo_parser():
     )
 
 
-def create_obstacle_e(margin_absolut=0.0):
+def create_obstacle_e(margin_absolut=0.0, scaling=1.0):
     """Letter-obstacle creator."""
     dimension = 2
 
-    height = 186
-    breadth = 135
-    breadth_center = 126
-    wall_back = 40
-    wall_width = 35
+    height = 186 * scaling
+    breadth = 135 * scaling
+    breadth_center = 126 * scaling
+    wall_back = 40 * scaling
+    wall_width = 35 * scaling
 
     letter_obstacle = MultiObstacle(
         pose=Pose(position=np.array([wall_back * 0.5, height * 0.5]))
@@ -339,6 +339,72 @@ class MultiObstacle:
             obs.shape = self.pose.transform_pose_from_relative(pose)
 
 
+def create_epfl_multi_container(scaling=1.0):
+    container = MultiObstacleContainer()
+    container.append(create_obstacle_e(scaling=scaling))
+    container.append(create_obstacle_p(scaling=scaling))
+    container.append(create_obstacle_f(scaling=scaling))
+    container.append(create_obstacle_l(scaling=scaling))
+    return container
+
+
+def visualize_avoidance(visualize=True):
+    container = create_epfl_multi_container(scaling=1.0 / 50)
+    attractor = np.array([13, 4.0])
+    initial_dynamics = LinearSystem(attractor_position=attractor, maximum_velocity=1.0)
+
+    multibstacle_avoider = MultiObstacleAvoider(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    velocity = np.array([-1.0, 0])
+    linearized_velociy = np.array([-1.0, 0])
+
+    if visualize:
+        import matplotlib.pyplot as plt
+        from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
+        from dynamic_obstacle_avoidance.visualization import plot_obstacles
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        x_lim = [-2, 14.5]
+        y_lim = [-2, 6.0]
+        n_grid = 20
+
+        for multi_obs in container:
+            plot_obstacles(
+                obstacle_container=multi_obs._obstacle_list,
+                ax=ax,
+                x_lim=x_lim,
+                y_lim=y_lim,
+                draw_reference=True,
+                noTicks=False,
+                # reference_point_number=True,
+                show_obstacle_number=True,
+                # ** kwargs,
+            )
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            collision_check_functor=lambda x: (
+                container.get_gamma(x, in_global_frame=True) <= 1
+            ),
+            dynamics=multibstacle_avoider.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            do_quiver=True,
+            # do_quiver=False,
+            n_grid=n_grid,
+            show_ticks=True,
+            # vectorfield_color=vf_color,
+        )
+
+
 if (__name__) == "__main__":
     plt.close("all")
-    epfl_logo_parser()
+    # epfl_logo_parser()
+
+    visualize_avoidance()
