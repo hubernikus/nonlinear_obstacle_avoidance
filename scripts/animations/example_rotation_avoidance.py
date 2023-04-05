@@ -149,7 +149,7 @@ class AnimatorRotationAvoidanceEllipse(Animator):
         # Plot Trajectory
 
 
-def animation_ellipse():
+def animation_ellipse(save_animation=False):
     environment = RotationContainer()
     environment.append(
         Ellipse(
@@ -173,7 +173,7 @@ def animation_ellipse():
     animator.run(save_animation=True)
 
 
-def animation_starshape():
+def animation_starshape(save_animation=False):
     environment = RotationContainer()
     environment.append(
         StarshapedFlower(
@@ -196,7 +196,7 @@ def animation_starshape():
         file_type=".gif",
     )
     animator.setup(environment=environment)
-    animator.run(save_animation=True)
+    animator.run(save_animation=save_animation)
 
 
 if (__name__) == "__main__":
