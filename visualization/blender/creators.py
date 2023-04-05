@@ -24,14 +24,9 @@ def create_new_mesh():
 
 
 def delete_all_meshes(filepath: Path):
-    # load all meshes
     with bpy.data.libraries.load(str(filepath)) as (data_from, data_to):
         data_to.meshes = data_from.meshes
 
-        # for mesh in data_to.meshes:
-        #     if mesh is not None:
-        #         breakpoint()
-        #         print(mesh)
     try:
         bpy.data.objects["Cube"].select_set(True)
     except KeyError:

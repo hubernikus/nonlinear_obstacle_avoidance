@@ -40,7 +40,8 @@ def make_disappear(obj, start: int, stop: int):
     if hasattr(obj, "object"):
         obj = obj.object
 
-    for mat in obj.data.materials:
+    if False:  # Deactivated
+        # for mat in obj.data.materials:
         bsdf = mat.node_tree.nodes["Principled BSDF"]
         # bsdf.inputs["Alpha"].default_value = 1.0
         bsdf.inputs["Alpha"].keyframe_insert("default_value", frame=start)
@@ -61,7 +62,8 @@ def make_appear(obj, start: int, stop: int, alpha: float = 1.0):
     if hasattr(obj, "object"):
         obj = obj.object
 
-    for mat in obj.data.materials:
+    if False:  # Deactivated
+        # for mat in obj.data.materials:
         bsdf = mat.node_tree.nodes["Principled BSDF"]
         # bsdf.inputs["Alpha"].default_value = 0.0
         bsdf.inputs["Alpha"].keyframe_insert("default_value", frame=start)

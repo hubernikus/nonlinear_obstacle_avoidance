@@ -34,7 +34,9 @@ class CubeObstacle:
 
         # Make object from mesh
         # cube_object = bpy.data.objects.new("Cube", cube_mesh)
-        create_color(hex_to_rgba("b07c7cff"), "brown", obj=self.object)
+        # create_color(hex_to_rgba("b07c7cff"), "brown", obj=self.object)
+        # Make darker for better exposure
+        create_color(hex_to_rgba("724545ff"), "brown", obj=self.object)
 
 
 class MovingSphere:
@@ -74,9 +76,6 @@ class MovingSphere:
 
 class ArrowBlender:
     def __init__(self, root, direction, name="", color: Optional[str] = None):
-
-        # Store direction for later conversion
-        self.direction = np.array(direction)
 
         ratio_shaft_length = 0.6
         ratio_radius_shaft = 0.07
@@ -124,6 +123,8 @@ class ArrowBlender:
         # Set center
         self.object.location = tuple(root)
 
+        self.direction = np.array(direction)
+
         # ?! why is this the wro
         self.object.rotation_mode = "QUATERNION"
         quat = get_quat_from_direction(direction, null_vector=[0, 0, 1])
@@ -146,3 +147,19 @@ class ArrowBlender:
     @classmethod
     def from_root_and_tip(cls, root, tip, name=""):
         return cls(root, tip - root)
+
+    def align_with(self, direction, frame1, frame2=None):
+        obj = self.object
+
+        obj.rotation_mode = "QUATERNION"
+        if frame2 is None:
+            frame2 = frame1
+        else:
+            obj.keyframe_insert(data_path="rotation_quaternion", frame=frame1)
+
+        quat = get_quat_from_direction(direction, null_vector=[0, 0, 1])
+        obj.rotation_quaternion = quat
+        obj.keyframe_insert(data_path="rotation_quaternion", frame=frame2)
+
+        # Store direction for later conversion
+        self.direction = np.array(direction)

@@ -113,6 +113,8 @@ class RotationalMesh:
         self.object.location = (3.0, 0.0, 3.0)
         self.object.keyframe_insert(data_path="location", frame=20)
 
+    # def unfold_at_position(self, start: int, stop: int, step: int) -> None:
+
     def make_unfold(self, start: int, stop: int, step: int) -> None:
         n_it = self.it_max
 
