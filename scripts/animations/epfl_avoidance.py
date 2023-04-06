@@ -339,12 +339,12 @@ class MultiObstacle:
             obs.shape = self.pose.transform_pose_from_relative(pose)
 
 
-def create_epfl_multi_container(scaling=1.0):
+def create_epfl_multi_container(scaling=1.0, margin_absolut=0.1):
     container = MultiObstacleContainer()
-    container.append(create_obstacle_e(scaling=scaling))
-    container.append(create_obstacle_p(scaling=scaling))
-    container.append(create_obstacle_f(scaling=scaling))
-    container.append(create_obstacle_l(scaling=scaling))
+    container.append(create_obstacle_e(margin_absolut, scaling))
+    container.append(create_obstacle_p(margin_absolut, scaling))
+    container.append(create_obstacle_f(margin_absolut, scaling))
+    container.append(create_obstacle_l(margin_absolut, scaling))
     return container
 
 
@@ -358,9 +358,6 @@ def visualize_avoidance(visualize=True):
         initial_dynamics=initial_dynamics,
         create_convergence_dynamics=True,
     )
-
-    velocity = np.array([-1.0, 0])
-    linearized_velociy = np.array([-1.0, 0])
 
     if visualize:
         import matplotlib.pyplot as plt
@@ -379,7 +376,6 @@ def visualize_avoidance(visualize=True):
                 ax=ax,
                 x_lim=x_lim,
                 y_lim=y_lim,
-                draw_reference=True,
                 noTicks=False,
                 # reference_point_number=True,
                 show_obstacle_number=True,
@@ -403,8 +399,171 @@ def visualize_avoidance(visualize=True):
         )
 
 
+class AnimatorRotationAvoidanceEPFL(Animator):
+    def setup(self, x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
+        self.attractor = np.array([6, -25.0])
+        self.n_traj = 20
+
+        self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+
+        self.container = create_epfl_multi_container(
+            scaling=1.0 / 50, margin_absolut=0.0
+        )
+        # self.attractor = np.array([13, 4.0])
+
+        self.initial_dynamics = LinearSystem(
+            attractor_position=self.attractor, maximum_velocity=1.0
+        )
+
+        self.avoider = MultiObstacleAvoider(
+            obstacle_container=self.container,
+            initial_dynamics=self.initial_dynamics,
+            create_convergence_dynamics=True,
+        )
+
+        # self.start_positions = np.vstack(
+        #     (
+        #         np.ones(self.n_traj) * x_lim[0],
+        #         np.linspace(y_lim[0], y_lim[1], self.n_traj),
+        #     )
+        # )
+        self.start_positions = np.vstack(
+            (
+                np.linspace(x_lim[0], x_lim[1], self.n_traj),
+                np.ones(self.n_traj) * y_lim[1],
+            )
+        )
+
+        self.n_grid = 15
+        self.attractor = np.array([8.0, 0])
+        self.position = np.array([-8, 0.1])  # Start position
+
+        self.dimension = 2
+        self.trajectories = []
+        for tt in range(self.n_traj):
+            self.trajectories.append(np.zeros((self.dimension, self.it_max + 1)))
+            self.trajectories[tt][:, 0] = self.start_positions[:, tt]
+
+        self.x_lim = x_lim
+        self.y_lim = y_lim
+
+        # self.trajectory_color = "green"
+        cm = plt.get_cmap("gist_rainbow")
+        self.color_list = [cm(1.0 * cc / self.n_traj) for cc in range(self.n_traj)]
+
+    def update_step(self, ii: int) -> None:
+        if not ii % 10:
+            print(f"Iteration {ii}")
+
+        for tt in range(self.n_traj):
+            pos = self.trajectories[tt][:, ii]
+            rotated_velocity = self.avoider.evaluate(pos)
+            self.trajectories[tt][:, ii + 1] = (
+                pos + rotated_velocity * self.dt_simulation
+            )
+
+        # for obs in self.environment:
+        #     obs.pose.position = (
+        #         self.dt_simulation * obs.twist.linear + obs.pose.position
+        #     )
+        #     obs.pose.orientation = (
+        #         self.dt_simulation * obs.twist.angular + obs.pose.orientation
+        #     )
+
+        self.ax.clear()
+
+        for tt in range(self.n_traj):
+            trajectory = self.trajectories[tt]
+            self.ax.plot(
+                trajectory[0, 0],
+                trajectory[1, 0],
+                "ko",
+                linewidth=2.0,
+            )
+            self.ax.plot(
+                trajectory[0, :ii],
+                trajectory[1, :ii],
+                "--",
+                color=self.color_list[tt],
+                linewidth=2.0,
+            )
+            self.ax.plot(
+                trajectory[0, ii],
+                trajectory[1, ii],
+                "o",
+                color=self.color_list[tt],
+                markersize=8,
+            )
+
+        for multi_obs in self.container:
+            plot_obstacles(
+                obstacle_container=multi_obs._obstacle_list,
+                ax=self.ax,
+                x_lim=self.x_lim,
+                y_lim=self.y_lim,
+                draw_reference=False,
+                draw_center=False,
+                noTicks=True,
+                # reference_point_number=True,
+                # show_obstacle_number=True,
+                # ** kwargs,
+            )
+
+            root_obs = multi_obs._obstacle_list[multi_obs.root_idx]
+            reference_point = root_obs.get_reference_point(in_global_frame=True)
+            self.ax.plot(
+                reference_point[0],
+                reference_point[1],
+                "k+",
+                linewidth=12,
+                markeredgewidth=2.4,
+                markersize=8,
+                zorder=3,
+            )
+
+        self.ax.scatter(
+            self.initial_dynamics.attractor_position[0],
+            self.initial_dynamics.attractor_position[1],
+            marker="*",
+            s=200,
+            color="white",
+            zorder=5,
+        )
+
+        # plot_obstacle_dynamics(
+        #     obstacle_container=[],
+        #     collision_check_functor=lambda x: (
+        #         container.get_gamma(x, in_global_frame=True) <= 1
+        #     ),
+        #     dynamics=multibstacle_avoider.evaluate,
+        #     x_lim=x_lim,
+        #     y_lim=y_lim,
+        #     ax=ax,
+        #     do_quiver=True,
+        #     # do_quiver=False,
+        #     n_grid=n_grid,
+        #     show_ticks=True,
+        #     # vectorfield_color=vf_color,
+        # )
+
+        # Plot Trajectory
+
+
+def animation_epfl(save_animation=False):
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=160,
+        animation_name="static_circle",
+        file_type=".gif",
+    )
+    animator.setup()
+    animator.run(save_animation=save_animation)
+
+
 if (__name__) == "__main__":
     plt.close("all")
     # epfl_logo_parser()
 
-    visualize_avoidance()
+    # visualize_avoidance()
+    animation_epfl(save_animation=True)

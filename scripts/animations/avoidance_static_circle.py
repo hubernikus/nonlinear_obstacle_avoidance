@@ -53,18 +53,19 @@ class AnimatorRotationAvoidanceEllipse(Animator):
         self.x_lim = x_lim
         self.y_lim = y_lim
 
-        self.initial_dynamics = QuadraticAxisConvergence(
-            stretching_factor=10,
-            maximum_velocity=1.0,
-            dimension=self.dimension,
-            attractor_position=self.attractor,
-        )
+        # self.initial_dynamics = QuadraticAxisConvergence(
+        #     stretching_factor=10,
+        #     maximum_velocity=1.0,
+        #     dimension=self.dimension,
+        #     attractor_position=self.attractor,
+        # )
+        self.initial_dynamics = LinearSystem(self.attractor, maximum_velocity=1.0)
 
         self.avoider = RotationalAvoider(
             initial_dynamics=self.initial_dynamics,
             obstacle_environment=self.environment,
             convergence_system=LinearSystem(self.attractor),
-            convergence_radius=math.pi * 0.7,
+            convergence_radius=math.pi * 0.5,
         )
 
         self.environment.set_convergence_directions(LinearSystem(self.attractor))
@@ -125,6 +126,7 @@ class AnimatorRotationAvoidanceEllipse(Animator):
             # noTicks=True,
             showLabel=False,
             alpha_obstacle=1.0,
+            # linecolor="white",
         )
 
         self.ax.scatter(
@@ -143,7 +145,8 @@ class AnimatorRotationAvoidanceEllipse(Animator):
                 collision_check_functor=lambda x: (
                     self.environment.get_minimum_gamma(x) <= 1
                 ),
-                dynamics=self.avoider.evaluate,
+                dynamics=self.initial_dynamics.evaluate,
+                # dynamics=self.avoider.evaluate,
                 # attractor_position=self.initial_dynamics.attractor_position,
                 x_lim=self.x_lim,
                 y_lim=self.y_lim,
@@ -151,59 +154,31 @@ class AnimatorRotationAvoidanceEllipse(Animator):
                 do_quiver=True,
                 n_grid=self.n_grid,
                 show_ticks=False,
-                # vectorfield_color="#808080",
-                vectorfield_color="#99ccff",
-                quiver_alpha=0.5,
+                vectorfield_color="#808080",
                 quiver_scale=30,
             )
 
         # Plot Trajectory
 
 
-def animation_ellipse(save_animation=False):
+def animation_static_circle(save_animation=False):
     environment = RotationContainer()
     environment.append(
         Ellipse(
-            center_position=np.array([0, -0.3]),
-            axes_length=np.array([3, 9]),
+            # center_position=np.array([0, -0.3]),
+            center_position=np.array([0, 0.0]),
+            axes_length=np.array([5, 5]),
             orientation=0.0 / 180 * math.pi,
             is_boundary=False,
             tail_effect=False,
             distance_scaling=0.3,
-            angular_velocity=0.2,
         )
     )
     animator = AnimatorRotationAvoidanceEllipse(
         dt_simulation=0.1,
         dt_sleep=0.001,
         it_max=550,
-        animation_name="rotating_ellipse",
-        file_type=".gif",
-    )
-    animator.setup(environment=environment)
-    animator.run(save_animation=True)
-
-
-def animation_starshape(save_animation=False):
-    environment = RotationContainer()
-    environment.append(
-        StarshapedFlower(
-            radius_magnitude=1.5,
-            radius_mean=3,
-            number_of_edges=3,
-            center_position=np.array([0, -0.15]),
-            orientation=0.0 / 180 * math.pi,
-            is_boundary=False,
-            tail_effect=False,
-            distance_scaling=0.8,
-            angular_velocity=0.1,
-        )
-    )
-    animator = AnimatorRotationAvoidanceEllipse(
-        dt_simulation=0.1,
-        dt_sleep=0.001,
-        it_max=600,
-        animation_name="rotating_starshape",
+        animation_name="static_circle",
         file_type=".gif",
     )
     animator.setup(environment=environment)
@@ -213,5 +188,4 @@ def animation_starshape(save_animation=False):
 if (__name__) == "__main__":
     # def main():
     plt.style.use("dark_background")
-    # animation_ellipse()
-    animation_starshape(save_animation=True)
+    animation_static_circle(save_animation=True)
