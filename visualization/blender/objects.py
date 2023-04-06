@@ -6,10 +6,17 @@ import bpy
 import bmesh
 
 from blender_math import get_quat_from_direction, deg_to_euler
+from motion import make_appear, make_disappear
 
 
 class Line3D:
     def __init__(self, point1: float, point2: float, color=""):
+        if hasattr(point1, "object"):
+            point1 = np.array(point1.object.location)
+
+        if hasattr(point2, "object"):
+            point2 = np.array(point2.object.location)
+
         dx = 0.01
         length = np.linalg.norm(point2 - point1)
         bpy.ops.mesh.primitive_cube_add(
@@ -26,9 +33,12 @@ class Line3D:
 
 
 class CubeObstacle:
-    def __init__(self, position, scale=(1, 1, 1)):
+    def __init__(self, position, rotation=(0, 0, 0), scale=(1, 1, 1)):
         bpy.ops.mesh.primitive_cube_add(
-            location=tuple(position), align="WORLD", scale=scale
+            location=tuple(position),
+            rotation=rotation,
+            align="WORLD",
+            scale=scale,
         )
         self.object = bpy.context.object
 
@@ -37,6 +47,22 @@ class CubeObstacle:
         # create_color(hex_to_rgba("b07c7cff"), "brown", obj=self.object)
         # Make darker for better exposure
         create_color(hex_to_rgba("724545ff"), "brown", obj=self.object)
+
+
+class ObjectAssembly:
+    def __init__(self):
+        self.objects = []
+
+    def append(self, obj):
+        self.objects.append(obj)
+
+    def make_appear(self, start, stop=None, alpha=1.0):
+        for obj in self.objects:
+            make_appear(obj, start, stop, alpha)
+
+    def make_disappear(self, start, stop=None):
+        for obj in self.objects:
+            make_disappear(obj, start, stop)
 
 
 class MovingSphere:

@@ -52,3 +52,12 @@ class DirectionalSpaceTransformer:
             null_matrix=self.basis,
         )
         return direction
+
+
+# def test_quaternion():
+#     quat = get_quat_from_direction([0.0, 0.0, 1.0])
+#     breakpoint()
+
+
+# if (__name__) == "__main__":
+#     test_quaternion()

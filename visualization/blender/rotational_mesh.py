@@ -1,14 +1,16 @@
 import bpy
 
-from typing import Optional
 import math
+from typing import Optional
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
 
 import numpy as np
 
+from vartools.math import get_intersection_with_circle
 from nonlinear_avoidance.vector_rotation import directional_vector_addition
+
 from blender_math import get_quat_from_direction, deg_to_euler
 from materials import create_color, hex_to_rgba
 
@@ -20,7 +22,34 @@ def is_even(value: int) -> bool:
 
 
 def is_odd(value: int) -> bool:
-    return value % 2
+    return bool(value % 2)
+
+
+def get_circle_point(
+    point,
+    start_point,
+    radius: float = math.pi / 2.0,
+    weight: float = 1.0,
+    center=[1, 0, 0],
+    scene=None,
+):
+    if scene is not None:
+        radius = scene.half_circle.radius
+        center = scene.normal_point.location
+
+    if hasattr(point, "location"):
+        point = np.array(point.location)
+
+    if hasattr(start_point, "location"):
+        start_point = np.array(start_point.location)
+
+    intersection = get_intersection_with_circle(
+        point - np.array(center),
+        direction=point - start_point,
+        radius=radius,
+    )
+
+    return weight * (intersection + center) + (1 - weight) * point
 
 
 class RotationalMesh:
