@@ -239,6 +239,12 @@ class RotationalAvoider(BaseAvoider):
                 # )
                 continue
 
+            if hasattr(obstacle_list, "convergence_radiuses") and len(
+                obstacle_list.convergence_radiuses
+            ):
+                # Custom convergence radius per obstacle
+                convergence_radius = obstacle_list.convergence_radiuses[it_obs]
+
             # Note that the inv_gamma_weight was prepared for the multiboundary
             # environment through the reference point displacement (see 'loca_reference_point')
             rotated_directions[:, it] = self.directional_convergence_summing(

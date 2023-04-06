@@ -23,8 +23,9 @@ class RotationContainer(BaseContainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._convergence_dynamics = [None for ii in range(len(self))]
+        self.convergence_radiuses: list[float] = []
 
-    def append(self, value):
+    def append(self, value, convergence_radius: Optional[float] = None):
         super().append(value)
         self._convergence_dynamics.append(None)
 
