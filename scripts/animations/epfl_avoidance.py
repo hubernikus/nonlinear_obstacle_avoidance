@@ -61,7 +61,7 @@ def epfl_logo_parser():
     )
 
 
-def create_obstacle_e(margin_absolut=0.0, scaling=1.0):
+def create_obstacle_e(margin_absolut=0.0, scaling=1.0, pose: Optional[Pose] = None):
     """Letter-obstacle creator."""
     dimension = 2
 
@@ -71,9 +71,10 @@ def create_obstacle_e(margin_absolut=0.0, scaling=1.0):
     wall_back = 40 * scaling
     wall_width = 35 * scaling
 
-    letter_obstacle = MultiObstacle(
-        pose=Pose(position=np.array([wall_back * 0.5, height * 0.5]))
-    )
+    if pose is None:
+        pose = Pose(position=np.array([wall_back * 0.5, height * 0.5]))
+
+    letter_obstacle = MultiObstacle(pose)
     letter_obstacle.set_root(
         Cuboid(
             axes_length=np.array([wall_back, height]),
@@ -118,7 +119,7 @@ def create_obstacle_e(margin_absolut=0.0, scaling=1.0):
     return letter_obstacle
 
 
-def create_obstacle_p(margin_absolut=0.0, scaling=1.0):
+def create_obstacle_p(margin_absolut=0.0, scaling=1.0, pose: Optional[Pose] = None):
     """Letter-obstacle creator."""
     dimension = 2
 
@@ -133,9 +134,11 @@ def create_obstacle_p(margin_absolut=0.0, scaling=1.0):
     p_radius = 64 * scaling
     belly_height = height * 0.5 + wall_width * 0.5
 
-    letter_obstacle = MultiObstacle(
-        pose=Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
-    )
+    if pose is None:
+        pose = Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
+
+    letter_obstacle = MultiObstacle(pose)
+
     letter_obstacle.set_root(
         Cuboid(
             axes_length=np.array([wall_back, height]),
@@ -171,7 +174,7 @@ def create_obstacle_p(margin_absolut=0.0, scaling=1.0):
     return letter_obstacle
 
 
-def create_obstacle_f(margin_absolut=0.0, scaling=1.0):
+def create_obstacle_f(margin_absolut=0.0, scaling=1.0, pose: Optional[Pose] = None):
     """Letter-obstacle creator."""
     dimension = 2
 
@@ -183,9 +186,10 @@ def create_obstacle_f(margin_absolut=0.0, scaling=1.0):
 
     start_x = 342 * scaling
 
-    letter_obstacle = MultiObstacle(
-        pose=Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
-    )
+    if pose is None:
+        pose = Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
+    letter_obstacle = MultiObstacle(pose)
+
     letter_obstacle.set_root(
         Cuboid(
             axes_length=np.array([wall_back, height]),
@@ -220,7 +224,7 @@ def create_obstacle_f(margin_absolut=0.0, scaling=1.0):
     return letter_obstacle
 
 
-def create_obstacle_l(margin_absolut=0.0, scaling=1.0):
+def create_obstacle_l(margin_absolut=0.0, scaling=1.0, pose: Optional[Pose] = None):
     """Letter-obstacle creator."""
     dimension = 2
 
@@ -231,9 +235,11 @@ def create_obstacle_l(margin_absolut=0.0, scaling=1.0):
     wall_width = 35 * scaling
     start_x = 505 * scaling
 
-    letter_obstacle = MultiObstacle(
-        pose=Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
-    )
+    if pose is None:
+        pose = Pose(position=np.array([start_x + wall_back * 0.5, height * 0.5]))
+
+    letter_obstacle = MultiObstacle(pose)
+
     letter_obstacle.set_root(
         Cuboid(
             axes_length=np.array([wall_back, height]),
@@ -348,6 +354,22 @@ def create_epfl_multi_container(scaling=1.0, margin_absolut=0.1):
     return container
 
 
+def create_chaotic_epfl_container(scaling=1.0, margin_absolut=0.1):
+    container = MultiObstacleContainer()
+    pose = Pose([-0.3, 1.5], orientation=10 * math.pi / 180)
+    container.append(create_obstacle_e(margin_absolut, scaling * 1.6, pose))
+
+    pose = Pose([4, 3.5], orientation=-80 * math.pi / 180)
+    container.append(create_obstacle_p(margin_absolut, scaling, pose))
+
+    pose = Pose([8.5, 2], orientation=70 * math.pi / 180)
+    container.append(create_obstacle_f(margin_absolut, scaling, pose))
+
+    pose = Pose([11, 2], orientation=10 * math.pi / 180)
+    container.append(create_obstacle_l(margin_absolut, scaling, pose))
+    return container
+
+
 def visualize_avoidance(visualize=True):
     container = create_epfl_multi_container(scaling=1.0 / 50)
     attractor = np.array([13, 4.0])
@@ -400,15 +422,13 @@ def visualize_avoidance(visualize=True):
 
 
 class AnimatorRotationAvoidanceEPFL(Animator):
-    def setup(self, x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
+    def setup(self, container, x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
         self.attractor = np.array([6, -25.0])
         self.n_traj = 20
 
         self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
 
-        self.container = create_epfl_multi_container(
-            scaling=1.0 / 50, margin_absolut=0.0
-        )
+        self.container = container
         # self.attractor = np.array([13, 4.0])
 
         self.initial_dynamics = LinearSystem(
@@ -550,20 +570,35 @@ class AnimatorRotationAvoidanceEPFL(Animator):
 
 
 def animation_epfl(save_animation=False):
+    container = create_epfl_multi_container(scaling=1.0 / 50, margin_absolut=0.0)
     animator = AnimatorRotationAvoidanceEPFL(
         dt_simulation=0.07,
         dt_sleep=0.001,
         it_max=160,
-        animation_name="static_circle",
+        animation_name="dark_epfl_avoidance",
         file_type=".gif",
     )
-    animator.setup()
+    animator.setup(container=container)
+    animator.run(save_animation=save_animation)
+
+
+def animation_chaotic_epfl(save_animation=False):
+    container = create_chaotic_epfl_container(scaling=1.0 / 50, margin_absolut=0.0)
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_messi_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(container=container, x_lim=[-3, 14.5], y_lim=[-2, 6.0])
     animator.run(save_animation=save_animation)
 
 
 if (__name__) == "__main__":
     plt.close("all")
     # epfl_logo_parser()
-
+    plt.style.use("dark_background")
     # visualize_avoidance()
-    animation_epfl(save_animation=True)
+    # animation_epfl(save_animation=False)
+    animation_chaotic_epfl(save_animation=True)
