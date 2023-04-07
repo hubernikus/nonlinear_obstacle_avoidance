@@ -1,9 +1,10 @@
-""" Container to describe obstacles & wall environemnt"""
+""" Container to describe obstacles & wall environment"""
 # Author Lukas Huber
 # Mail lukas.huber@epfl.ch
 # Created 2021-06-22
 # License: BSD (c) 2021
 import warnings
+from typing import Optional
 
 import numpy as np
 from numpy import linalg as LA

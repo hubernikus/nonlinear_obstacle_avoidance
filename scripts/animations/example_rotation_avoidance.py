@@ -8,21 +8,33 @@ from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
+from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
 
-from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer
-from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.rotation_container import RotationContainer
 
 
 class AnimatorRotationAvoidanceEllipse(Animator):
     # def setup(self, n_traj: int =  4):
-    def setup(self, environment, x_lim=[-16, 12], y_lim=[-10, 10]):
-        self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+    def setup(
+        self,
+        environment,
+        x_lim=[-16, 12],
+        y_lim=[-10, 10],
+        attractor=(8.0, 0),
+        n_traj=10,
+    ):
+        self.n_grid = 15
+        self.n_traj = n_traj
+        self.attractor = np.array(attractor)
+
+        # self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+        self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
 
         self.environment = environment
         # self.avoider = MultiObstacleAvoider(
@@ -30,17 +42,13 @@ class AnimatorRotationAvoidanceEllipse(Animator):
         #     initial_dynamics=initial_dynamics,
         #     create_convergence_dynamics=True,
         # )
-        self.n_traj = 10
+
         self.start_positions = np.vstack(
             (
                 np.ones(self.n_traj) * x_lim[0],
                 np.linspace(y_lim[0], y_lim[1], self.n_traj),
             )
         )
-
-        self.n_grid = 15
-        self.attractor = np.array([8.0, 0])
-        self.position = np.array([-8, 0.1])  # Start position
 
         self.dimension = 2
         self.trajectories = []
@@ -181,7 +189,7 @@ def animation_ellipse(save_animation=False):
         file_type=".gif",
     )
     animator.setup(environment=environment)
-    animator.run(save_animation=True)
+    animator.run(save_animation=save_animation)
 
 
 def animation_starshape(save_animation=False):
@@ -210,8 +218,50 @@ def animation_starshape(save_animation=False):
     animator.run(save_animation=save_animation)
 
 
+def animation_comparison_repulsion(save_animation=False):
+    environment = RotationContainer()
+    environment.convergence_radiuses = [math.pi / 2.0, math.pi]
+    environment.append(
+        Cuboid(
+            center_position=np.array([0.0, 10]),
+            axes_length=np.array([10, 6]),
+            orientation=0.0 / 180 * math.pi,
+            is_boundary=False,
+            tail_effect=False,
+            distance_scaling=0.3,
+        )
+    )
+
+    environment.append(
+        Cuboid(
+            center_position=np.array([0, -10.0]),
+            axes_length=np.array([10, 6]),
+            orientation=0.0 / 180 * math.pi,
+            is_boundary=False,
+            tail_effect=False,
+            distance_scaling=0.3,
+        )
+    )
+    animator = AnimatorRotationAvoidanceEllipse(
+        dt_simulation=0.2,
+        dt_sleep=0.001,
+        it_max=300,
+        animation_name="comparison_repulsion",
+        file_type=".gif",
+    )
+    animator.setup(
+        environment=environment,
+        attractor=np.array([100, 0.0]),
+        x_lim=[-16, 12],
+        y_lim=[-10, 10],
+        n_traj=15,
+    )
+    animator.run(save_animation=save_animation)
+
+
 if (__name__) == "__main__":
     # def main():
     plt.style.use("dark_background")
-    # animation_ellipse()
+    animation_ellipse(save_animation=True)
     animation_starshape(save_animation=True)
+    # animation_comparison_repulsion(save_animation=True)

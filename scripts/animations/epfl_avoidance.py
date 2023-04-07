@@ -426,7 +426,8 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         self.attractor = np.array([6, -25.0])
         self.n_traj = 20
 
-        self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+        # self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+        self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
 
         self.container = container
         # self.attractor = np.array([13, 4.0])
@@ -600,5 +601,5 @@ if (__name__) == "__main__":
     # epfl_logo_parser()
     plt.style.use("dark_background")
     # visualize_avoidance()
-    # animation_epfl(save_animation=False)
+    animation_epfl(save_animation=True)
     animation_chaotic_epfl(save_animation=True)

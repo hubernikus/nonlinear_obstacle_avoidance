@@ -8,7 +8,7 @@ from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
-from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
@@ -29,7 +29,8 @@ class AnimatorRotationAvoidanceEllipse(Animator):
         attractor=None,
         n_traj: int = 10,
     ):
-        self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+        # self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
+        self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
 
         self.environment = environment
         # self.avoider = MultiObstacleAvoider(
@@ -195,49 +196,7 @@ def animation_static_circle(save_animation=False):
     animator.run(save_animation=save_animation)
 
 
-def animation_comparison_repulsion(save_animation=False):
-    environment = RotationContainer()
-    environment.convergence_radiuses = [math.pi / 2.0, math.pi]
-    environment.append(
-        Cuboid(
-            center_position=np.array([0.0, 10]),
-            axes_length=np.array([10, 6]),
-            orientation=0.0 / 180 * math.pi,
-            is_boundary=False,
-            tail_effect=False,
-            distance_scaling=0.3,
-        )
-    )
-
-    environment.append(
-        Cuboid(
-            center_position=np.array([0, -10.0]),
-            axes_length=np.array([10, 6]),
-            orientation=0.0 / 180 * math.pi,
-            is_boundary=False,
-            tail_effect=False,
-            distance_scaling=0.3,
-        )
-    )
-    animator = AnimatorRotationAvoidanceEllipse(
-        dt_simulation=0.2,
-        dt_sleep=0.001,
-        it_max=300,
-        animation_name="comparison_repulsion",
-        file_type=".gif",
-    )
-    animator.setup(
-        environment=environment,
-        attractor=np.array([100, 0.0]),
-        x_lim=[-16, 12],
-        y_lim=[-10, 10],
-        n_traj=15,
-    )
-    animator.run(save_animation=save_animation)
-
-
 if (__name__) == "__main__":
     # def main():
     plt.style.use("dark_background")
-    # animation_static_circle(save_animation=True)
-    animation_comparison_repulsion(save_animation=False)
+    animation_static_circle(save_animation=True)
