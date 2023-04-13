@@ -230,7 +230,7 @@ def main(render_scene=False):
 
     ### Unfold
     frame = frame + df
-    df = 110
+    df = 130
     make_disappear(half_plane, frame, frame + df * 0.5)  # Get out fast
     make_disappear(cube_obstacle, frame, frame + df * 0.5)  # Get out fast
     half_circle = SeparatingCircle(radius=math.pi * 0.5)
@@ -257,7 +257,7 @@ def main(render_scene=False):
 
     ### Move Vector ()
     frame = frame + df
-    df = 60
+    df = 70
     move_to(velocity_point, surface_point, frame, frame + df)
 
     ### Pause
