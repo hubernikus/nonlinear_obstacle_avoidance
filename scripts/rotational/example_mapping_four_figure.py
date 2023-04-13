@@ -5,6 +5,7 @@ import sys
 import math
 import copy
 import os
+from pathlib import Path
 from typing import Optional
 
 # from enum import Enum
@@ -703,7 +704,7 @@ def _test_inverse_projection_around_obstacle(
             os.path.join(
                 # os.path.dirname(__file__),
                 "figures",
-                kwargs["figure_name"] + "_deflated" + figtype,
+                kwargs["figure_name"] + "_unfolded" + figtype,
             ),
             bbox_inches="tight",
         )
@@ -922,10 +923,80 @@ def _test_obstacle_partially_rotated():
     pos_close_to_center[0] = pos_close_to_center[0] + dist_surf
 
     pos = dynamics._get_position_after_deflating_obstacle(
-p        pos_close_to_center, in_obstacle_frame=False
+        pos_close_to_center, in_obstacle_frame=False
     )
 
     assert np.allclose(pos, dynamics.obstacle.center_position, atol=dist_surf / 2.0)
+
+
+def plot_mappings_single_plots(save_figure=False):
+    # axs[1, 0].quiver(
+    #     -10,
+    #     -10,
+    #     0,
+    #     0,
+    #     color=setup["initial_color"],
+    #     scale=10.0,
+    #     width=0.01,
+    #     zorder=3,
+    #     label="Initial Dynamics",
+    # )
+
+    # axs[1, 0].quiver(
+    #     -10,
+    #     -10,
+    #     0,
+    #     0,
+    #     color=setup["final_color"],
+    #     scale=10.0,
+    #     width=0.01,
+    #     zorder=3,
+    #     label="Convergence direction",
+    # )
+
+    # axs[1, 0].legend(loc=(0.05, -0.2), ncol=2)
+
+    # sm = ScalarMappable(norm=plt.Normalize(0, 1), cmap=plt.get_cmap("binary"))
+    # sm.set_array([])
+    # cbaxes = inset_axes(axs[1, 1], width="100%", height="5%", loc=1)
+    # cbar = fig.colorbar(sm, ax=axs[1:], orientation="horizontal", ticks=[0, 1])
+    # cbar.ax.set("Colorbar")
+
+    # if True:
+    # return
+    # fig_path = Path().absolute() / "figures"
+    _test_base_gamma(
+        visualize=True,
+        visualize_vectors=True,
+        save_figure=save_figure,
+        # ax=ax,
+        # figsize=figsize,
+        **setup,
+    )
+
+    _test_obstacle_inflation(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        # ax=ax,
+        # figsize=figsize,
+    )
+
+    _test_inverse_projection_around_obstacle(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        # ax=ax,
+        # figsize=figsize,
+    )
+
+    _test_inverse_projection_and_deflation_around_obstacle(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        # ax=ax,
+        # figsize=figsize,
+    )
 
 
 def plot_four_mappings(save_figure=False):
@@ -1054,7 +1125,8 @@ if (__name__) == "__main__":
         "obstacle_color": "#b35f5b",
         "initial_color": "#a430b3ff",
         "final_color": "#30a0b3ff",
-        "figsize": (5, 4),
+        # "figsize": (5, 4),
+        "figsize": (10, 8),
         "x_lim": [-3.0, 3.4],
         "y_lim": [-3.0, 3.0],
         "n_resolution": 100,
@@ -1065,8 +1137,8 @@ if (__name__) == "__main__":
         "weights_alpha": 0.7,
     }
 
-    figtype = ".pdf"
-    # figtype = "png"
+    # figtype = ".pdf"
+    figtype = ".png"
 
     import matplotlib.pyplot as plt
 
@@ -1074,4 +1146,5 @@ if (__name__) == "__main__":
     plt.close("all")
 
     # plot_four_mappings()
-    plot_single_avoidance()
+    # plot_single_avoidance()
+    plot_mappings_single_plots(save_figure=True)

@@ -121,6 +121,7 @@ def create_lights():
     # create light datablock, set attributes
     light_data = bpy.data.lights.new(name="light_1", type="POINT")
     light_data.energy = 500
+    # light_data.use_shadow = False
     light_object = bpy.data.objects.new(name="light_1", object_data=light_data)
     bpy.context.collection.objects.link(light_object)
     bpy.context.view_layer.objects.active = light_object
@@ -129,6 +130,7 @@ def create_lights():
     # create new object with our light datablock
     light_data = bpy.data.lights.new(name="light_2", type="POINT")
     light_data.energy = 500
+    # light_data.use_shadow = False
     light_object = bpy.data.objects.new(name="light_2", object_data=light_data)
     bpy.context.collection.objects.link(light_object)
     bpy.context.view_layer.objects.active = light_object
@@ -212,11 +214,19 @@ def main(render_scene=False):
     make_disappear(normal_arrow, frame, frame + df)
     make_disappear(velocity_arrow, frame, frame + df)
 
+    ### Pause
+    frame = frame + df
+    df = 30
+
     ### Plane
     frame = frame + df
     df = 30
     half_plane = SeparatingPlane()
     make_appear(half_plane.object, frame, frame + df, alpha=0.6)
+
+    ### Pause
+    frame = frame + df
+    df = 30
 
     ### Unfold
     frame = frame + df
@@ -240,19 +250,19 @@ def main(render_scene=False):
 
     ### Create surface line
     frame = frame + df
-    df = 10
+    df = 30
     surface_point = get_circle_point(velocity_point, normal_point, half_circle.radius)
     surf_line = Line3D(normal_point.location, surface_point, color="000000")
     make_appear(surf_line, frame + df - 1, frame + df)
 
     ### Move Vector ()
     frame = frame + df
-    df = 40
+    df = 60
     move_to(velocity_point, surface_point, frame, frame + df)
 
     ### Pause
     frame = frame + df
-    df = 10
+    df = 30
     make_disappear(surf_line, frame, frame + 1)
 
     ### Fold
