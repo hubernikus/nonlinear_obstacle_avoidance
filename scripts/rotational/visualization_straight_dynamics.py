@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 from vartools.dynamics import Dynamics
 from vartools.dynamics import ConstantValue, LinearSystem
@@ -15,8 +16,8 @@ def setup_plot(ax):
 
 
 def plot_collinear_dynamics(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
-    x_lim = [-3.5, 3.5]
-    y_lim = [-3, 3]
+    x_lim = [-2.8, 2.8]
+    y_lim = [-3.0, 3.0]
 
     dynamics = ConstantValue(np.array([1.0, 0]))
 
@@ -41,6 +42,8 @@ def plot_collinear_dynamics(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
         # scale=0.1,
         # color="#414141",
         zorder=0,
+        width=0.009,
+        scale=15,
     )
 
     ax.set_xlim(x_lim)
@@ -53,8 +56,8 @@ def plot_collinear_dynamics(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
 
 
 def plot_straight_dynamics(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
-    x_lim = [-3.5, 3.5]
-    y_lim = [-3, 3]
+    x_lim = [-2.8, 2.8]
+    y_lim = [-3.0, 3.0]
 
     dynamics = LinearSystem(attractor_position=np.array([0.0, 0]), maximum_velocity=1.0)
 
@@ -79,6 +82,8 @@ def plot_straight_dynamics(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
         # scale=0.1,
         # color="#414141",
         zorder=0,
+        width=0.009,
+        scale=15,
     )
 
     ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "k*")
@@ -99,9 +104,9 @@ class LocallyStraightDynamics(Dynamics):
         self.linear = ConstantValue(np.array([1, 0.0]))
         self.wavy_dynamics = SinusAttractorSystem(attractor_position=attractor_position)
 
-        self.center_straight = np.array([-2.0, 2.0])
-        self.inner_radius = 0.5
-        self.outer_radius = 1.0
+        self.center_straight = np.array([-2.0, 1.0])
+        self.inner_radius = 1.0
+        self.outer_radius = 2.0
 
         self.maximum_velocity = maximum_velocity
         self.attractor_position = attractor_position
@@ -114,29 +119,35 @@ class LocallyStraightDynamics(Dynamics):
         elif distance > self.outer_radius:
             return 0
         else:
-            return (distance - self.inner_radius) / (
+            return (self.outer_radius - distance) / (
                 self.outer_radius - self.inner_radius
             )
 
     def evaluate(self, position: np.ndarray) -> np.ndarray:
         weight = self.get_weight(position)
 
-        main_dynamics = self.wavy_dynamics.evaluate(position)
-        if not (norm_velocity := np.linalg.norm(main_dynamics)):
-            return main_dynamics
+        dist_attr = np.linalg.norm(position - self.attractor_position)
+        if not dist_attr:
+            return np.zeros_like(position)
 
-        if self.maximum_velocity is not None:
-            norm_velocity = min(self.maximum_velocity, norm_velocity)
+        if self.maximum_velocity is None:
+            norm_velocity = dist_attr
+        else:
+            norm_velocity = min(self.maximum_velocity, dist_attr)
 
         if weight >= 1:
             linear_dynamics = self.linear.evaluate(position)
-            return linear_dynamics / np.linalg.norm(main_dynamics) * norm_velocity
+            return linear_dynamics / np.linalg.norm(linear_dynamics) * norm_velocity
 
         elif weight <= 0:
-            return main_dynamics
+            main_dynamics = self.wavy_dynamics.evaluate(position)
+            return main_dynamics / np.linalg.norm(main_dynamics) * norm_velocity
 
         # Assumption of relative
+        main_dynamics = self.wavy_dynamics.evaluate(position)
+        main_dynamics = main_dynamics / np.linalg.norm(main_dynamics)
         linear_dynamics = self.linear.evaluate(position)
+        linear_dynamics = linear_dynamics / np.linalg.norm(linear_dynamics)
         final_dynamics = fast_directional_vector_addition(
             main_dynamics, linear_dynamics, weight=weight
         )
@@ -144,9 +155,9 @@ class LocallyStraightDynamics(Dynamics):
         return final_dynamics * norm_velocity
 
 
-def plot_locally_straight(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
-    x_lim = [-6, 1.0]
-    y_lim = [-1, 5]
+def plot_locally_straight(n_grid=12, figsize=(3.0, 2.8), save_figure=False):
+    x_lim = [-5, 0.6]
+    y_lim = [-3.0, 3.0]
 
     dynamics = LocallyStraightDynamics(
         attractor_position=np.array([0.0, -0]), maximum_velocity=1.0
@@ -173,6 +184,34 @@ def plot_locally_straight(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
         # scale=0.1,
         # color="#414141",
         zorder=0,
+        width=0.009,
+        scale=15,
+    )
+
+    # Re-evaluate for weight
+    nx = ny = 100
+    x_vals, y_vals = np.meshgrid(
+        np.linspace(x_lim[0], x_lim[1], nx),
+        np.linspace(y_lim[0], y_lim[1], ny),
+    )
+    positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
+    weights = np.zeros(positions.shape[1])
+    for pp in range(positions.shape[1]):
+        weights[pp] = dynamics.get_weight(positions[:, pp])
+
+    black_white_map = [[1, 1, 1], [0, 0, 0]]
+    bw_cmap = ListedColormap(black_white_map)
+    cont = ax.contourf(
+        positions[0, :].reshape(nx, ny),
+        positions[1, :].reshape(nx, ny),
+        weights.reshape(nx, ny),
+        # (weights >= 1).reshape(nx, ny),
+        zorder=-2,
+        # cmap=bw_cmap,
+        # levels=np.linspace(0.0, 1.0, 3),
+        cmap="Greys",
+        levels=np.linspace(0.0, 1.0, 10),
+        alpha=0.5,
     )
 
     ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "k*")
@@ -181,7 +220,7 @@ def plot_locally_straight(n_grid=15, figsize=(3.0, 2.8), save_figure=False):
     setup_plot(ax=ax)
 
     if save_figure:
-        figname = "global_straight_dynamics"
+        figname = "locally_straight_dynamics"
         plt.savefig("figures/" + figname + filetype, bbox_inches="tight")
 
 
@@ -190,6 +229,8 @@ if (__name__) == "__main__":
     plt.close("all")
 
     filetype = ".pdf"
-    # plot_collinear_dynamics(save_figure=False)
-    # plot_straight_dynamics(save_figure=False)
-    plot_locally_straight(save_figure=False)
+    figsize = (2.8, 3.0)
+    n_grid = 12
+    plot_collinear_dynamics(save_figure=True, figsize=figsize, n_grid=n_grid)
+    plot_straight_dynamics(save_figure=True, figsize=figsize, n_grid=n_grid)
+    plot_locally_straight(save_figure=True, figsize=figsize, n_grid=n_grid)
