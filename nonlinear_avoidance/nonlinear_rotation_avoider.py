@@ -44,6 +44,7 @@ from nonlinear_avoidance.rotation_container import RotationContainer
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
+from nonlinear_avoidance.vector_rotation import VectorRotationTree
 
 
 def get_convergence_weight(gamma: float) -> float:
@@ -109,7 +110,15 @@ class SingularityConvergenceDynamics(BaseAvoider):
             **kwargs,
         )
 
-        self.obstacle_convergence = obstacle_convergence
+        if obstacle_convergence is None:
+            # Assumption of stable center
+            self.obstacle_convergence = ProjectedRotationDynamics(
+                attractor_position=initial_dynamics.attractor_position,
+                initial_dynamics=initial_dynamics,
+            )
+
+        else:
+            self.obstacle_convergence = obstacle_convergence
 
     @property
     def dimension(self):
@@ -146,13 +155,17 @@ class SingularityConvergenceDynamics(BaseAvoider):
         local_convergence_velocity = self.evaluate_weighted_dynamics(
             position, initial_velocity
         )
-
-        return self._rotation_avoider.avoid(
+        rotated_velocity = self._rotation_avoider.avoid(
             position=position,
             initial_velocity=initial_velocity,
             convergence_velocity=local_convergence_velocity,
             **kwargs,
         )
+        # print("init vel", initial_velocity)
+        # print("conv vel", local_convergence_velocity)
+        # print("rota vel", rotated_velocity)
+
+        return rotated_velocity
 
     def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
         # TODO: test this...
@@ -163,6 +176,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
 
     def evaluate_convergence_around_obstacle(self, position, obstacle):
         raise NotImplementedError()
+
+    def compute_gamma_weights(self) -> np.ndarray:
+        return
 
     def evaluate_weighted_dynamics(
         self, position: np.ndarray, initial_velocity: np.ndarray
@@ -187,7 +203,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
                 position, in_global_frame=True
             )
 
-        gamma_min = 1
+        gamma_min = 1.0
         # Store weights -> mostly for visualization
         self.weights = np.zeros(self.n_obstacles)
 
@@ -195,7 +211,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
         if sum_close := np.sum(ind_obs):
             # Dangerously close..
             weights = np.ones(sum_close) * 1.0 / sum_close
-            weight_sum = 1
+            weight_sum = 1.0
 
         else:
             ind_obs = gamma_array < self._rotation_avoider.cut_off_gamma
@@ -235,6 +251,8 @@ class SingularityConvergenceDynamics(BaseAvoider):
 
         # Initial velocity will be the 'base velocity'
         local_velocities = np.zeros((self.dimension, np.sum(ind_obs)))
+        direction_tree = VectorRotationTree()
+        direction_tree.set_root(root_idx=-1, direction=initial_velocity)
 
         # Evaluating center directions for the relevant obstacles
         for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
@@ -249,6 +267,10 @@ class SingularityConvergenceDynamics(BaseAvoider):
                 position, obstacle=self._rotation_avoider.obstacle_environment[ii]
             )
 
+            direction_tree.add_node(
+                direction=local_velocities[:, ii], node_id=it_obs, parent_id=-1
+            )
+
             if not LA.norm(local_velocities[:, ii]):
                 # What should be done here (?)
                 # <-> smoothly reduce the weight as we approach the center(?)
@@ -261,6 +283,16 @@ class SingularityConvergenceDynamics(BaseAvoider):
             weights=weights,
             directions=local_velocities,
         )
+        tree_average_dir = direction_tree.get_weighted_mean(
+            node_list=np.arange(self.n_obstacles)[ind_obs],
+            weights=self.weights[ind_obs],
+        )
+
+        # TODO: finish this with history-of-rotation
+        # print("tree_average_dir", tree_average_dir)
+        # print("averaged_direction", averaged_direction)
+        # breakpoint()
+
         return initial_norm * averaged_direction
 
 

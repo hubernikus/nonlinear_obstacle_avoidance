@@ -1,4 +1,3 @@
-import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -26,8 +25,9 @@ class DynamicsSegment:
     end: np.ndarray
 
     # Defined in post-init
-    direction: np.ndarray = None
-    length: np.ndarray = None
+    # direction: np.ndarray = None
+    # length: np.ndarray = None
+    perpendicular_factor = 3.0
 
     def __post_init__(self):
         self.start = np.array(self.start)
@@ -54,7 +54,7 @@ class DynamicsSegment:
         projection = self.start + self.direction * tt
         dir_perp = projection - position
 
-        vector = dir_perp + self.direction
+        vector = self.perpendicular_factor * dir_perp + self.direction
         vector = vector / np.linalg.norm(vector)
         # return rotate(self.orientation, vector)
         return vector
@@ -110,7 +110,7 @@ class WavyPathFollowing(Dynamics):
     def dimension(self):
         return 2
 
-    def get_weights(self, position, weight_power=2, weight_factor=4):
+    def get_weights(self, position, weight_power=2, weight_factor=10):
         distances = np.zeros(self.n_segments)
 
         for ii, segment in enumerate(self.segments):

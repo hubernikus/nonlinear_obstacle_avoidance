@@ -12,10 +12,13 @@ from nonlinear_avoidance.dynamics.segmented_dynamics import create_segment_from_
 
 
 def main(n_grid=30):
-    x_lim = [-1, 10]
-    y_lim = [-1, 10]
+    x_lim = [-5, 5]
+    y_lim = [-5, 5]
 
-    dynamics = create_segment_from_points([[0.0, 0], [4.0, 0], [4.0, 4.0], [8.0, 4.0]])
+    # dynamics = create_segment_from_points([[0.0, 0], [4.0, 0], [4.0, 4.0], [8.0, 4.0]])
+    dynamics = create_segment_from_points(
+        [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
+    )
 
     # egments.append(DynamicsSegment(, [3.0, 0]))
     # segments.append(DynamicsSegment([4.0, 1], [4.0, 5]))
@@ -50,7 +53,7 @@ def main(n_grid=30):
     it_max = 1000
     dt = 0.1
     trajectory = np.zeros((dimension, it_max))
-    position_start = np.array([0.1, -0.4])
+    position_start = np.array([-4, -4.0])
     trajectory[:, 0] = position_start
     for ii in range(1, it_max):
         velocity = dynamics.evaluate(trajectory[:, ii - 1])

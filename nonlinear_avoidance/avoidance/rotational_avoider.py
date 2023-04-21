@@ -21,15 +21,14 @@ from vartools.directional_space import get_directional_weighted_sum
 from vartools.directional_space import get_angle_from_vector
 from vartools.directional_space import get_vector_from_angle
 from vartools.directional_space import UnitDirection
-
-# from vartools.directional_space DirectionBase
 from vartools.dynamical_systems import DynamicalSystem
 
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.utils import get_weight_from_inv_of_gamma
 from dynamic_obstacle_avoidance.utils import get_relative_obstacle_velocity
-
 from dynamic_obstacle_avoidance.avoidance import BaseAvoider
+
+from nonlinear_avoidance.vector_rotation import VectorRotationTree
 
 # Type definition
 Vector = np.ndarray
@@ -232,11 +231,7 @@ class RotationalAvoider(BaseAvoider):
                 # base = DirectionBase(matrix=null_matrix)
                 base = null_matrix
 
-                # rotated_velocities[:, it] = UnitDirection(base).from_vector(initial_velocity)
                 rotated_directions[:, it] = initial_velocity
-                # rotated_directions[it] = UnitDirection(base).from_vector(
-                #     initial_velocity
-                # )
                 continue
 
             if hasattr(obstacle_list, "convergence_radiuses") and len(
@@ -254,13 +249,9 @@ class RotationalAvoider(BaseAvoider):
                 nonlinear_velocity=initial_velocity,
                 base=null_matrix,
                 convergence_radius=convergence_radius,
-                # base=DirectionBase(matrix=null_matrix),
             )
 
         base = get_orthogonal_basis(initial_velocity)
-        # rotated_velocity = get_directional_weighted_sum_from_unit_directions(
-        #     base=base, weights=weights, unit_directions=rotated_directions
-        # )
 
         rotated_velocity = get_directional_weighted_sum(
             null_direction=base[:, 0],
@@ -606,10 +597,6 @@ class RotationalAvoider(BaseAvoider):
             base_angle[0] = convergence_radius
             return UnitDirection(dir_reference.base).from_angle(base_angle)
 
-        # if dir_convergence.norm() > convergence_radius:
-        #     # If on the surface -> no need to 'project'
-        #     return dir_convergence
-
         surface_angle = get_intersection_with_circle(
             start_position=dir_reference.as_angle(),
             direction=(dir_convergence - dir_reference).as_angle(),
@@ -752,7 +739,7 @@ class RotationalAvoider(BaseAvoider):
                 weight = 0
             elif continuation_weight < 1:
                 continuation_weight = (
-                    continuation_weight ** self.smooth_continuation_power
+                    continuation_weight**self.smooth_continuation_power
                 )
                 weight = weight ** (1.0 / continuation_weight)
 
@@ -809,5 +796,20 @@ class RotationalAvoider(BaseAvoider):
                 (dir_convergence_tangent.as_vector(), dir_initial.as_vector())
             ).T,
         )
+
+        if do_graph_summing := False:
+            # Do the graph summing
+            direction_tree = VectorRotationTree()
+            direction_tree.set_root(root_idx=-1, direction=dir_convergence.as_vector())
+            direction_tree.add_node(
+                node_id=0, parent_id=-1, direction=dir_convergence_tangent.as_vector()
+            )
+            direction_tree.add_node(
+                node_id=1, parent_id=-1, direction=dir_initial.as_vector()
+            )
+
+            averaged_direction = direction_tree.get_weighted_mean(
+                node_list=[0, 1], weights=[weight, (1 - weight)]
+            )
 
         return rotated_velocity

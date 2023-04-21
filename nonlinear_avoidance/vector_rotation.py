@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# import numpy.typing as npt
+import numpy.typing as npt
 from numpy import linalg as LA
 
 import networkx as nx
@@ -242,7 +242,7 @@ class VectorRotationSequence:
         weights[-1] = rot_factor
         return self.rotate_weighted(direction, weights=weights)
 
-    def rotate_weighted(self, direction: Vector, weights: list[float] = None) -> Vector:
+    def rotate_weighted(self, direction: Vector, weights: npt.ArrayLike) -> Vector:
         """
         Returns the rotated direction vector with repsect to the (rotation-)weights
 
@@ -291,6 +291,9 @@ class VectorRotationTree:
     """
 
     # TODO: what happens if an obstacle is at angle 'pi'?
+    # TODO: allow evaluating adding / removing 'sub-trees' / 'sub-sequences'
+    # TODO: Allow obtaining reduced-graphs
+
     # as it might happend at  zero-level
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
