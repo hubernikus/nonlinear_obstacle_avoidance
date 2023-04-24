@@ -312,13 +312,13 @@ def test_simple_triple_branch():
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
-    # test_cross_rotation_2d(visualize=False, savefig=0)
-    # test_zero_rotation()
-    # test_cross_rotation_3d()
-    # test_multi_rotation_array()
+    test_cross_rotation_2d(visualize=False, savefig=0)
+    test_zero_rotation()
+    test_cross_rotation_3d()
+    test_multi_rotation_array()
 
-    # test_rotation_tree()
-    # test_multi_normal_tree()
+    test_rotation_tree()
+    test_multi_normal_tree()
     test_simple_triple_branch()
 
     print("\nDone with tests.")

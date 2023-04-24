@@ -59,7 +59,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods**2))
+    out_direction *= math.sqrt(sum(dot_prods ** 2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -84,7 +84,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -189,6 +189,7 @@ class VectorRotationXd:
         )
 
 
+@dataclass
 class VectorRotationSequence:
     """
     Vector-Rotation environment based on multiple vectors
@@ -202,39 +203,67 @@ class VectorRotationSequence:
     rotation_angles: The rotation between going from one to the next basis
     """
 
-    def __init__(self, vectors_array: np.ndarray) -> None:
-        # Normalize
-        self.vectors_array = vectors_array / LA.norm(vectors_array, axis=0)
+    # def __init__(self, vectors_array: np.ndarray) -> None:
+    #     # Normalize
+    #     vectors_array = vectors_array / LA.norm(vectors_array, axis=0)
 
-        dot_prod = np.sum(
-            self.vectors_array[:, 1:] * self.vectors_array[:, :-1], axis=0
-        )
+    #     dot_prod = np.sum(vectors_array[:, 1:] * vectors_array[:, :-1], axis=0)
+
+    #     if np.sum(dot_prod == (-1)):  # Any of the values
+    #         raise ValueError("Antiparallel vectors.")
+
+    #     # Evaluate basis and angles
+    #     vec_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
+    #     vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
+
+    #     self.basis_array = np.stack((vectors_array[:, :-1], vec_perp), axis=2)
+    #     self.rotation_angles = np.arccos(dot_prod)
+
+    # def __init__(self, basis_array: np.ndarray, angles: np.ndarray) -> None:
+    basis_array: np.ndarray
+    rotation_angles: np.ndarray
+
+    @classmethod
+    def create_from_vector_array(cls, vectors_array: np.ndarray) -> None:
+        vectors_array = vectors_array / LA.norm(vectors_array, axis=0)
+        dot_prod = np.sum(vectors_array[:, 1:] * vectors_array[:, :-1], axis=0)
 
         if np.sum(dot_prod == (-1)):  # Any of the values
             raise ValueError("Antiparallel vectors.")
 
         # Evaluate basis and angles
-        vec_perp = self.vectors_array[:, 1:] - self.vectors_array[:, :-1] * dot_prod
+        vec_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
         vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
-
-        self.basis_array = np.stack((self.vectors_array[:, :-1], vec_perp), axis=2)
-        self.rotation_angles = np.arccos(dot_prod)
-
-    @property
-    def n_rotations(self):
-        return self.basis_array.shape[1]
+        cls(np.stack((vectors_array[:, :-1], vec_perp), axis=2), np.arccos(dot_prod))
 
     @property
     def dimension(self):
         return self.basis_array.shape[0]
 
+    @property
+    def n_rotations(self):
+        return self.basis_array.shape[1]
+
     def base(self) -> Vector:
         return self.basis_array[:, [0, -1]]
 
-    def append(self, direction: Vector) -> None:
-        self.basis_array = np.hstack((self.basis_array, direction.reshape(-1, 1)))
+    def append_from_direction(self, direction: Vector) -> None:
+        dot_prod = np.dot(self.basis_array[:, -1, -1], direction)
+        angle = np.arccos(dot_prod)
 
-        raise NotImplementedError("Finish updating basis and rotation angles.")
+        self.rotation_angles = np.append(self.rotation_angles, angle)
+        vec_perp = self.basis_array[:, -1, -1] - direction * dot_prod
+        vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
+        self.append_from_base_and_angle(vec_perp, angle)
+
+    def append_from_base_and_angle(self, base0: Vector, angle: float) -> None:
+        self.rotation_angles = np.append(self.rotation_angles, angle)
+        self.basis_array = np.stack(
+            (self.basis_array, [self.basis_array[:, -1, -1], base0]), axis=1
+        )
+
+    def append_from_rotation(self, rotation: VectorRotationXd) -> None:
+        raise NotImplementedError()
 
     def rotate(self, direction: Vector, rot_factor: float = 1) -> Vector:
         """Rotate over the whole length of the vector."""
@@ -550,9 +579,11 @@ class VectorRotationTree:
         """
         level_list = [self._graph.nodes[node_id]["level"] for node_id in sorted_list]
 
+        sequence_vectors = np.zeros((self.dimension, len(set(level_list))))
+
         # Bottom up calculation - from lowest level to highest level
         # at each level, take the weighted average of all rotations
-        for level in set(level_list):
+        for ll, level in enumerate(set(level_list)):
             nodelevel_ids = []
             for node_id, lev in zip(sorted_list, level_list):
                 if lev == level and self._graph.nodes[node_id]["weight"]:
@@ -566,6 +597,8 @@ class VectorRotationTree:
                 "part_orientation"
             ].base[:, 0]
             shared_basis = get_orthogonal_basis(shared_first_basis)
+            # Store basis
+            sequence_vectors[ll, :] = shared_basis
 
             # Get the rotation-vector (second -base vector) of all of the
             # same-level rotation-structs in the local_basis
