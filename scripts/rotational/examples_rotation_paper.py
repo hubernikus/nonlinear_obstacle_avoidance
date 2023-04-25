@@ -764,7 +764,7 @@ if (__name__) == "__main__":
 
     convergence_direction_comparison_for_linear_dynamics(
         visualize=True,
-        save_figure=True,
+        save_figure=False,
         n_resolution=100,
     )
 

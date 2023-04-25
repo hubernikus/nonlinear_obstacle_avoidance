@@ -583,8 +583,9 @@ class VectorRotationTree:
         But calculations are simple, i.e., this could be sped upt with cython / C++ / Rust
         """
         level_list = [self._graph.nodes[node_id]["level"] for node_id in sorted_list]
-
         sequence_vectors = np.zeros((self.dimension, len(set(level_list))))
+
+        # breakpoint()
 
         # Bottom up calculation - from lowest level to highest level
         # at each level, take the weighted average of all rotations

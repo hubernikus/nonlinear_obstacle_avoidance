@@ -15,7 +15,8 @@ from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 from vartools.dynamical_systems import BifurcationSpiral
 from vartools.dynamical_systems import plot_dynamical_system_streamplot
 
-from dynamic_obstacle_avoidance.obstacles import Ellipse, StarshapedFlower
+from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
+from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.avoidance import obs_avoidance_interpolation_moving
 from dynamic_obstacle_avoidance.avoidance import ModulationAvoider
 
@@ -23,7 +24,7 @@ from nonlinear_avoidance.multiboundary_container import (
     MultiBoundaryContainer,
 )
 from nonlinear_avoidance.rotation_container import RotationContainer
-from nonlinear_avoidance.rotation import obstacle_avoidance_rotational
+from nonlinear_avoidance.avoidance import obstacle_avoidance_rotational
 from nonlinear_avoidance.avoidance import RotationalAvoider
 
 
@@ -500,15 +501,123 @@ def single_ellipse_spiral_triple_plot(save_figure=False, n_resolution=40):
         my_plotter.save(figure_name + "_initial")
 
 
+def test_starshape_repulsion(visualize=False, save_figure=False):
+    obstacle_list = RotationContainer()
+    # obstacle_list.append(
+    #     Ellipse(
+    #         center_position=np.array([0, 0]),
+    #         axes_length=np.array([2, 2]),
+    #     )
+    # )
+
+    obstacle_list.append(
+        StarshapedFlower(
+            center_position=np.zeros(2),
+            number_of_edges=3,
+            radius_magnitude=0.2,
+            radius_mean=0.75,
+            orientation=10 / 180 * math.pi,
+            distance_scaling=1,
+            # is_boundary=True,
+        )
+    )
+
+    # Arbitrary constant velocity
+    initial_dynamics = LinearSystem(attractor_position=np.array([2.5, 0]))
+    obstacle_list.set_convergence_directions(converging_dynamics=initial_dynamics)
+
+    main_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=math.pi,
+    )
+
+    # Arbitrary constant velocity
+    tmp_dynamics = LinearSystem(attractor_position=np.array([2.0, 0]))
+    tmp_dynamics.distance_decrease = 0.1
+    obstacle_list.set_convergence_directions(converging_dynamics=initial_dynamics)
+    # ConvergingDynamics=ConstantValue (initial_velocity)
+
+    if visualize:
+        x_lim = [-2, 3]
+        y_lim = [-2.2, 2.2]
+        n_grid = 13
+        alpha_obstacle = 1.0
+
+        plt.close("all")
+        name_list = ["pi"]
+        angle_name_list = [math.pi]
+
+        for angle_name, angle in zip(name_list, angle_name_list):
+
+            obstacle_avoider = RotationalAvoider(
+                initial_dynamics=initial_dynamics,
+                obstacle_environment=obstacle_list,
+                convergence_radius=angle,
+            )
+            fig, ax = plt.subplots(figsize=(5, 4))
+            plot_obstacle_dynamics(
+                obstacle_container=obstacle_list,
+                dynamics=obstacle_avoider.evaluate,
+                x_lim=x_lim,
+                y_lim=y_lim,
+                n_grid=n_grid,
+                ax=ax,
+                attractor_position=initial_dynamics.attractor_position,
+                do_quiver=True,
+                show_ticks=False,
+            )
+
+            plot_obstacles(
+                obstacle_container=obstacle_list,
+                ax=ax,
+                alpha_obstacle=alpha_obstacle,
+            )
+
+            if save_figure:
+                fig_name = "circular_repulsion_" + angle_name
+                fig.savefig(
+                    "figures/" + fig_name + figtype, bbox_inches="tight", dpi=300
+                )
+
+    angle = math.pi
+    obstacle_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=angle,
+    )
+
+    position = np.array([-1.16, 0.36])
+    print("position", position)
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[1] > 0, "Velocity is required to move away from saddle point."
+
+    position = np.array([-0.739, 0.370])
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[0] < 0, "Full repulsion on the surface."
+
+    angle = math.pi / 2.0
+    obstacle_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=angle,
+    )
+
+    position = np.array([-1.16, 0.36])
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[1] > 0, "Velocity is required to move away from saddle point."
+
+
 if (__name__) == "__main__":
-    plt.close("all")
+    # plt.close("all")
     plt.ion()
 
     # single_ellipse_linear_triple_plot_quiver(save_figure=True, n_resolution=15)
     # single_ellipse_linear_triple_integration_lines(save_figure=False)
     # single_ellipse_linear_triple_plot_streampline(save_figure=False, n_resolution=30)
     # single_ellipse_nonlinear_triple_plot(save_figure=True, n_resolution=40)
-
     # rotated_ellipse_linear_triple_plot_quiver(save_figure=False, n_resolution=30)
+
+    test_starshape_repulsion(visualize=True)
 
     pass

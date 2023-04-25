@@ -309,9 +309,43 @@ def test_simple_triple_branch():
     assert averaged_dir[0] > 0 and averaged_dir[1] > 0
 
 
+def test_double_branch_tree():
+    # Simple-double-part tree
+    direction_tree = VectorRotationTree()
+    direction_tree.set_root(
+        root_idx=-1,
+        direction=np.array([1.0, 0]),
+    )
+    direction_tree.add_node(
+        node_id=0,
+        parent_id=-1,
+        direction=np.array([1.0, 0.0]),
+    )
+
+    direction_tree.add_node(
+        node_id=1,
+        parent_id=-1,
+        direction=np.array([0.0, 1.0]),
+    )
+
+    main_direction = np.array([-1.0, 0.0])
+    direction_tree.add_node(node_id=2, parent_id=1, direction=main_direction)
+    weight = 1.0
+    averaged_direction = direction_tree.get_weighted_mean(
+        node_list=[0, 2], weights=[(1 - weight), weight]
+    )
+
+    assert (
+        np.dot(main_direction, averaged_direction) > 0.99
+    ), "Expected to be close to large weight"
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
+
+    test_double_branch_tree()
+
     test_cross_rotation_2d(visualize=False, savefig=0)
     test_zero_rotation()
     test_cross_rotation_3d()

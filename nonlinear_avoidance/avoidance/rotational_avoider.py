@@ -797,19 +797,49 @@ class RotationalAvoider(BaseAvoider):
             ).T,
         )
 
-        if do_graph_summing := False:
+        if do_graph_summing := True:
             # Do the graph summing
             direction_tree = VectorRotationTree()
             direction_tree.set_root(root_idx=-1, direction=dir_convergence.as_vector())
             direction_tree.add_node(
-                node_id=0, parent_id=-1, direction=dir_convergence_tangent.as_vector()
+                node_id=0, parent_id=-1, direction=dir_initial.as_vector()
             )
+
             direction_tree.add_node(
-                node_id=1, parent_id=-1, direction=dir_initial.as_vector()
+                node_id=1,
+                parent_id=-1,
+                direction=base[:, 0],
             )
+
+            if convergence_radius > math.pi * 0.5:
+                # Add intermediate convergence
+                dir_intermediate_convergence = RotationalAvoider.get_tangent_convergence_direction(
+                    dir_convergence=dir_convergence,
+                    dir_reference=dir_reference,
+                    # base=base,
+                    convergence_radius=math.pi * 0.5,
+                )
+                direction_tree.add_node(
+                    node_id=2,
+                    parent_id=1,
+                    direction=dir_intermediate_convergence.as_vector(),
+                )
+
+                direction_tree.add_node(
+                    node_id=3,
+                    parent_id=2,
+                    direction=dir_convergence_tangent.as_vector(),
+                )
+            else:
+                direction_tree.add_node(
+                    node_id=3,
+                    parent_id=1,
+                    direction=dir_convergence_tangent.as_vector(),
+                )
 
             averaged_direction = direction_tree.get_weighted_mean(
-                node_list=[0, 1], weights=[weight, (1 - weight)]
+                node_list=[0, 3], weights=[(1 - weight), weight]
             )
-
-        return rotated_velocity
+            # breakpoint()
+        # return rotated_velocity
+        return averaged_direction

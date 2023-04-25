@@ -1129,7 +1129,7 @@ if (__name__) == "__main__":
     # test_single_circle_linear_inverted(visualize=True)
 
     # _test_single_circle_nonlinear(visualize=True, save_figure=True)
-    # test_single_circle_linear_repulsive(visualize=True, save_figure=False)
+    test_single_circle_linear_repulsive(visualize=True, save_figure=False)
 
     # test_rotated_convergence_direction_circle()
     # test_rotated_convergence_direction_ellipse()
@@ -1141,6 +1141,6 @@ if (__name__) == "__main__":
 
     # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
     # test_simple_convergence_in_limit_cycle()
-    test_axes_following_rotation(visualize=False)
+    # test_axes_following_rotation(visualize=False)
 
     print("[Rotational Tests] Done tests")

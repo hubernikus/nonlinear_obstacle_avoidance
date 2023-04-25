@@ -1010,10 +1010,11 @@ if (__name__) == "__main__":
     # single_ellipse_multiattractor_analysis(save_figure=False, n_resolution=100)
     # single_ellipse_hull_linear_triple_plot(save_figure=True, n_resolution=100)
     # single_ellipse_hull_nonlinear_triple_plot(save_figure=True, n_resolution=100)
+
     # starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
 
     # starshape_linear_triple_plot(save_figure=False, n_resolution=100)
-    # starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
+    starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
 
     # multiple_hull_linear(save_figure=True, n_resolution=200)
 
