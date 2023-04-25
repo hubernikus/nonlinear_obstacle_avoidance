@@ -177,11 +177,11 @@ def test_multi_rotation_array():
         ]
     ).T
 
-    rotation_seq = VectorRotationSequence(vector_seq)
+    rotation_seq = VectorRotationSequence.create_from_vector_array(vector_seq)
     rotated_vec = rotation_seq.rotate(direction=np.array([1, 0, 0]))
     assert np.allclose(rotated_vec, [0, -1, 0]), "Unexpected rotation."
 
-    rotation_seq = VectorRotationSequence(vector_seq)
+    rotation_seq = VectorRotationSequence.create_from_vector_array(vector_seq)
     rotated_vec = rotation_seq.rotate_weighted(
         direction=np.array([1, 0, 0]), weights=np.array([0.5, 0.5, 0, 0])
     )

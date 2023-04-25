@@ -59,7 +59,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods ** 2))
+    out_direction *= math.sqrt(sum(dot_prods**2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -84,7 +84,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -234,7 +234,9 @@ class VectorRotationSequence:
         # Evaluate basis and angles
         vec_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
         vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
-        cls(np.stack((vectors_array[:, :-1], vec_perp), axis=2), np.arccos(dot_prod))
+        return cls(
+            np.stack((vectors_array[:, :-1], vec_perp), axis=2), np.arccos(dot_prod)
+        )
 
     @property
     def dimension(self):
@@ -289,7 +291,10 @@ class VectorRotationSequence:
             temp_angle = self.rotation_angles
 
         else:
-            temp_angle = self.rotation_angles * cumulated_weights
+            try:
+                temp_angle = self.rotation_angles * cumulated_weights
+            except:
+                breakpoint()
 
             # Update the basis of rotation weights from top-to-bottom
             # by rotating upper level base with respect to total
@@ -598,7 +603,6 @@ class VectorRotationTree:
             ].base[:, 0]
             shared_basis = get_orthogonal_basis(shared_first_basis)
             # Store basis
-            sequence_vectors[ll, :] = shared_basis
 
             # Get the rotation-vector (second -base vector) of all of the
             # same-level rotation-structs in the local_basis
