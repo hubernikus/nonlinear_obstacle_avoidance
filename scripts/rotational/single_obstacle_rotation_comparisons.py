@@ -4,8 +4,9 @@
 # Github: hubernikus
 # License: BSD (c) 2021
 
-import warnings
 import copy
+import math
+import warnings
 
 import numpy as np
 from numpy import pi
@@ -663,6 +664,6 @@ if (__name__) == "__main__":
     # single_ellipse_linear_triple_plot_streampline(save_figure=False, n_resolution=30)
     # single_ellipse_nonlinear_triple_plot(save_figure=True, n_resolution=40)
     # rotated_ellipse_linear_triple_plot_quiver(save_figure=False, n_resolution=30)
-    # visualize_starshape_repulsion(save_figure=False, n_speed_resolution=100)
+    visualize_starshape_repulsion(save_figure=False, n_speed_resolution=10)
 
     pass

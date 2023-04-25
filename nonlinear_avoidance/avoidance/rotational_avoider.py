@@ -283,7 +283,7 @@ class RotationalAvoider(BaseAvoider):
                 rotated_velocity=rotated_velocity,
                 initial_norm=np.linalg.norm(initial_velocity),
                 averaged_normal=averaged_normal,
-                gamma=np.min(gamma),
+                gamma=np.min(gamma_array),
             )
 
             rotated_velocity = rotated_velocity + relative_velocity
@@ -323,18 +323,26 @@ class RotationalAvoider(BaseAvoider):
 
     @staticmethod
     def _magnitude_save_adaptation(
-        rotated_velocity, initial_norm, averaged_normal, gamma
-    ):
+        rotated_velocity: Vector,
+        initial_norm: float,
+        averaged_normal: Vector,
+        gamma: float,
+    ) -> Vector:
         if not (final_norm := np.linalg.norm(rotated_velocity)):
             return rotated_velocity
 
-        dot_product = np.linalg.norm(rotated_velocity, averaged_normal)
-        if dot_product > 0 or normal_norm == 0:
+        dot_product = np.dot(rotated_velocity, averaged_normal)
+
+        if dot_product > 0 or np.linalg.norm(averaged_normal) == 0:
             scaling = 1
+
         elif gamma <= 1:
             return np.zeros_like(rotated_velocity)
+
         else:
-            scaling = dot_product ** (1.0 / (gamma - 1) * normal_norm)
+            scaling = dot_product ** (
+                1.0 / (gamma - 1) * np.linalg.norm(averaged_normal)
+            )
 
         return rotated_velocity / final_norm * initial_norm * scaling
 
