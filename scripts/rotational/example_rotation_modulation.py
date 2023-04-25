@@ -1014,7 +1014,7 @@ if (__name__) == "__main__":
     # starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
 
     # starshape_linear_triple_plot(save_figure=False, n_resolution=100)
-    starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
+    # starshape_hull_linear_triple_plot(save_figure=False, n_resolution=100)
 
     # multiple_hull_linear(save_figure=True, n_resolution=200)
 

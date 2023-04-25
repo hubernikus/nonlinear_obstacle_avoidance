@@ -1116,9 +1116,71 @@ def test_axes_following_rotation(visualize=False, x_lim=[-4, 4], y_lim=[-4, 4]):
     ), "Expected to avoid towards top-right."
 
 
+def test_overrotation_starshape():
+    obstacle_list = RotationContainer()
+    obstacle_list.append(
+        StarshapedFlower(
+            center_position=np.zeros(2),
+            number_of_edges=3,
+            radius_magnitude=0.2,
+            radius_mean=0.75,
+            orientation=10 / 180 * math.pi,
+            distance_scaling=1,
+            # is_boundary=True,
+        )
+    )
+
+    # Arbitrary constant velocity
+    initial_dynamics = LinearSystem(attractor_position=np.array([2.5, 0]))
+    obstacle_list.set_convergence_directions(converging_dynamics=initial_dynamics)
+
+    main_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=math.pi,
+    )
+
+    # Arbitrary constant velocity
+    tmp_dynamics = LinearSystem(
+        attractor_position=np.array([2.0, 0]), maximum_velocity=1.0
+    )
+    tmp_dynamics.distance_decrease = 0.1
+    obstacle_list.set_convergence_directions(converging_dynamics=initial_dynamics)
+    # ConvergingDynamics=ConstantValue (initial_velocity)
+
+    angle = math.pi
+    obstacle_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=angle,
+    )
+
+    position = np.array([-1.16, 0.36])
+    print("position", position)
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[1] > 0, "Velocity is required to move away from saddle point."
+
+    position = np.array([-0.739, 0.370])
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[0] < 0, "Full repulsion on the surface."
+
+    angle = math.pi / 2.0
+    obstacle_avoider = RotationalAvoider(
+        initial_dynamics=initial_dynamics,
+        obstacle_environment=obstacle_list,
+        convergence_radius=angle,
+    )
+
+    position = np.array([-1.16, 0.36])
+    velocity = obstacle_avoider.evaluate(position)
+    assert velocity[1] > 0, "Velocity is required to move away from saddle point."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
+
+    test_overrotation_starshape()
 
     # test_intersection_with_circle()
 

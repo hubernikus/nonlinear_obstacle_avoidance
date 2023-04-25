@@ -158,16 +158,19 @@ class RotationalAvoider(BaseAvoider):
         gamma_proportional = np.zeros((n_obs_close))
         normal_orthogonal_matrix = np.zeros((dimension, dimension, n_obs_close))
 
+        normal_dirs = np.zeros((dimension, gamma_array.shape[0]))
         for it, it_obs in zip(range(n_obs_close), np.arange(n_obstacles)[ind_obs]):
             gamma_proportional[it] = obstacle_list[it_obs].get_gamma(
                 position,
                 in_global_frame=True,
             )
 
-            normal_dir = obstacle_list[it_obs].get_normal_direction(
+            normal_dirs[:, it] = obstacle_list[it_obs].get_normal_direction(
                 position, in_global_frame=True
             )
-            normal_orthogonal_matrix[:, :, it] = get_orthogonal_basis(normal_dir)
+            normal_orthogonal_matrix[:, :, it] = get_orthogonal_basis(
+                normal_dirs[:, it]
+            )
 
         weights = compute_weights(gamma_array)
         relative_velocity = get_relative_obstacle_velocity(
@@ -271,6 +274,18 @@ class RotationalAvoider(BaseAvoider):
             rotated_velocity = rotated_velocity + relative_velocity
 
         else:
+            # Get averaged normal
+            averaged_normal = np.sum(
+                normal_dirs * np.tile(weights, (dimension, 1)), axis=1
+            )
+
+            rotated_velocity = self._magnitude_save_adaptation(
+                rotated_velocity=rotated_velocity,
+                initial_norm=np.linalg.norm(initial_velocity),
+                averaged_normal=averaged_normal,
+                gamma=np.min(gamma),
+            )
+
             rotated_velocity = rotated_velocity + relative_velocity
 
             if velocity_norm := LA.norm(rotated_velocity):
@@ -305,6 +320,23 @@ class RotationalAvoider(BaseAvoider):
         )
 
         return modulated_velocity
+
+    @staticmethod
+    def _magnitude_save_adaptation(
+        rotated_velocity, initial_norm, averaged_normal, gamma
+    ):
+        if not (final_norm := np.linalg.norm(rotated_velocity)):
+            return rotated_velocity
+
+        dot_product = np.linalg.norm(rotated_velocity, averaged_normal)
+        if dot_product > 0 or normal_norm == 0:
+            scaling = 1
+        elif gamma <= 1:
+            return np.zeros_like(rotated_velocity)
+        else:
+            scaling = dot_product ** (1.0 / (gamma - 1) * normal_norm)
+
+        return rotated_velocity / final_norm * initial_norm * scaling
 
     @staticmethod
     def _get_directional_deviation_weight(
@@ -767,7 +799,6 @@ class RotationalAvoider(BaseAvoider):
 
             elif ang_norm > math.pi * ang_min:
                 weight = weight * (1 - (ang_norm - ang_min) / (angle_margin - ang_min))
-                #     return dir_initial.as_vector()
 
         # conv_vector = dir_convergence_tangent.as_vector()
         # if (dot_weights := np.dot(conv_vector, dir_initial.as_vector())) < 0:
@@ -789,16 +820,10 @@ class RotationalAvoider(BaseAvoider):
 
         # else:
         #     null_vector = conv_vector
-        rotated_velocity = get_directional_weighted_sum(
-            null_direction=dir_convergence.as_vector(),
-            weights=np.array([weight, (1 - weight)]),
-            directions=np.vstack(
-                (dir_convergence_tangent.as_vector(), dir_initial.as_vector())
-            ).T,
-        )
 
         if do_graph_summing := True:
-            # Do the graph summing
+            # This is now replacing the 'general_weighted_sum'
+            # as it takes better into account the history
             direction_tree = VectorRotationTree()
             direction_tree.set_root(root_idx=-1, direction=dir_convergence.as_vector())
             direction_tree.add_node(
@@ -840,6 +865,14 @@ class RotationalAvoider(BaseAvoider):
             averaged_direction = direction_tree.get_weighted_mean(
                 node_list=[0, 3], weights=[(1 - weight), weight]
             )
-            # breakpoint()
+        else:
+            rotated_velocity = get_directional_weighted_sum(
+                null_direction=dir_convergence.as_vector(),
+                weights=np.array([weight, (1 - weight)]),
+                directions=np.vstack(
+                    (dir_convergence_tangent.as_vector(), dir_initial.as_vector())
+                ).T,
+            )
+
         # return rotated_velocity
         return averaged_direction
