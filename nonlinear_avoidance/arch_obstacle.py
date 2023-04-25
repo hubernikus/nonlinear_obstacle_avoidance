@@ -28,6 +28,14 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 class MultiObstacleContainer:
     _obstacle_list: list[HierarchyObstacle] = field(default_factory=list)
 
+    def is_collision_free(self, position: np.ndarray) -> bool:
+        for obstacle in self._obstacle_list:
+            if obstacle.is_collision_free:
+                continue
+            return False
+
+        return True
+
     def get_gamma(self, position: np.ndarray, in_global_frame: bool = True) -> float:
         if not in_global_frame:
             raise NotImplementedError()
@@ -113,6 +121,13 @@ class BlockArchObstacle:
     @property
     def root_idx(self) -> int:
         return self._root_idx
+
+    def is_collision_free(self, position: np.ndarray) -> bool:
+        for obstacle in self.obstacle_list:
+            if obstacle.get_gamma(position, in_global_frame=True) <= 1:
+                return False
+
+        return True
 
     def get_gamma(self, position, in_global_frame: bool = True):
         if not in_global_frame:
