@@ -29,8 +29,8 @@ class MultiObstacleContainer:
     _obstacle_list: list[HierarchyObstacle] = field(default_factory=list)
 
     def is_collision_free(self, position: np.ndarray) -> bool:
-        for obstacle in self._obstacle_list:
-            if obstacle.is_collision_free:
+        for obstacle_tree in self._obstacle_list:
+            if obstacle_tree.is_collision_free(position):
                 continue
             return False
 
@@ -123,7 +123,7 @@ class BlockArchObstacle:
         return self._root_idx
 
     def is_collision_free(self, position: np.ndarray) -> bool:
-        for obstacle in self.obstacle_list:
+        for obstacle in self._obstacle_list:
             if obstacle.get_gamma(position, in_global_frame=True) <= 1:
                 return False
 
