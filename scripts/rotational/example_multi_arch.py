@@ -41,7 +41,7 @@ def plot_qolo(position, direction, ax):
     )
 
 
-def integrate_with_qolo(start_position, velocity_functor, it_max=100, dt=0.1, ax=None):
+def integrate_with_qolo(start_position, velocity_functor, it_max=62, dt=0.1, ax=None):
     dimension = 2
     positions = np.zeros((dimension, it_max + 1))
     positions[:, 0] = start_position
@@ -114,7 +114,7 @@ def visualize_double_arch(save_figure=False):
     )
     plot_multi_obstacles(ax=ax, container=container)
 
-    start_position = np.array([-5, 4.0])
+    start_position = np.array([-4.4, 1.5])
     integrate_with_qolo(
         start_position=start_position, velocity_functor=avoider.evaluate, ax=ax
     )
