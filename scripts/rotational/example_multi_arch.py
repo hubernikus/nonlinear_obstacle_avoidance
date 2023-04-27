@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from vartools.states import Pose
 from vartools.dynamical_systems import QuadraticAxisConvergence, LinearSystem
+from vartools.dynamical_systems import SinusAttractorSystem
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
@@ -60,14 +61,22 @@ def integrate_with_qolo(start_position, velocity_functor, it_max=62, dt=0.1, ax=
 
 
 def visualize_double_arch(save_figure=False):
-    x_lim = [-7, 7]
-    y_lim = [-6, 6]
-    n_grid = 20
+    # x_lim = [-7, 7]
+    # y_lim = [-6, 6]
+    x_lim = [-6.5, 6.5]
+    y_lim = [-5.5, 5.5]
+    n_grid = 30
+    figsize = (4, 3.5)
 
     margin_absolut = 0.5
 
     attractor = np.array([4.0, -3])
-    initial_dynamics = LinearSystem(
+    # initial_dynamics = LinearSystem(
+    #     attractor_position=attractor,
+    #     maximum_velocity=1.0,
+    # )
+
+    initial_dynamics = SinusAttractorSystem(
         attractor_position=attractor,
         maximum_velocity=1.0,
     )
@@ -99,7 +108,34 @@ def visualize_double_arch(save_figure=False):
     )
 
     collision_checker = lambda pos: (not container.is_collision_free(pos))
-    fig, ax = plt.subplots(figsize=(5, 4))
+    fig, ax = plt.subplots(figsize=figsize)
+    plot_obstacle_dynamics(
+        obstacle_container=[],
+        dynamics=initial_dynamics.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        n_grid=n_grid,
+        ax=ax,
+        attractor_position=initial_dynamics.attractor_position,
+        collision_check_functor=None,
+        do_quiver=True,
+        show_ticks=False,
+    )
+    # plot_multi_obstacles(ax=ax, container=container)
+
+    start_position = np.array([-4.4, 1.5])
+    integrate_with_qolo(
+        start_position=start_position, velocity_functor=avoider.evaluate, ax=ax
+    )
+
+    if True:
+        return
+
+    if save_figure:
+        fig_name = "two_arch_avoidance"
+        fig.savefig("figures/" + fig_name + figtype, bbox_inches="tight", dpi=300)
+
+    fig, ax = plt.subplots(figsize=figsize)
     plot_obstacle_dynamics(
         obstacle_container=container,
         dynamics=avoider.evaluate,
@@ -120,7 +156,7 @@ def visualize_double_arch(save_figure=False):
     )
 
     if save_figure:
-        fig_name = "circular_repulsion_pi"
+        fig_name = "two_arch_avoidance"
         fig.savefig("figures/" + fig_name + figtype, bbox_inches="tight", dpi=300)
 
     # Test collision free value
@@ -130,4 +166,5 @@ def visualize_double_arch(save_figure=False):
 
 
 if (__name__) == "__main__":
+    figtype = ".pdf"
     visualize_double_arch(save_figure=False)
