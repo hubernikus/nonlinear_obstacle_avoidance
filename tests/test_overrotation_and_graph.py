@@ -13,7 +13,6 @@ import numpy as np
 # from numpy import linalg as LA
 
 from vartools.dynamical_systems import LinearSystem, SinusAttractorSystem
-from vartools.dynamical_systems import ConstVelocityDecreasingAtAttractor
 
 from dynamic_obstacle_avoidance.obstacles import Ellipse
 from nonlinear_avoidance.multiboundary_container import (
@@ -31,12 +30,7 @@ class TestMultiHullBehvior(unittest.TestCase):
     def test_creation(self):
         dim = 2
 
-        limiter = ConstVelocityDecreasingAtAttractor(
-            const_velocity=1.0, distance_decrease=1.0
-        )
-        initial_dynamics = SinusAttractorSystem(
-            trimmer=limiter, attractor_position=np.zeros(dim)
-        )
+        initial_dynamics = SinusAttractorSystem(attractor_position=np.zeros(dim))
 
         obstacle_list = MultiBoundaryContainer()
         obstacle_list.append(
