@@ -1,13 +1,13 @@
+import math
 from pathlib import Path
 
 import numpy as np
 from scipy import ndimage
-
 import matplotlib.pyplot as plt
 
 from vartools.states import Pose
-from vartools.dynamical_systems import QuadraticAxisConvergence, LinearSystem
-from vartools.dynamical_systems import SinusAttractorSystem
+from vartools.dynamics import QuadraticAxisConvergence, LinearSystem
+from vartools.dynamics import WavyRotatedDynamics
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
@@ -42,7 +42,7 @@ def plot_qolo(position, direction, ax):
     )
 
 
-def integrate_with_qolo(start_position, velocity_functor, it_max=62, dt=0.1, ax=None):
+def integrate_with_qolo(start_position, velocity_functor, it_max=70, dt=0.1, ax=None):
     dimension = 2
     positions = np.zeros((dimension, it_max + 1))
     positions[:, 0] = start_position
@@ -53,7 +53,8 @@ def integrate_with_qolo(start_position, velocity_functor, it_max=62, dt=0.1, ax=
 
     if ax is not None:
         # Plot trajectory & Qolo
-        ax.plot(positions[0, :], positions[1, :], color="k", linewidth=2.0)
+        ax.plot(positions[0, :], positions[1, :], color="#DB4914", linewidth=4.0)
+        # ax.plot(positions[0, :], positions[1, :], ".", linewidth=2.0)
         ax.plot(positions[0, 0], positions[1, 0], marker="o", color="k")
         plot_qolo(ax=ax, position=positions[:, -1], direction=velocity)
 
@@ -65,7 +66,7 @@ def visualize_double_arch(save_figure=False):
     # y_lim = [-6, 6]
     x_lim = [-6.5, 6.5]
     y_lim = [-5.5, 5.5]
-    n_grid = 30
+    n_grid = 80
     figsize = (4, 3.5)
 
     margin_absolut = 0.5
@@ -76,11 +77,13 @@ def visualize_double_arch(save_figure=False):
     #     maximum_velocity=1.0,
     # )
 
-    initial_dynamics = SinusAttractorSystem(
-        attractor_position=attractor,
+    initial_dynamics = WavyRotatedDynamics(
+        pose=Pose(position=attractor, orientation=0),
         maximum_velocity=1.0,
+        rotation_frequency=1,
+        rotation_power=1.2,
+        max_rotation=0.4 * math.pi,
     )
-
     container = MultiObstacleContainer()
     container.append(
         BlockArchObstacle(
@@ -107,6 +110,13 @@ def visualize_double_arch(save_figure=False):
         create_convergence_dynamics=True,
     )
 
+    kwargs_quiver = {
+        # "color": "red",
+        "scale": 18,
+        "alpha": 1,
+        "width": 0.007,
+    }
+
     collision_checker = lambda pos: (not container.is_collision_free(pos))
     fig, ax = plt.subplots(figsize=figsize)
     plot_obstacle_dynamics(
@@ -116,23 +126,21 @@ def visualize_double_arch(save_figure=False):
         y_lim=y_lim,
         n_grid=n_grid,
         ax=ax,
-        attractor_position=initial_dynamics.attractor_position,
+        attractor_position=initial_dynamics.pose.position,
         collision_check_functor=None,
-        do_quiver=True,
+        do_quiver=False,
         show_ticks=False,
+        kwargs_quiver=kwargs_quiver,
     )
     # plot_multi_obstacles(ax=ax, container=container)
 
-    start_position = np.array([-4.4, 1.5])
+    start_position = np.array([-2.5, 3])
     integrate_with_qolo(
-        start_position=start_position, velocity_functor=avoider.evaluate, ax=ax
+        start_position=start_position, velocity_functor=initial_dynamics.evaluate, ax=ax
     )
 
-    if True:
-        return
-
     if save_figure:
-        fig_name = "two_arch_avoidance"
+        fig_name = "two_arch_avoidance_initial"
         fig.savefig("figures/" + fig_name + figtype, bbox_inches="tight", dpi=300)
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -143,14 +151,13 @@ def visualize_double_arch(save_figure=False):
         y_lim=y_lim,
         n_grid=n_grid,
         ax=ax,
-        attractor_position=initial_dynamics.attractor_position,
+        attractor_position=initial_dynamics.pose.position,
         collision_check_functor=collision_checker,
-        do_quiver=True,
+        do_quiver=False,
         show_ticks=False,
     )
     plot_multi_obstacles(ax=ax, container=container)
 
-    start_position = np.array([-4.4, 1.5])
     integrate_with_qolo(
         start_position=start_position, velocity_functor=avoider.evaluate, ax=ax
     )
@@ -159,12 +166,12 @@ def visualize_double_arch(save_figure=False):
         fig_name = "two_arch_avoidance"
         fig.savefig("figures/" + fig_name + figtype, bbox_inches="tight", dpi=300)
 
-    # Test collision free value
-    position = np.array([-4.5, 0.8])
-    is_colliding = collision_checker(position)
-    assert is_colliding
+    # # Test collision free value
+    # position = np.array([-4.5, 0.8])
+    # is_colliding = collision_checker(position)
+    # assert is_colliding
 
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    visualize_double_arch(save_figure=False)
+    visualize_double_arch(save_figure=True)
