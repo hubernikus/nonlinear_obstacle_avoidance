@@ -59,7 +59,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods**2))
+    out_direction *= math.sqrt(sum(dot_prods ** 2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -84,7 +84,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -224,7 +224,11 @@ class VectorRotationSequence:
     rotation_angles: np.ndarray
 
     @classmethod
-    def create_from_vector_array(cls, vectors_array: np.ndarray) -> None:
+    def create_empty(cls, dimension: int) -> Self:
+        return cls(np.zeros((dimension, 0, 2)), np.zeros(0))
+
+    @classmethod
+    def create_from_vector_array(cls, vectors_array: np.ndarray) -> Self:
         vectors_array = vectors_array / LA.norm(vectors_array, axis=0)
         dot_prod = np.sum(vectors_array[:, 1:] * vectors_array[:, :-1], axis=0)
 
@@ -256,16 +260,27 @@ class VectorRotationSequence:
         self.rotation_angles = np.append(self.rotation_angles, angle)
         vec_perp = self.basis_array[:, -1, -1] - direction * dot_prod
         vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
+        if True:
+            raise NotImplementedError
+        breakpoint()
+        # TODO: does not work yet...
         self.append_from_base_and_angle(vec_perp, angle)
 
-    def append_from_base_and_angle(self, base0: Vector, angle: float) -> None:
+    def append_from_base_and_angle(self, base0: np.array, angle: float) -> None:
         self.rotation_angles = np.append(self.rotation_angles, angle)
-        self.basis_array = np.stack(
-            (self.basis_array, [self.basis_array[:, -1, -1], base0]), axis=1
+        self.basis_array = np.append(
+            self.basis_array, base0.reshape(self.dimension, 1, 2), axis=1
         )
 
     def append_from_rotation(self, rotation: VectorRotationXd) -> None:
         raise NotImplementedError()
+
+    def get_end_vector(self) -> Vector:
+        final_rotation = VectorRotationXd(
+            base=self.basis_array[:, -1, :],
+            rotation_angle=self.rotation_angles[-1],
+        )
+        return final_rotation.rotate(self.basis_array[:, -1, 0])
 
     def rotate(self, direction: Vector, rot_factor: float = 1) -> Vector:
         """Rotate over the whole length of the vector."""
@@ -280,6 +295,9 @@ class VectorRotationSequence:
         weights (list of floats (>=0) with length [self.n_rotations]): indicates fraction
         of each rotation which is applied.
         """
+        if weights is None:
+            raise NotImplementedError("Argument needed.")
+
         # Starting at the root
         cumulated_weights = np.cumsum(weights[::-1])[::-1]
 
@@ -287,24 +305,16 @@ class VectorRotationSequence:
             warnings.warn("Weights are summing up to more than 1.")
 
         temp_base = np.copy(self.basis_array)
-        if weights is None:
-            temp_angle = self.rotation_angles
+        temp_angle = self.rotation_angles * cumulated_weights
 
-        else:
-            try:
-                temp_angle = self.rotation_angles * cumulated_weights
-            except:
-                breakpoint()
-
-            # Update the basis of rotation weights from top-to-bottom
-            # by rotating upper level base with respect to total
-            for ii in reversed(range(self.n_rotations - 1)):
-                temp_base[:, (ii + 1) :, :] = rotate_array(
-                    directions=temp_base[:, (ii + 1) :, :].reshape(self.dimension, -1),
-                    base=temp_base[:, ii, :],
-                    rotation_angle=self.rotation_angles[ii]
-                    * (1 - cumulated_weights[ii]),
-                ).reshape(self.dimension, -1, 2)
+        # Update the basis of rotation weights from top-to-bottom
+        # by rotating upper level base with respect to total
+        for ii in reversed(range(self.n_rotations - 1)):
+            temp_base[:, (ii + 1) :, :] = rotate_array(
+                directions=temp_base[:, (ii + 1) :, :].reshape(self.dimension, -1),
+                base=temp_base[:, ii, :],
+                rotation_angle=self.rotation_angles[ii] * (1 - cumulated_weights[ii]),
+            ).reshape(self.dimension, -1, 2)
 
         # Finally: rotate from bottom-to-top
         for ii in range(self.n_rotations):
@@ -358,11 +368,6 @@ class VectorRotationTree:
     @property
     def dimension(self) -> int:
         return self._dimension
-        # try:
-        #     breakpoint()
-        #     return self._graph.nodes[0]["direction"].shape[0]
-        # except AttributeError:
-        #     raise Exception("base or property has not been defined")
 
     @property
     def graph(self):
@@ -503,7 +508,18 @@ class VectorRotationTree:
     ) -> Vector:
         """Evaluate the weighted mean of the graph."""
 
-        if not math.isclose((weight_sum := np.sum(weights)), 1.0, rel_tol=1e-4):
+        # Update cumulated weights
+        sorted_list = self.get_nodes_ascending()
+
+        self.update_partial_rotations(node_list, weights, sorted_list)
+        rotation_sequence = self.evaluate_graph_summing(sorted_list)
+
+        return rotation_sequence.get_end_vector()
+
+    def update_partial_rotations(
+        self, node_list: list[NodeType], weights: list[float], sorted_list
+    ) -> None:
+        if not math.isclose((weight_sum := np.sum(weights)), 1.0, rel_tol=1e-3):
             warnings.warn(f"Sum of weights {weight_sum} is not equal to one.")
 
         # TODO: Maybe this should be done at the end of the step (?)
@@ -513,11 +529,7 @@ class VectorRotationTree:
         for ii, node in enumerate(node_list):
             self._graph.nodes[node]["weight"] = weights[ii]
 
-        # Update cumulated weights
-        sorted_list = self.get_nodes_ascending()
-
         self.evaluate_all_orientations(sorted_list)
-
         for node_id in reversed(sorted_list):
             # Reverse update the weights
             for pred_id in self._graph.predecessors(node_id):
@@ -573,9 +585,7 @@ class VectorRotationTree:
             for ii, succ in enumerate(successors):
                 self._graph.nodes[succ]["part_orientation"].base = succ_basis[:, ii, :]
 
-        return self.evaluate_graph_summing(sorted_list)
-
-    def evaluate_graph_summing(self, sorted_list) -> Vector:
+    def evaluate_graph_summing(self, sorted_list) -> VectorRotationSequence:
         """Graph summing under assumption of shared-basis at each level.
 
         => the number of calculations is $2x (n_{childrend} of node) \forall node in nodes $
@@ -583,9 +593,8 @@ class VectorRotationTree:
         But calculations are simple, i.e., this could be sped upt with cython / C++ / Rust
         """
         level_list = [self._graph.nodes[node_id]["level"] for node_id in sorted_list]
-        sequence_vectors = np.zeros((self.dimension, len(set(level_list))))
-
-        # breakpoint()
+        # sequence_vectors = np.zeros((self.dimension, len(set(level_list))))
+        vector_sequence = VectorRotationSequence.create_empty(dimension=self.dimension)
 
         # Bottom up calculation - from lowest level to highest level
         # at each level, take the weighted average of all rotations
@@ -665,13 +674,16 @@ class VectorRotationTree:
                 continue
 
             if new_angle:
+                new_base = np.vstack((shared_first_basis, averaged_direction)).T
                 # Transform to the new basis-direction
                 all_basis = rotate_array(
                     # directions=all_basis.reshape(self.dimension, -1),
                     directions=all_basis,
-                    base=np.vstack((shared_first_basis, averaged_direction)).T,
+                    base=new_base,
                     rotation_angle=new_angle,
                 ).reshape(self.dimension, -1, 2)
+
+                vector_sequence.append_from_base_and_angle(new_base, new_angle)
 
             else:
                 # Zero transformation angle, hence just reshape
@@ -680,12 +692,21 @@ class VectorRotationTree:
             for ii, node in enumerate(all_successors):
                 self._graph.nodes[node]["part_orientation"].base = all_basis[:, ii, :]
 
-        final_rotation = VectorRotationXd(
-            base=np.vstack((shared_first_basis, averaged_direction)).T,
-            rotation_angle=new_angle,
+        vector_sequence.append_from_base_and_angle(
+            np.vstack((shared_first_basis, averaged_direction)).T, new_angle
         )
 
-        return final_rotation.rotate(shared_first_basis)
+        # final_rotation = VectorRotationXd(
+        #     base=np.vstack((shared_first_basis, averaged_direction)).T,
+        #     rotation_angle=new_angle,
+        # )
+        # final_rotation = final_rotation.rotate(shared_first_basis)
+        # final_rotation_replicate = vector_sequence.get_end_vector()
+
+        # if not np.allclose(final_rotation, final_rotation_replicate):
+        #     breakpoint()
+
+        return vector_sequence
 
     def rotate(
         self, initial_vector: Vector, node_list: list[int], weights: list[float]
