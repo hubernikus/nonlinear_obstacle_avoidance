@@ -4,11 +4,20 @@ Move Around Corners with Smooth Dynamics
 import numpy as np
 import matplotlib.pyplot as plt
 
+from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
 
 from nonlinear_avoidance.dynamics.segmented_dynamics import create_segment_from_points
+from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
+from nonlinear_avoidance.nonlinear_rotation_avoider import (
+    SingularityConvergenceDynamics,
+)
 
 
 def main(n_grid=30):
@@ -61,11 +70,54 @@ def main(n_grid=30):
 
     ax.plot(trajectory[0, :], trajectory[1, :], color="red")
     ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color="red")
-    # position =
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose.create_trivial(2),
+            axes_length=np.array([1.5, 0.75]),
+            margin_absolut=0.5,
+        )
+    )
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.segments[-1].end,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    avoider = SingularityConvergenceDynamics(
+        initial_dynamics=dynamics,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    plot_obstacle_dynamics(
+        obstacle_container=obstacle_environment,
+        dynamics=avoider.evaluate,
+        x_lim=x_lim,
+        y_lim=y_lim,
+        n_grid=n_grid,
+        ax=ax,
+        # attractor_position=dynamic.attractor_position,
+        do_quiver=True,
+        # show_ticks=False,
+    )
+    plot_obstacles(
+        obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+    )
+
+    for segment in dynamics.segments:
+        ax.plot(
+            [segment.start[0], segment.end[0]],
+            [segment.start[1], segment.end[1]],
+            marker="o",
+        )
 
 
 if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
-    main()
+    main(n_grid=10)

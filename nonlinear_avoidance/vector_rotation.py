@@ -414,6 +414,54 @@ class VectorRotationTree:
 
         # TODO: what happens when you overwrite a node (?)
 
+    @classmethod
+    def from_sequence(
+        self, root_id: int, node_id: int, sequence: VectorRotationSequence
+    ) -> Self:
+        new_ = cls()
+        new_.set_root(
+            root_id,
+            VectorRotationXd(
+                base=sequence.basis_array[:, 0, :], angle=sequence.angles[0]
+            ),
+        )
+
+        # Add sequence without root
+        tmp_sequence = VectorRotationSequence(
+            basis_array=sequence.basis_array[:, 1:, :], angles=sequence.angles[1:]
+        )
+        new_.add_sequence(node_id=node_id, parent_id=root_id, sequence=tmp_sequence)
+        return new_
+
+    def add_sequence(
+        self,
+        node_id: NodeType,
+        sequence: VectorRotationSequence = None,
+        parent_id: NodeType = None,
+    ) -> None:
+
+        for ii in range(n_rotations - 1):
+            internode_id = (node_id, ii)
+            self.add_node(
+                node_id=internode_id,
+                direction=VectorRotationXd(
+                    base=sequence.basis_array[:, ii, :],
+                    angle=sequence.rotation_angles[ii],
+                ),
+                parent_id=parent_id,
+            )
+
+            parent_id = internode_id
+
+        # Real NodeId for the last node
+        self.add_node(
+            node_id=node_id,
+            direction=VectorRotationXd(
+                base=sequence.basis_array[:, -1, :], angle=sequence.rotation_angles[-1]
+            ),
+            parent_id=parent_id,
+        )
+
     def set_direction(self, node_id: int, direction: Vector) -> None:
         self._graph.nodes[node_id]["direction"] = direction
 
@@ -507,14 +555,19 @@ class VectorRotationTree:
         self, node_list: list[NodeType], weights: list[float]
     ) -> Vector:
         """Evaluate the weighted mean of the graph."""
-
-        # Update cumulated weights
-        sorted_list = self.get_nodes_ascending()
-
-        self.update_partial_rotations(node_list, weights, sorted_list)
-        rotation_sequence = self.evaluate_graph_summing(sorted_list)
-
+        # sorted_list = self.get_nodes_ascending()
+        # self.update_partial_rotations(node_list, weights, sorted_list)
+        # rotation_sequence =  self.evaluate_graph_summing(sorted_list)
+        rotation_sequence = self.reduce_weighted_to_sequence(node_list, weights)
         return rotation_sequence.get_end_vector()
+
+    def reduce_weighted_to_sequence(
+        self, node_list: list[NodeType], weights: list[float]
+    ) -> Vector:
+
+        sorted_list = self.get_nodes_ascending()
+        self.update_partial_rotations(node_list, weights, sorted_list)
+        return self.evaluate_graph_summing(sorted_list)
 
     def update_partial_rotations(
         self, node_list: list[NodeType], weights: list[float], sorted_list

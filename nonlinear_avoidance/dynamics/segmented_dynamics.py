@@ -10,6 +10,7 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
 )
 
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
+from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
 
 def rotate(orientation, vector: np.ndarray) -> np.ndarray:
@@ -73,25 +74,6 @@ class RotationTransformation2D:
         pass
 
 
-def create_segment_from_points(points, margin=0.5):
-    segments = []
-    for pp in range(1, len(points)):
-        point0 = np.array(points[pp - 1])
-        point1 = np.array(points[pp])
-
-        dir_point = point1 - point0
-        if not (point_norm := np.linalg.norm(dir_point)):
-            raise ValueError("Zero value.")
-
-        dir_point = dir_point / point_norm
-        point0 = point0 + dir_point * margin
-        point1 = point1 - dir_point * margin
-
-        segments.append(DynamicsSegment(point0, point1))
-
-    return WavyPathFollowing(segments)
-
-
 class WavyPathFollowing(Dynamics):
     def __init__(self, segments):
         self.segments = segments
@@ -128,7 +110,9 @@ class WavyPathFollowing(Dynamics):
         weights = weights / np.sum(weights)
         return np.append(weights, 0)
 
-    def evaluate(self, position: np.ndarray) -> np.ndarray:
+    def evaluate_dynamics_sequence(
+        self, position: np.ndarray
+    ) -> VectorRotationSequence:
         weights = self.get_weights(position)
 
         direction_tree = VectorRotationTree()
@@ -141,7 +125,7 @@ class WavyPathFollowing(Dynamics):
 
         directions = np.zeros((self.dimension, self.n_segments))
         for ii, segment in reversed(list(enumerate(self.segments))):
-            directions[:, ii] = segment.evaluate(position)
+            direction = segment.evaluate(position)
 
             direction_tree.add_node(
                 node_id=(1, ii),
@@ -152,23 +136,37 @@ class WavyPathFollowing(Dynamics):
             direction_tree.add_node(
                 node_id=ii,
                 parent_id=(1, ii),
-                direction=directions[:, ii],
+                direction=direction,
             )
 
-        # directional sum (!)
-        averaged_direction = get_directional_weighted_sum(
-            null_direction=self.segments[-1].direction,
-            weights=weights[:-1],
-            directions=directions,
-        )
-
-        tree_average = direction_tree.get_weighted_mean(
+        sequence = direction_tree.reduce_weighted_to_sequence(
             node_list=[ii for ii in range(self.n_segments)] + [(1, self.n_segments)],
             weights=weights,
         )
+        return sequence
 
-        # return averaged_direction
-        return tree_average
+    def evaluate(self, position: np.ndarray) -> np.ndarray:
+        sequence = self.evaluate_dynamics_sequence(position)
+        return sequence.get_end_vector()
+
+
+def create_segment_from_points(points, margin=0.5) -> WavyPathFollowing:
+    segments = []
+    for pp in range(1, len(points)):
+        point0 = np.array(points[pp - 1])
+        point1 = np.array(points[pp])
+
+        dir_point = point1 - point0
+        if not (point_norm := np.linalg.norm(dir_point)):
+            raise ValueError("Zero value.")
+
+        dir_point = dir_point / point_norm
+        point0 = point0 + dir_point * margin
+        point1 = point1 - dir_point * margin
+
+        segments.append(DynamicsSegment(point0, point1))
+
+    return WavyPathFollowing(segments)
 
 
 def test_archy_dynamics(visualize=False, n_grid=20):
