@@ -79,6 +79,8 @@ class WavyPathFollowing(Dynamics):
         self.segments = segments
 
         self.attractor_position = segments[-1].end
+        self.maximum_velocity = 1.0
+        self.slowdown_distance = 1.0
 
         self.global_dynamics = LinearSystem(
             attractor_position=self.attractor_position, maximum_velocity=1.0
@@ -92,7 +94,21 @@ class WavyPathFollowing(Dynamics):
     def dimension(self):
         return 2
 
-    def get_weights(self, position, weight_power=2, weight_factor=10):
+    def evaluate_global_dynamics(self, position: np.ndarray) -> np.ndarray:
+        direction = position - self.attractor_position
+        if dir_norm := np.linalg.norm(direction):
+            return direction / dir_norm
+        else:
+            return direction
+
+    def get_weights(
+        self,
+        position,
+        weight_power: float = 2,
+        weight_factor: float = 3,
+        dotprod_power: float = 1.0,
+    ) -> np.ndarray:
+        # TODO: Opposite (directional singularity) reduction weights
         distances = np.zeros(self.n_segments)
 
         for ii, segment in enumerate(self.segments):
@@ -104,11 +120,18 @@ class WavyPathFollowing(Dynamics):
             return np.append(weights, 0)
 
         weights = (weight_factor / distances) ** weight_power
+
+        # Remove weight from final direction
+        global_direction = (-1) * self.evaluate_global_dynamics(position)
+        dot_prod = np.dot(global_direction, self.segments[-1].direction)
+        if dot_prod < 0:
+            weights = weights * (1 + dot_prod) ** dotprod_power
+
         if (weight_sum := np.sum(weights)) < 1:
             return np.append(weights, (1 - weight_sum))
-
-        weights = weights / np.sum(weights)
-        return np.append(weights, 0)
+        else:
+            weights = weights / np.sum(weights)
+            return np.append(weights, 0)
 
     def evaluate_dynamics_sequence(
         self, position: np.ndarray
@@ -118,7 +141,8 @@ class WavyPathFollowing(Dynamics):
         direction_tree = VectorRotationTree()
         direction_tree.set_root(
             root_idx=(1, self.n_segments),
-            direction=self.segments[-1].evaluate(position)
+            # direction=self.segments[-1].evaluate(position)
+            direction=self.evaluate_global_dynamics(position),
             # Attractor currently does not work, as the weight would need to be adapted
             # direction=self.global_dynamics.evaluate(position),
         )
@@ -143,11 +167,24 @@ class WavyPathFollowing(Dynamics):
             node_list=[ii for ii in range(self.n_segments)] + [(1, self.n_segments)],
             weights=weights,
         )
+        # breakpoint()
         return sequence
 
+    def evaluate_magnitude(self, position: np.ndarray) -> float:
+        dist_attr = np.linalg.norm(position - self.attractor_position)
+
+        if dist_attr > self.slowdown_distance:
+            return self.maximum_velocity
+
+        return dist_attr / self.slowdown_distance * self.maximum_velocity
+
     def evaluate(self, position: np.ndarray) -> np.ndarray:
+        vel_attractor = self.evaluate_magnitude(position)
+        if not np.linalg.norm(vel_attractor):
+            return vel_attractor
+
         sequence = self.evaluate_dynamics_sequence(position)
-        return sequence.get_end_vector()
+        return sequence.get_end_vector() * vel_attractor
 
 
 def create_segment_from_points(points, margin=0.5) -> WavyPathFollowing:
@@ -200,11 +237,31 @@ def test_archy_dynamics(visualize=False, n_grid=20):
             # show_ticks=False,
         )
 
+    # #  Weight below last one
+    position = np.array([3.1, -1.7])
+    velocity = dynamics.evaluate(position)
+    print(velocity)
+    breakpoint()
+    # assert np.isclose(weights[-1], 1)
+    # assert np.isclose(np.sum(weights), 1)
+
+    # Zero velocity at attractor
+    velocity = dynamics.evaluate(dynamics.attractor_position)
+    assert np.allclose(velocity, np.zeros_like(velocity)), "Zero velocity at attractor."
+
+    #  Weight below last one
+    position = dynamics.attractor_position + dynamics.segments[-1].direction * 5.0
+    weights = dynamics.get_weights(position)
+    assert np.isclose(weights[-1], 1)
+    assert np.isclose(np.sum(weights), 1)
+
+    # Max weight is the second weight
     position = np.array([4.0, 0.0])
     weights = dynamics.get_weights(position)
-    # Max weight is the second weight
     assert np.isclose(np.max(weights), weights[2])
+    assert np.isclose(np.sum(weights), 1)
 
+    # Velocities
     velocity = dynamics.evaluate(position)
     assert velocity[1] < 0
     assert velocity[0] < 0
