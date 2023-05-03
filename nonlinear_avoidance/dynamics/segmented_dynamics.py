@@ -1,10 +1,10 @@
+import math
 from dataclasses import dataclass
 
 import numpy as np
 
 from vartools.dynamics import Dynamics, LinearSystem
 from vartools.directional_space import get_directional_weighted_sum
-
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
@@ -95,7 +95,7 @@ class WavyPathFollowing(Dynamics):
         return 2
 
     def evaluate_global_dynamics(self, position: np.ndarray) -> np.ndarray:
-        direction = position - self.attractor_position
+        direction = self.attractor_position - position
         if dir_norm := np.linalg.norm(direction):
             return direction / dir_norm
         else:
@@ -122,7 +122,7 @@ class WavyPathFollowing(Dynamics):
         weights = (weight_factor / distances) ** weight_power
 
         # Remove weight from final direction
-        global_direction = (-1) * self.evaluate_global_dynamics(position)
+        global_direction = self.evaluate_global_dynamics(position)
         dot_prod = np.dot(global_direction, self.segments[-1].direction)
         if dot_prod < 0:
             weights = weights * (1 + dot_prod) ** dotprod_power
@@ -167,7 +167,6 @@ class WavyPathFollowing(Dynamics):
             node_list=[ii for ii in range(self.n_segments)] + [(1, self.n_segments)],
             weights=weights,
         )
-        # breakpoint()
         return sequence
 
     def evaluate_magnitude(self, position: np.ndarray) -> float:
@@ -207,6 +206,7 @@ def create_segment_from_points(points, margin=0.5) -> WavyPathFollowing:
 
 
 def test_archy_dynamics(visualize=False, n_grid=20):
+    # TODO: create test-script
     dynamics = create_segment_from_points(
         [[0.0, 0.0], [0.0, 3.0], [3.0, 3.0], [3.0, 0.0]],
         margin=0.1,
@@ -237,23 +237,24 @@ def test_archy_dynamics(visualize=False, n_grid=20):
             # show_ticks=False,
         )
 
-    # #  Weight below last one
+    #  Weight below last one
     position = np.array([3.1, -1.7])
-    velocity = dynamics.evaluate(position)
-    print(velocity)
-    breakpoint()
-    # assert np.isclose(weights[-1], 1)
-    # assert np.isclose(np.sum(weights), 1)
+    weights = dynamics.get_weights(position)
+    assert np.isclose(weights[-1], 1, atol=0.1)
+    assert np.isclose(np.sum(weights), 1)
 
-    # Zero velocity at attractor
-    velocity = dynamics.evaluate(dynamics.attractor_position)
-    assert np.allclose(velocity, np.zeros_like(velocity)), "Zero velocity at attractor."
+    velocity = dynamics.evaluate(position)
+    assert velocity[1] > 0, "Pointing towards attractor"
 
     #  Weight below last one
     position = dynamics.attractor_position + dynamics.segments[-1].direction * 5.0
     weights = dynamics.get_weights(position)
     assert np.isclose(weights[-1], 1)
     assert np.isclose(np.sum(weights), 1)
+
+    # Zero velocity at attractor
+    velocity = dynamics.evaluate(dynamics.attractor_position)
+    assert np.allclose(velocity, np.zeros_like(velocity)), "Zero velocity at attractor."
 
     # Max weight is the second weight
     position = np.array([4.0, 0.0])

@@ -4,6 +4,8 @@ Move Around Corners with Smooth Dynamics
 import numpy as np
 import matplotlib.pyplot as plt
 
+from vartools.states import Pose
+
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
@@ -68,8 +70,8 @@ def main(n_grid=30):
         velocity = dynamics.evaluate(trajectory[:, ii - 1])
         trajectory[:, ii] = trajectory[:, ii - 1] + velocity * dt
 
-    ax.plot(trajectory[0, :], trajectory[1, :], color="red")
-    ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color="red")
+    ax.plot(trajectory[0, :], trajectory[1, :], ":", color="black")
+    ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color="black")
 
     fig, ax = plt.subplots(figsize=(6, 5))
     obstacle_environment = RotationContainer()

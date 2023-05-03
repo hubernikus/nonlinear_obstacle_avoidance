@@ -140,7 +140,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
     def evaluate_initial_dynamics(self, position: np.ndarray) -> np.ndarray:
         return self._rotation_avoider.initial_dynamics.evaluate(position)
 
-    def evaluate_dynamics_sequence(
+    def evaluate_initial_dynamics_sequence(
         self, position: np.ndarray
     ) -> Optional[VectorRotationSequence]:
         return self._rotation_avoider.initial_dynamics.evaluate_dynamics_sequence(
@@ -178,10 +178,12 @@ class SingularityConvergenceDynamics(BaseAvoider):
 
         return rotated_velocity * initial_norm
 
-    def evaluate_sequence(self, position: np.ndarray) -> VectorRotationSequence:
-        initial_sequence = self.evaluate_dynamics_sequence(position)
+    def evaluate_sequence(self, position: np.ndarray) -> np.ndarray:
+        initial_sequence = self.evaluate_initial_dynamics_sequence(position)
         if initial_sequence is None:
             return np.zeros(self.dimension)
+
+        self.evaluate_weighted_dnamics_sequence(position, initial_sequence)
 
     def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
         # TODO: test this...
@@ -230,7 +232,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
         self.weights[ind_obs] = weights
         return ind_obs
 
-    def evaluate_weighted_sequence(
+    def evaluate_weighted_dynamics_sequence(
         self, position: np.ndarray, initial_sequence: VectorRotationSequence
     ) -> VectorRotationSequence:
         ind_obs = self.compute_gamma_weights(position)

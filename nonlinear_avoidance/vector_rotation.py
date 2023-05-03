@@ -14,6 +14,7 @@ from typing import Optional, Hashable
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 
 import numpy.typing as npt
 from numpy import linalg as LA
@@ -59,7 +60,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods ** 2))
+    out_direction *= math.sqrt(sum(dot_prods**2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -84,7 +85,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -107,7 +108,7 @@ class VectorRotationXd:
     rotation_angle: float
 
     @classmethod
-    def from_directions(cls, vec_init: Vector, vec_rot: Vector) -> VectorRotationXd:
+    def from_directions(cls, vec_init: Vector, vec_rot: Vector) -> Self:
         """Alternative constructor base on two input vectors which define the
         initialization."""
 
@@ -341,25 +342,32 @@ class VectorRotationTree:
     # as it might happend at  zero-level
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
-    def __init__(self, root_idx: int = None, root_direction: Vector = None) -> None:
+    def __init__(
+        self, root_idx: Optional[int] = None, root_direction: Optional[Vector] = None
+    ) -> None:
         self._graph = nx.DiGraph()
 
-        if root_idx is not None:
+        if root_idx is not None and root_direction is not None:
             self.set_root(root_idx, root_direction)
 
-    def set_root(self, root_idx: NodeType, direction: Vector):
-        # To easier find the root again (!)
+    def set_root_orientation(
+        self, root_id: NodeType, orientation: VectorRotationXd
+    ) -> None:
         self._graph.add_node(
-            root_idx,
+            root_id,
             level=0,
-            direction=direction,
+            direction=orientation.base[:, 0],
             weight=0,
-            orientation=VectorRotationXd.from_directions(direction, direction),
+            orientation=orientation,
         )
 
-        self._dimension = direction.shape[0]
+        self._root_idx = root_id
+        self._dimension = orientation.dimension
+
+    def set_root(self, root_idx: NodeType, direction: Vector) -> None:
         # To easier find the root again (!)
-        self._root_idx = root_idx
+        vector_orientation = VectorRotationXd.from_directions(direction, direction)
+        self.set_root_orientation(root_idx, vector_orientation)
 
     @property
     def root(self) -> NodeType:
@@ -373,6 +381,12 @@ class VectorRotationTree:
     def graph(self):
         # rename to _G (?)
         return self._graph
+
+    def add_node_orientation(
+        self, node_id: NodeType, orientation: VectorRotationXd, parent_id: NodeType
+    ) -> None:
+        direction = orientation.rotate(orientation.base[:, 0])
+        self.add_node(node_id=node_id, direction=direction, parent_id=parent_id)
 
     def add_node(
         self,
@@ -416,19 +430,15 @@ class VectorRotationTree:
 
     @classmethod
     def from_sequence(
-        self, root_id: int, node_id: int, sequence: VectorRotationSequence
+        cls, root_id: int, node_id: int, sequence: VectorRotationSequence
     ) -> Self:
         new_ = cls()
-        new_.set_root(
-            root_id,
-            VectorRotationXd(
-                base=sequence.basis_array[:, 0, :], angle=sequence.angles[0]
-            ),
-        )
+        new_.set_root(root_id, direction=sequence.basis_array[:, 0, 0])
 
         # Add sequence without root
         tmp_sequence = VectorRotationSequence(
-            basis_array=sequence.basis_array[:, 1:, :], angles=sequence.angles[1:]
+            basis_array=sequence.basis_array[:, 1:, :],
+            rotation_angles=sequence.rotation_angles[1:],
         )
         new_.add_sequence(node_id=node_id, parent_id=root_id, sequence=tmp_sequence)
         return new_
@@ -440,25 +450,20 @@ class VectorRotationTree:
         parent_id: NodeType = None,
     ) -> None:
 
-        for ii in range(n_rotations - 1):
+        for ii in range(sequence.n_rotations):
             internode_id = (node_id, ii)
             self.add_node(
                 node_id=internode_id,
-                direction=VectorRotationXd(
-                    base=sequence.basis_array[:, ii, :],
-                    angle=sequence.rotation_angles[ii],
-                ),
+                direction=sequence.basis_array[:, ii, 0],
                 parent_id=parent_id,
             )
-
             parent_id = internode_id
 
         # Real NodeId for the last node
+        final_direction = sequence.get_end_vector()
         self.add_node(
             node_id=node_id,
-            direction=VectorRotationXd(
-                base=sequence.basis_array[:, -1, :], angle=sequence.rotation_angles[-1]
-            ),
+            direction=final_direction,
             parent_id=parent_id,
         )
 
@@ -562,8 +567,8 @@ class VectorRotationTree:
         return rotation_sequence.get_end_vector()
 
     def reduce_weighted_to_sequence(
-        self, node_list: list[NodeType], weights: list[float]
-    ) -> Vector:
+        self, node_list: list[NodeType], weights: npd.ArrayLike
+    ) -> VectorRotationSequence:
 
         sorted_list = self.get_nodes_ascending()
         self.update_partial_rotations(node_list, weights, sorted_list)
