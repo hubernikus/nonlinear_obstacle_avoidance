@@ -183,7 +183,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
         if initial_sequence is None:
             return np.zeros(self.dimension)
 
-        self.evaluate_weighted_dnamics_sequence(position, initial_sequence)
+        convergence_sequence = self.evaluate_weighted_dynamics_sequence(
+            position, initial_sequence
+        )
 
     def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
         # TODO: test this...
