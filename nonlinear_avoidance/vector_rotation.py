@@ -255,19 +255,12 @@ class VectorRotationSequence:
         return self.basis_array[:, [0, -1]]
 
     def append_from_direction(self, direction: Vector) -> None:
-        dot_prod = np.dot(self.basis_array[:, -1, -1], direction)
-        angle = np.arccos(dot_prod)
+        rotation = VectorRotationXd.from_directions(
+            self.basis_array[:, -1, -1], direction
+        )
+        self.append_from_base_and_angle(rotation.base, rotation.rotation_angle)
 
-        self.rotation_angles = np.append(self.rotation_angles, angle)
-        vec_perp = self.basis_array[:, -1, -1] - direction * dot_prod
-        vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
-        if True:
-            raise NotImplementedError
-        breakpoint()
-        # TODO: does not work yet...
-        self.append_from_base_and_angle(vec_perp, angle)
-
-    def append_from_base_and_angle(self, base0: np.array, angle: float) -> None:
+    def append_from_base_and_angle(self, base0: np.ndarray, angle: float) -> None:
         self.rotation_angles = np.append(self.rotation_angles, angle)
         self.basis_array = np.append(
             self.basis_array, base0.reshape(self.dimension, 1, 2), axis=1
@@ -567,7 +560,7 @@ class VectorRotationTree:
         return rotation_sequence.get_end_vector()
 
     def reduce_weighted_to_sequence(
-        self, node_list: list[NodeType], weights: npd.ArrayLike
+        self, node_list: list[NodeType], weights: npt.ArrayLike
     ) -> VectorRotationSequence:
 
         sorted_list = self.get_nodes_ascending()

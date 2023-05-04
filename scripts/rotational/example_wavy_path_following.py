@@ -118,8 +118,68 @@ def main(n_grid=30):
         )
 
 
+def test_simple_arch_sequence_avoidance(visualize=False):
+    dynamics = create_segment_from_points(
+        [
+            [-4.0, -2.5],
+            [0.0, -2.5],
+            [0.0, 2.5],
+            [4.0, 2.5],
+        ]
+    )
+
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose.create_trivial(2),
+            axes_length=np.array([1.5, 0.75]),
+            margin_absolut=0.5,
+        )
+    )
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.segments[-1].end,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    avoider = SingularityConvergenceDynamics(
+        initial_dynamics=dynamics,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    if visualize:
+        n_grid = 10
+        x_lim = [-3, 3]
+        y_lim = [-3, 3]
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_environment,
+            dynamics=avoider.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            # attractor_position=dynamic.attractor_position,
+            do_quiver=True,
+            # show_ticks=False,
+        )
+
+        plot_obstacles(
+            obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+        )
+
+    # Avoiding in the correct direction
+    position = np.array([-1, -1])
+    velocity = avoider.evaluate_sequence(position)
+    # assert velocity[0] < 0, "Avoidance of local minima."
+
+
 if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
-    main(n_grid=10)
+    # main(n_grid=10)
+    test_simple_arch_sequence_avoidance(visualize=False)

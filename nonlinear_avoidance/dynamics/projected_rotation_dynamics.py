@@ -1,6 +1,6 @@
-""" Class to Deviate a DS based on an underlying obtacle.
 """
-# %%
+Class to deviate a DS based on an underlying obstacle.
+"""
 import sys
 import math
 import copy
@@ -30,6 +30,9 @@ from nonlinear_avoidance.avoidance import (
 )
 
 from nonlinear_avoidance.vector_rotation import VectorRotationXd
+from nonlinear_avoidance.vector_rotation import VectorRotationSequence
+from nonlinear_avoidance.vector_rotation import VectorRotationTree
+
 from nonlinear_avoidance.datatypes import Vector
 
 
@@ -109,7 +112,7 @@ class ProjectedRotationDynamics:
                     dist_stretching = LA.norm(position) / LA.norm(
                         self.obstacle.center_position
                     )
-                    gamma = gamma ** dist_stretching
+                    gamma = gamma**dist_stretching
                 else:
                     gamma = self.max_gamma
 
@@ -306,8 +309,8 @@ class ProjectedRotationDynamics:
         radius = np.dot(dir_attractor_to_obstacle, dir_obstacle_to_position) * pos_norm
 
         # Ensure that the square root stays positive close to singularities
-        dot_prod = math.sqrt(max(pos_norm ** 2 - radius ** 2, 0))
-        dot_prod = dot_prod ** self.dotprod_projection_power
+        dot_prod = math.sqrt(max(pos_norm**2 - radius**2, 0))
+        dot_prod = dot_prod**self.dotprod_projection_power
         dot_prod = 2.0 / (dot_prod + 1) - 1
 
         if dot_prod < 1:
@@ -440,6 +443,89 @@ class ProjectedRotationDynamics:
         else:
             return dist_attr
 
+    def _evaluate_rotation_position_to_transform(
+        self, position: np.ndarray, obstacle: Obstacle
+    ) -> Optional[VectorRotationXd]:
+        dir_attr_to_pos = position - self.attractor_position
+        if not (dir_norm := LA.norm(dir_attr_to_pos)):
+            # We're at the attractor -> zero-velocity
+            return None
+        dir_attr_to_pos = dir_attr_to_pos / dir_norm
+
+        dir_obs_to_pos = obstacle.center_position - self.attractor_position
+        if not (dir_norm := LA.norm(dir_obs_to_pos)):
+            raise NotImplementedError("Position is at center-of the obstacle.")
+        dir_obs_to_pos = dir_obs_to_pos / dir_norm
+
+        dir_attr_to_obs = obstacle.center_position - self.attractor_position
+        if not (obs_norm := LA.norm(dir_attr_to_obs)):
+            raise NotImplementedError("Obstacle is at attractor.")
+        dir_attr_to_obs = dir_attr_to_obs / obs_norm
+
+        if np.dot(dir_attr_to_pos, dir_attr_to_obs) <= -1:
+            return None
+
+        rotation_pos_to_transform = VectorRotationXd.from_directions(
+            dir_attr_to_pos, dir_attr_to_obs
+        )
+        return rotation_pos_to_transform
+
+    def _evaluate_projected_weight(
+        self, position: np.ndarray, obstacle: Obstacle
+    ) -> float:
+        # Obstacle velocity will not change when being transformed, as it's the static point
+        projected_position = self.get_projected_position(position)
+        proj_gamma = obstacle.get_gamma(projected_position, in_global_frame=True)
+        if proj_gamma <= 1:
+            return 1.0
+        else:
+            return 1.0 / proj_gamma
+
+    def evaluate_convergence_sequence_around_obstacle(
+        self,
+        position: Vector,
+        obstacle: Obstacle,
+    ) -> VectorRotationSequence:
+        self.obstacle = obstacle
+
+        initial_sequence = self.initial_dynamics.evaluate_dynamics_sequence(position)
+        obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
+            obstacle.center_position
+        )
+
+        # Evaluate weighted position
+        rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
+            position, obstacle
+        )
+        if rotation_pos_to_transform is None:
+            # At the attractor or opposite side -> no linearization
+            raise NotImplementedError()
+
+        initial_velocity_transformed = rotation_pos_to_transform.rotate(
+            initial_sequence.get_end_vector()
+        )
+        initial_sequence.append_from_direction(initial_velocity_transformed)
+
+        # Create tree and reduce to single-sequence
+        convergence_tree = VectorRotationTree.from_sequence(
+            root_id=0, node_id=1, sequence=initial_sequence
+        )
+        convergence_tree.add_sequence(
+            parent_id=0, node_id=2, sequence=obstacle_sequence
+        )
+        weight = self._evaluate_projected_weight(position, obstacle)
+        convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
+            [1, 2], [(1 - weight), weight]
+        )
+
+        # Rotate back
+        averaged_direction = rotation_pos_to_transform.rotate(
+            convergence_sequence.get_end_vector(), rot_factor=(-1) * (1 - weight)
+        )
+        convergence_sequence.append_from_direction(averaged_direction)
+
+        return convergence_sequence
+
     def evaluate_convergence_around_obstacle(
         self,
         position: Vector,
@@ -452,54 +538,19 @@ class ProjectedRotationDynamics:
         initial_velocity = self.initial_dynamics.evaluate(position)
         obstacle_velocity = self.initial_dynamics.evaluate(obstacle.center_position)
 
-        base_convergence_direction = self.get_base_convergence(position)
-
-        dir_attr_to_pos = position - self.attractor_position
-        if not (dir_norm := LA.norm(dir_attr_to_pos)):
-            # We're at the attractor -> no / zero velocity
-            return np.zeros_like(position)
-        dir_attr_to_pos = dir_attr_to_pos / dir_norm
-
-        # dir_pos_to_obstacle = self.obstacle.center_position - self.attractor_position
-        # if not (obs_norm := LA.norm(dir_pos_to_obstacle)):
-        #     raise NotImplementedError()
-
-        dir_obs_to_pos = self.obstacle.center_position - self.attractor_position
-        if not (dir_norm := LA.norm(dir_obs_to_pos)):
-            # We're at the attractor -> no / zero velocity
-            raise NotImplementedError()
-
-        dir_obs_to_pos = dir_obs_to_pos / dir_norm
-
-        dir_attr_to_obs = self.obstacle.center_position - self.attractor_position
-        if not (obs_norm := LA.norm(dir_attr_to_obs)):
-            raise NotImplementedError()
-
-        dir_attr_to_obs = dir_attr_to_obs / obs_norm
-
-        if np.dot(dir_attr_to_pos, dir_attr_to_obs) <= -1:
-            return initial_velocity
-
-        rotation_pos_to_transform = VectorRotationXd.from_directions(
-            dir_attr_to_pos, dir_attr_to_obs
+        # base_convergence_direction = self.get_base_convergence(position)
+        # The transform for the obstacle-velocity is zero
+        rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
+            position, obstacle
         )
-
-        projected_position = self.get_projected_position(position)
-        proj_gamma = obstacle.get_gamma(projected_position, in_global_frame=True)
-
-        if rotation_pos_to_transform.rotation_angle >= math.pi:
-            # We're the maximum away in the projected space, no linearization
+        if rotation_pos_to_transform is None:
+            # At the attractor or opposite side -> no linearization
             return initial_velocity
 
         initial_velocity_transformed = rotation_pos_to_transform.rotate(
             initial_velocity
         )
-
-        # Obstacle velocity will not change when being transformed, as it's the static point
-        if proj_gamma <= 1:
-            weight = 1
-        else:
-            weight = 1 / proj_gamma
+        weight = self._evaluate_projected_weight(position, obstacle)
 
         # TODO: use VectorRotationXd for this...
         averaged_direction_transformed = get_directional_weighted_sum(

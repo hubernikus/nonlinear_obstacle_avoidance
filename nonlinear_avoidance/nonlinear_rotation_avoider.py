@@ -247,13 +247,13 @@ class SingularityConvergenceDynamics(BaseAvoider):
 
         for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
             obstacle_convergence_sequence = (
-                self.obstacle_convergence.evaluate_convergence_around_obstacle(
+                self.obstacle_convergence.evaluate_convergence_sequence_around_obstacle(
                     position, obstacle=self._rotation_avoider.obstacle_environment[ii]
                 )
             )
 
             direction_tree.add_sequence(
-                direction=obstacle_convergence_sequence,
+                sequence=obstacle_convergence_sequence,
                 node_id=it_obs,
                 parent_id=root_id,
             )
