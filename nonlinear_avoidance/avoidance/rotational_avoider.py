@@ -27,6 +27,7 @@ from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.utils import get_weight_from_inv_of_gamma
 from dynamic_obstacle_avoidance.utils import get_relative_obstacle_velocity
 from dynamic_obstacle_avoidance.avoidance import BaseAvoider
+from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 
@@ -83,6 +84,48 @@ class RotationalAvoider(BaseAvoider):
     def evaluate(self, position):
         return self.avoid(position)
 
+    @staticmethod
+    def compute_obstacle_gamma(
+        position: Vector, obstacle_list: ObstacleContainer
+    ) -> np.ndarray:
+        gamma_array = np.zeros((len(obstacle_list)))
+        for ii in range(len(obstacle_list)):
+            gamma_array[ii] = obstacle_list[ii].get_gamma(
+                position, in_global_frame=True
+            )
+
+            if gamma_array[ii] < 1 and not obstacle_list[ii].is_boundary:
+                # Since boundaries are mutually subtracted,
+                # raise NotImplementedError()
+                warnings.warn("The evaluation is in the boundary.")
+                # TODO: the repulsion could / should be increased with increasing
+                # penetration of the obstacle$
+                gamma_array[ii] = 1
+
+        return gamma_array
+
+    @staticmethod
+    def compute_normal_tensor(
+        position: np.ndarray, obstacle_list: ObstacleContainer, ind_obs: np.ndarray
+    ) -> np.ndarray:
+        dimension = position.shape[0]
+        normal_orthogonal_matrix = np.zeros((dimension, dimension, np.sum(ind_obs)))
+
+        normal_dirs = np.zeros((dimension, len(obstacle_list)))
+        for it, it_obs in enumerate(np.arange(len(obstacle_list))[ind_obs]):
+            # gamma_proportional[it] = obstacle_list[it_obs].get_gamma(
+            #     position,
+            #     in_global_frame=True,
+            # )
+
+            normal_dirs[:, it] = obstacle_list[it_obs].get_normal_direction(
+                position, in_global_frame=True
+            )
+            normal_orthogonal_matrix[:, :, it] = get_orthogonal_basis(
+                normal_dirs[:, it]
+            )
+        return normal_orthogonal_matrix
+
     def avoid(
         self,
         position: np.ndarray,
@@ -117,15 +160,11 @@ class RotationalAvoider(BaseAvoider):
                 raise ValueError("Need environment information.")
             obstacle_list = self.obstacle_environment
 
-        norm_initial = LA.norm(initial_velocity)
-
-        if obstacle_list is None:
-            # TODO: depreciated
-            obstacle_list = self.obstacle_environment
-
         n_obstacles = len(obstacle_list)
         if not n_obstacles:  # No obstacles in the environment
             return initial_velocity
+
+        norm_initial = LA.norm(initial_velocity)
 
         if hasattr(obstacle_list, "update_relative_reference_point"):
             # TODO: directly return gamma_array
@@ -133,19 +172,7 @@ class RotationalAvoider(BaseAvoider):
 
         dimension = position.shape[0]
 
-        gamma_array = np.zeros((n_obstacles))
-        for ii in range(n_obstacles):
-            gamma_array[ii] = obstacle_list[ii].get_gamma(
-                position, in_global_frame=True
-            )
-
-            if gamma_array[ii] < 1 and not obstacle_list[ii].is_boundary:
-                # Since boundaries are mutually subtracted,
-                # raise NotImplementedError()
-                warnings.warn("The evaluation is in the boundary.")
-                # TODO: the repulsion could / should be increased with increasing
-                # penetration of the obstacle$
-                gamma_array[ii] = 1
+        gamma_array = self.compute_obstacle_gamma(position, obstacle_list)
 
         ind_obs = np.logical_and(gamma_array < self.cut_off_gamma, gamma_array >= 1)
 
@@ -155,44 +182,31 @@ class RotationalAvoider(BaseAvoider):
         n_obs_close = np.sum(ind_obs)
 
         gamma_array = gamma_array[ind_obs]  # Only keep relevant ones
-        gamma_proportional = np.zeros((n_obs_close))
-        normal_orthogonal_matrix = np.zeros((dimension, dimension, n_obs_close))
+        # gamma_proportional = np.zeros((n_obs_close))
 
-        normal_dirs = np.zeros((dimension, gamma_array.shape[0]))
-        for it, it_obs in zip(range(n_obs_close), np.arange(n_obstacles)[ind_obs]):
-            gamma_proportional[it] = obstacle_list[it_obs].get_gamma(
-                position,
-                in_global_frame=True,
-            )
-
-            normal_dirs[:, it] = obstacle_list[it_obs].get_normal_direction(
-                position, in_global_frame=True
-            )
-            normal_orthogonal_matrix[:, :, it] = get_orthogonal_basis(
-                normal_dirs[:, it]
-            )
+        normal_orthogonal_matrix = self.compute_normal_tensor(
+            position, obstacle_list, ind_obs
+        )
 
         weights = compute_weights(gamma_array)
+        inv_gamma_weight = get_weight_from_inv_of_gamma(gamma_array)
+
         relative_velocity = get_relative_obstacle_velocity(
             position=position,
             obstacle_list=obstacle_list,
             ind_obstacles=ind_obs,
-            gamma_list=gamma_proportional,
+            gamma_list=gamma_array,
             E_orth=normal_orthogonal_matrix,
             weights=weights,
         )
-        # modulated_velocity = initial_velocity - relative_velocity
 
         initial_velocity = initial_velocity - relative_velocity
         if not LA.norm(initial_velocity):
             return initial_velocity + relative_velocity
 
-        inv_gamma_weight = get_weight_from_inv_of_gamma(gamma_array)
-        # rotated_velocities = np.zeros((dimension, n_obs_close))
-
         # rotated_directions = [None] * n_obs_close
         rotated_directions = np.zeros((dimension, n_obs_close))
-        for it, it_obs in zip(range(n_obs_close), np.arange(n_obstacles)[ind_obs]):
+        for it, it_obs in enumerate(np.arange(n_obstacles)[ind_obs]):
             # It is with respect to the close-obstacles
             # -- it_obs ONLY to use in obstacle_list (whole)
             # => the null matrix should be based on the normal
@@ -276,7 +290,9 @@ class RotationalAvoider(BaseAvoider):
         else:
             # Get averaged normal
             averaged_normal = np.sum(
-                normal_dirs * np.tile(weights, (dimension, 1)), axis=1
+                # normal_dirs * np.tile(weights, (dimension, 1)), axis=1
+                normal_orthogonal_matrix[:, 0, :] * np.tile(weights, (dimension, 1)),
+                axis=1,
             )
 
             rotated_velocity = self._magnitude_save_adaptation(
@@ -829,7 +845,8 @@ class RotationalAvoider(BaseAvoider):
         # else:
         #     null_vector = conv_vector
 
-        if do_graph_summing := True:
+        do_graph_summing = True
+        if do_graph_summing:
             # This is now replacing the 'general_weighted_sum'
             # as it takes better into account the history
             direction_tree = VectorRotationTree()
@@ -881,6 +898,7 @@ class RotationalAvoider(BaseAvoider):
                     (dir_convergence_tangent.as_vector(), dir_initial.as_vector())
                 ).T,
             )
+            averaged_direction = rotated_velocity
 
         # return rotated_velocity
         return averaged_direction

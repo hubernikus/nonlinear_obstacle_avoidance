@@ -8,4 +8,4 @@ logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter("%(asctime)s - %(module)s - %(levelname)s - %(message)s")
 
-logger.info(f"Logger is active.")
+logger.info("Logger is active.")

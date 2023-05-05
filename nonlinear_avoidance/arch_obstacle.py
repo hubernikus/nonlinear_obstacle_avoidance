@@ -142,10 +142,7 @@ class BlockArchObstacle:
         if idx_obs == self.root_idx:
             return None
         else:
-            try:
-                return list(self._graph.predecessors(idx_obs))[0]
-            except:
-                breakpoint()
+            return list(self._graph.predecessors(idx_obs))[0]
 
     def get_component(self, idx_obs: int) -> Obstacle:
         return self._obstacle_list[idx_obs]
