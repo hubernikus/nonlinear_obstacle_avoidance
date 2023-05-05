@@ -384,11 +384,32 @@ def test_tree_assembly_and_reduction_3d():
     assert merged_sequence.n_rotations == 2, "Incorrect rotation-level after reduction."
 
 
+def test_rotation_of_sequence():
+    sqrt2 = np.sqrt(2) / 2
+    sequence = VectorRotationSequence.create_from_vector_array(
+        np.array([[1.0, 0.0], [sqrt2, sqrt2], [0.0, 1.0]]).T
+    )
+    rotation = VectorRotationXd.from_directions([0.0, -1.0], [-1, -1])
+
+    rotated_sequence = rotation.rotate_sequence(sequence)
+    assert np.allclose(rotated_sequence.get_end_vector(), [sqrt2, sqrt2])
+
+    vector = np.array([2, 3])
+    vector = vector / np.linalg.norm(vector)
+    rot_vect1 = sequence.rotate(vector)
+    rot_vect2 = rotated_sequence.rotate(vector)
+    assert np.allclose(
+        rot_vect1, rot_vect2
+    ), "Rotation should remain for vectors in the plane."
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
-    # test_tree_assembly_and_reduction()
+    test_rotation_of_sequence()
+
+    test_tree_assembly_and_reduction()
     test_tree_assembly_and_reduction_3d()
 
     test_double_branch_tree()

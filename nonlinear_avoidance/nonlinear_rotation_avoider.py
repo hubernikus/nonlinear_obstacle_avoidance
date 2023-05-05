@@ -240,9 +240,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
         ind_obs = self.compute_gamma_weights(position)
 
         # Assumption of shared root_id
-        root_id = -1
+        root_id = -10
         direction_tree = VectorRotationTree.from_sequence(
-            root_id=root_id, node_id=0, sequence=initial_sequence
+            root_id=root_id, node_id=-1, sequence=initial_sequence
         )
 
         for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
@@ -251,7 +251,6 @@ class SingularityConvergenceDynamics(BaseAvoider):
                     position, obstacle=self._rotation_avoider.obstacle_environment[ii]
                 )
             )
-
             direction_tree.add_sequence(
                 sequence=obstacle_convergence_sequence,
                 node_id=it_obs,

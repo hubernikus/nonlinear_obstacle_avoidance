@@ -177,9 +177,30 @@ def test_simple_arch_sequence_avoidance(visualize=False):
     # assert velocity[0] < 0, "Avoidance of local minima."
 
 
+def test_common_root_of_sequence():
+    dynamics = create_segment_from_points(
+        [
+            [-4.0, -2.5],
+            [0.0, -2.5],
+            [0.0, 2.5],
+            [4.0, 2.5],
+        ]
+    )
+
+    position1 = np.array([1.0, 0.0])
+    sequence1 = dynamics.evaluate_dynamics_sequence(position1)
+
+    position2 = np.array([0.0, 1.0])
+    sequence2 = dynamics.evaluate_dynamics_sequence(position2)
+
+    # Rotate the sequence
+    breakpoint()
+
+
 if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
     # main(n_grid=10)
-    test_simple_arch_sequence_avoidance(visualize=False)
+    test_simple_arch_sequence_avoidance(visualize=True)
+    # test_common_root_of_sequence()

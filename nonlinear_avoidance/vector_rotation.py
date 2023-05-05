@@ -162,7 +162,7 @@ class VectorRotationXd:
             base=self.base,
         )
 
-    def rotate(self, direction, rot_factor: float = 1):
+    def rotate(self, direction: Vector, rot_factor: float = 1) -> Vector:
         """Returns the rotated of the input vector with respect to the base and rotation angle
         rot_factor: factor gives information about extension of rotation"""
         return rotate_direction(
@@ -170,6 +170,21 @@ class VectorRotationXd:
             rotation_angle=rot_factor * self.rotation_angle,
             base=self.base,
         )
+
+    def rotate_sequence(
+        self, sequence: VectorRotationSequence, rotation_factor: float = 1.0
+    ) -> VectorRotationSequence:
+        # Make sure to keep original
+        sequence = copy.deepcopy(sequence)
+
+        base_rotated = rotate_array(
+            directions=sequence.basis_array.reshape(self.dimension, -1),
+            base=self.base,
+            rotation_angle=self.rotation_angle * rotation_factor,
+        )
+
+        sequence.basis_array = base_rotated.reshape(self.dimension, -1, 2)
+        return sequence
 
     def rotate_vector_rotation(
         self, rotation: VectorRotationXd, rot_factor: float = 1
@@ -264,6 +279,12 @@ class VectorRotationSequence:
         self.rotation_angles = np.append(self.rotation_angles, angle)
         self.basis_array = np.append(
             self.basis_array, base0.reshape(self.dimension, 1, 2), axis=1
+        )
+
+    def push_root_from_base_and_angle(self, base0: np.ndarray, angle: float) -> None:
+        self.rotation_angles = np.append(angle, self.rotation_angles)
+        self.basis_array = np.append(
+            base0.reshape(self.dimension, 1, 2), self.basis_array, axis=1
         )
 
     def append_from_rotation(self, rotation: VectorRotationXd) -> None:

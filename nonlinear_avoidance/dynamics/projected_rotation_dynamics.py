@@ -446,18 +446,18 @@ class ProjectedRotationDynamics:
     def _evaluate_rotation_position_to_transform(
         self, position: np.ndarray, obstacle: Obstacle
     ) -> Optional[VectorRotationXd]:
-        dir_attr_to_pos = position - self.attractor_position
+        dir_attr_to_pos = self.attractor_position - position
         if not (dir_norm := LA.norm(dir_attr_to_pos)):
             # We're at the attractor -> zero-velocity
             return None
         dir_attr_to_pos = dir_attr_to_pos / dir_norm
 
-        dir_obs_to_pos = obstacle.center_position - self.attractor_position
-        if not (dir_norm := LA.norm(dir_obs_to_pos)):
-            raise NotImplementedError("Position is at center-of the obstacle.")
-        dir_obs_to_pos = dir_obs_to_pos / dir_norm
+        # dir_obs_to_pos = self.attractor_position - obstacle.center_position
+        # if not (dir_norm := LA.norm(dir_obs_to_pos)):
+        #     raise NotImplementedError("Position is at center-of the obstacle.")
+        # dir_obs_to_pos = dir_obs_to_pos / dir_norm
 
-        dir_attr_to_obs = obstacle.center_position - self.attractor_position
+        dir_attr_to_obs = self.attractor_position - obstacle.center_position
         if not (obs_norm := LA.norm(dir_attr_to_obs)):
             raise NotImplementedError("Obstacle is at attractor.")
         dir_attr_to_obs = dir_attr_to_obs / obs_norm
@@ -498,13 +498,12 @@ class ProjectedRotationDynamics:
             position, obstacle
         )
         if rotation_pos_to_transform is None:
-            # At the attractor or opposite side -> no linearization
-            raise NotImplementedError()
+            # Opposite -> zero weight
+            return initial_sequence
 
-        initial_velocity_transformed = rotation_pos_to_transform.rotate(
-            initial_sequence.get_end_vector()
+        obstacle_sequence.push_root_from_base_and_angle(
+            rotation_pos_to_transform.base, rotation_pos_to_transform.rotation_angle
         )
-        initial_sequence.append_from_direction(initial_velocity_transformed)
 
         # Create tree and reduce to single-sequence
         convergence_tree = VectorRotationTree.from_sequence(
@@ -513,17 +512,11 @@ class ProjectedRotationDynamics:
         convergence_tree.add_sequence(
             parent_id=0, node_id=2, sequence=obstacle_sequence
         )
+
         weight = self._evaluate_projected_weight(position, obstacle)
         convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
             [1, 2], [(1 - weight), weight]
         )
-
-        # Rotate back
-        averaged_direction = rotation_pos_to_transform.rotate(
-            convergence_sequence.get_end_vector(), rot_factor=(-1) * (1 - weight)
-        )
-        convergence_sequence.append_from_direction(averaged_direction)
-
         return convergence_sequence
 
     def evaluate_convergence_around_obstacle(
