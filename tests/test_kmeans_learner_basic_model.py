@@ -539,6 +539,16 @@ def test_global_dynamics(visualize=False, save_figure=False):
             fig_name = "global_dynamics_with_boundary_avoidance"
             fig.savefig("figures/" + fig_name + fig_type, bbox_inches="tight")
 
+    # Position
+    position = np.array([2.0, 1.533])
+    velocity = main_learner.predict(position)
+    assert velocity[0] < 0, velocity[1] > 0
+
+    # Specific points within repulsive_boundary
+    position = np.array([-0.6, 0.9])
+    velocity = main_learner.predict(position)
+    assert velocity[0] < 0, velocity[1] < 0
+
     # Specific point
     position = np.array([-2.6, -0.7])
     velocity = main_learner._predict_outside_of_obstacle(position)
@@ -560,11 +570,6 @@ def test_global_dynamics(visualize=False, save_figure=False):
         / (LA.norm(velocity) * LA.norm(surface_velocity))
         > 0.99
     ), "The velocity is expected to move in the direction of the closest cluster."
-
-    # Specific points within repulsive_boundary
-    position = np.array([-0.6, 0.9])
-    velocity = main_learner.predict(position)
-    assert velocity[0] < 0, velocity[1] < 0
 
     # Specific points within repulsive_boundary
     position = np.array([-1.3, 0.84])

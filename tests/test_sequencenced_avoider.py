@@ -20,3 +20,9 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     SingularityConvergenceDynamics,
 )
+
+
+def test_sequenced_linear():
+    position = np.array([-1, -1])
+    # velocity = avoider.evaluate_sequence(position)
+    pass

@@ -28,6 +28,7 @@ from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from nonlinear_avoidance.avoidance import (
     obstacle_avoidance_rotational,
 )
+from nonlinear_avoidance.dynamics.sequenced_dynamics import evaluate_dynamics_sequence
 
 from nonlinear_avoidance.vector_rotation import VectorRotationXd
 from nonlinear_avoidance.vector_rotation import VectorRotationSequence
@@ -488,9 +489,15 @@ class ProjectedRotationDynamics:
     ) -> VectorRotationSequence:
         self.obstacle = obstacle
 
-        initial_sequence = self.initial_dynamics.evaluate_dynamics_sequence(position)
-        obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
-            obstacle.center_position
+        # initial_sequence = self.initial_dynamics.evaluate_dynamics_sequence(position)
+        # obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
+        #     obstacle.center_position
+        # )
+        initial_sequence = evaluate_dynamics_sequence(
+            position, dynamics=self.initial_dynamics
+        )
+        obstacle_sequence = evaluate_dynamics_sequence(
+            obstacle.center_position, dynamics=self.initial_dynamics
         )
 
         # Evaluate weighted position

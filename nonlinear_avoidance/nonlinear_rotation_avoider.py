@@ -32,15 +32,13 @@ from vartools.dynamical_systems import ConstantValue
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.utils import get_weight_from_inv_of_gamma
 from dynamic_obstacle_avoidance.utils import get_relative_obstacle_velocity
-
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import Obstacle
-
 from dynamic_obstacle_avoidance.avoidance import BaseAvoider
-from nonlinear_avoidance.avoidance import (
-    RotationalAvoider,
-)
+
+from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.rotation_container import RotationContainer
+from nonlinear_avoidance.dynamics.sequenced_dynamics import evaluate_dynamics_sequence
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
@@ -143,8 +141,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
     def evaluate_initial_dynamics_sequence(
         self, position: np.ndarray
     ) -> Optional[VectorRotationSequence]:
-        return self._rotation_avoider.initial_dynamics.evaluate_dynamics_sequence(
-            position
+
+        return evaluate_dynamics_sequence(
+            position, self._rotation_avoider.initial_dynamics
         )
 
     # def evaluate_convergence_dynamics(self, position: np.ndarray) -> np.ndarray:
@@ -186,6 +185,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
         convergence_sequence = self.evaluate_weighted_dynamics_sequence(
             position, initial_sequence
         )
+
+        rotated_velocity = self._rotation_avoider.avoid()
+        return rotated_velocity
 
     def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
         # TODO: test this...
