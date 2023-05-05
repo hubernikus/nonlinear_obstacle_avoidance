@@ -429,21 +429,36 @@ class VectorRotationTree:
         new_.set_root(root_id, direction=sequence.basis_array[:, 0, 0])
 
         # Add sequence without root
-        tmp_sequence = VectorRotationSequence(
-            basis_array=sequence.basis_array[:, 1:, :],
-            rotation_angles=sequence.rotation_angles[1:],
+        new_.add_sequence(
+            node_id=node_id,
+            parent_id=root_id,
+            sequence=sequence,
+            common_parent=True,
         )
-        new_.add_sequence(node_id=node_id, parent_id=root_id, sequence=tmp_sequence)
         return new_
 
     def add_sequence(
         self,
         node_id: NodeType,
-        sequence: VectorRotationSequence = None,
-        parent_id: NodeType = None,
+        sequence: VectorRotationSequence,
+        parent_id: NodeType,
+        common_parent: bool = True,
     ) -> None:
 
-        for ii in range(sequence.n_rotations):
+        # breakpoint()
+        if common_parent:
+            # Check if roots are really the same
+            if not np.allclose(
+                sequence.basis_array[:, 0, 0],
+                self._graph.nodes[parent_id]["direction"],
+            ):
+                # breakpoint()
+                raise ValueError("Parents are not aligned.")
+            it_start = 1
+        else:
+            it_start = 0
+
+        for ii in range(it_start, sequence.n_rotations):
             internode_id = (node_id, ii)
             self.add_node(
                 node_id=internode_id,

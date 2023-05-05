@@ -1,5 +1,7 @@
 #!/USSR/bin/python3
-""" Create the rotation space which is so much needed. ... """
+"""
+Create the rotation space which is so much needed.
+"""
 # Author: Lukas Huber
 # Github: hubernikus
 # Created: 2022-07-07
@@ -340,9 +342,54 @@ def test_double_branch_tree():
     ), "Expected to be close to large weight"
 
 
+def test_tree_assembly_and_reduction():
+    sqrt2 = np.sqrt(2) / 2
+    sequence1 = VectorRotationSequence.create_from_vector_array(
+        np.array([[1.0, 0.0], [sqrt2, sqrt2], [0.0, 1.0]]).T
+    )
+    sequence2 = VectorRotationSequence.create_from_vector_array(
+        np.array([[1.0, 0.0], [sqrt2, -sqrt2], [0.0, -1.0]]).T
+    )
+
+    new_tree = VectorRotationTree.from_sequence(
+        sequence=sequence1, root_id=0, node_id=1
+    )
+    new_tree.add_sequence(sequence=sequence2, parent_id=0, node_id=2)
+    merged_sequence = new_tree.reduce_weighted_to_sequence(
+        node_list=[1, 2], weights=[0.5, 0.5]
+    )
+    weighted_vector = merged_sequence.get_end_vector()
+    assert np.allclose(weighted_vector, [1.0, 0.0]), "Unexpected weighting."
+    assert merged_sequence.n_rotations == 2, "Incorrect rotation-level after reduction."
+
+
+def test_tree_assembly_and_reduction_3d():
+    sqrt2 = np.sqrt(2) / 2
+    sequence1 = VectorRotationSequence.create_from_vector_array(
+        np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, sqrt2, sqrt2]]).T
+    )
+    sequence2 = VectorRotationSequence.create_from_vector_array(
+        np.array([[1.0, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, -sqrt2, -sqrt2]]).T
+    )
+
+    new_tree = VectorRotationTree.from_sequence(
+        sequence=sequence1, root_id=0, node_id=1
+    )
+    new_tree.add_sequence(sequence=sequence2, parent_id=0, node_id=2)
+    merged_sequence = new_tree.reduce_weighted_to_sequence(
+        node_list=[1, 2], weights=[0.5, 0.5]
+    )
+    weighted_vector = merged_sequence.get_end_vector()
+    assert np.allclose(weighted_vector, [1.0, 0.0, 0.0]), "Unexpected weighting."
+    assert merged_sequence.n_rotations == 2, "Incorrect rotation-level after reduction."
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
+
+    # test_tree_assembly_and_reduction()
+    test_tree_assembly_and_reduction_3d()
 
     test_double_branch_tree()
 
