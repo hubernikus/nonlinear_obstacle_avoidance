@@ -941,90 +941,68 @@ class RotationalAvoider(BaseAvoider):
         vector_convergence_tangent = self.get_pseudo_tangent(
             convergence_vector, reference_vector, base=base
         )
-
-        # dir_converence_tangent = UnitDirection(base).from_angle(dir_convergence_tangent)
-
-        # if (
-        #     LA.norm(dir_convergence.as_angle()) < convergence_radius
-        #     or self.tail_rotation
-        # ):
-        #     dir_convergence_tangent = RotationalAvoider.get_tangent_convergence_direction(
-        #         dir_convergence=dir_convergence,
-        #         dir_reference=dir_reference,
-        #         # base=base,
-        #         convergence_radius=convergence_radius,
-        #     )
-        # else:
-        #     dir_convergence_tangent = dir_convergence
-
         unitdir_initial = UnitDirection(base).from_vector(nonlinear_velocity)
         unitdir_convergence_tangent = UnitDirection(base).from_vector(
             vector_convergence_tangent
         )
-        do_graph_summing = True
-        if do_graph_summing:
-            # This is now replacing the 'general_weighted_sum'
-            # as it takes better into account the history
-            direction_tree = VectorRotationTree()
-            direction_tree.set_root(
-                root_idx=-1, direction=unitdir_convergence.as_vector()
+
+        # This is now replacing the 'general_weighted_sum'
+        # as it takes better into account the history
+        direction_tree = VectorRotationTree()
+        direction_tree.set_root(root_idx=-1, direction=unitdir_convergence.as_vector())
+        direction_tree.add_node(
+            node_id=0, parent_id=-1, direction=unitdir_initial.as_vector()
+        )
+        direction_tree.add_node(
+            node_id=1,
+            parent_id=-1,
+            direction=base[:, 0],
+        )
+
+        if convergence_radius > math.pi * 0.5:
+            # Add intermediate convergence
+            dir_intermediate_convergence = RotationalAvoider.get_tangent_convergence_direction(
+                dir_convergence=unitdir_convergence.as_angle(),
+                dir_reference=unitdir_reference.as_angle(),
+                # base=base,
+                convergence_radius=math.pi * 0.5,
             )
+            unitdir_intermediate = UnitDirection(base).from_angle(
+                dir_intermediate_convergence
+            )
+
             direction_tree.add_node(
-                node_id=0, parent_id=-1, direction=unitdir_initial.as_vector()
+                node_id=2,
+                parent_id=1,
+                # direction=dir_intermediate_convergence.as_vector(),
+                direction=unitdir_intermediate.as_vector(),
             )
-
-            direction_tree.add_node(
-                node_id=1,
-                parent_id=-1,
-                direction=base[:, 0],
-            )
-
-            if convergence_radius > math.pi * 0.5:
-                # Add intermediate convergence
-                dir_intermediate_convergence = RotationalAvoider.get_tangent_convergence_direction(
-                    dir_convergence=unitdir_convergence.as_angle(),
-                    dir_reference=unitdir_reference.as_angle(),
-                    # base=base,
-                    convergence_radius=math.pi * 0.5,
-                )
-                unitdir_intermediate = UnitDirection(base).from_angle(
-                    dir_intermediate_convergence
-                )
-
-                direction_tree.add_node(
-                    node_id=2,
-                    parent_id=1,
-                    # direction=dir_intermediate_convergence.as_vector(),
-                    direction=unitdir_intermediate.as_vector(),
-                )
-
-                direction_tree.add_node(
-                    node_id=3,
-                    parent_id=2,
-                    direction=unitdir_convergence_tangent.as_vector(),
-                )
-            else:
-                direction_tree.add_node(
-                    node_id=3,
-                    parent_id=1,
-                    direction=unitdir_convergence_tangent.as_vector(),
-                )
-
-            averaged_direction = direction_tree.get_weighted_mean(
-                node_list=[0, 3], weights=[(1 - weight), weight]
-            )
+            parent_id = 2
         else:
-            rotated_velocity = get_directional_weighted_sum(
-                null_direction=unitdir_convergence.as_vector(),
-                weights=np.array([weight, (1 - weight)]),
-                directions=np.vstack(
-                    (
-                        unitdir_convergence_tangent.as_vector(),
-                        unitdir_initial.as_vector(),
-                    )
-                ).T,
-            )
-            averaged_direction = rotated_velocity
+            parent_id = 1
+
+        direction_tree.add_node(
+            node_id=3,
+            parent_id=parent_id,
+            direction=unitdir_convergence_tangent.as_vector(),
+        )
+
+        averaged_direction = direction_tree.get_weighted_mean(
+            node_list=[0, 3], weights=[(1 - weight), weight]
+        )
+
+        # Directional summing -> outdated
+        # rotated_velocity = get_directional_weighted_sum(
+        #         null_direction=unitdir_convergence.as_vector(),
+        #         weights=np.array([weight, (1 - weight)]),
+        #         directions=np.vstack(
+        #             (
+        #                 unitdir_convergence_tangent.as_vector(),
+        #                 unitdir_initial.as_vector(),
+        #             )
+        #         ).T,
+        #     )
+        # averaged_direction = rotated_velocity
 
         # return rotated_velocity
         return averaged_direction
