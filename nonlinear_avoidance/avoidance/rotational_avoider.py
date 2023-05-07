@@ -48,6 +48,7 @@ class RotationalAvoider(BaseAvoider):
     # TODO:
     #   - don't use UnitDirection (as it has a large overhead)
     #   - put back into function for simplified changing of avoidance
+    #   - remove redundant functions.
 
     def __init__(
         self,
@@ -143,9 +144,9 @@ class RotationalAvoider(BaseAvoider):
 
     def avoid_sequence(
         self,
-        position,
+        position: np.ndarray,
         initial_sequence: VectorRotationSequence,
-        convergence_velocity: VectorRotationSequence,
+        convergence_sequence: VectorRotationSequence,
     ) -> VectorRotationSequence:
         """The evaluation is under the assumption that only close obstacles are in the list.
 
@@ -161,36 +162,90 @@ class RotationalAvoider(BaseAvoider):
             position, self.obstacle_environment
         )
 
-        # rotated_directions = np.zeros((self.dimension, self.n_obstacles))
+        # Create tree from initial dynamics and convergence dynamics
+        root_id = -10
+        initial_id = -2
+        conv_id = -1
         rotated_tree = VectorRotationTree.from_sequence(
-            sequence=initial_sequence, root_id=-10, node_id=-1
+            sequence=initial_sequence, root_id=root_id, node_id=initial_id
         )
+        rotated_tree.add_sequence(
+            sequence=convergence_sequence, parent_id=root_id, node_id=conv_id
+        )
+        node_list = []
+        node_weights = []
         for ii, obs in enumerate(self.obstacle_environment):
             # It is with respect to the close-obstacles
             # -- it_obs ONLY to use in obstacle_list (whole)
             # => the null matrix should be based on the normal
             # direction (not reference, right?!)
-            reference_dir = obs.get_reference_direction(position, in_global_frame=True)
+            reference_vector = obs.get_reference_direction(
+                position, in_global_frame=True
+            )
 
             # Null matrix (zero-vector) and reference direction should be pointing
             # towards the wall - the initial reference direction is pointing towards
             # the reference
             if obs.is_boundary:
-                reference_dir = (-1) * reference_dir
-                null_matrix = normal_orthogonal_matrix[:, :, it]
+                reference_vector = (-1) * reference_vector
+                base = normal_orthogonal_matrix[:, :, ii]
             else:
-                null_matrix = (-1) * normal_orthogonal_matrix[:, :, it]
+                base = (-1) * normal_orthogonal_matrix[:, :, ii]
 
             # Note that the inv_gamma_weight was prepared for the multiboundary
             # environment through the reference point displacement (see 'loca_reference_point')
-            sequence = self.directional_convergence_sequence(
-                convergence_vector=convergence_velocity,
-                reference_vector=reference_dir,
-                weight=inv_gamma_weight[it],
-                nonlinear_velocity=initial_velocity,
-                base=null_matrix,
-                convergence_radius=convergence_radius,
+
+            cont_weight = self.get_smooth_continuation_weight(
+                weights[ii],
+                vector_convergence=convergence_sequence.get_end_vector(),
+                vector_reference=reference_vector,
+                base=base,
             )
+
+            if cont_weight <= 0:
+                continue
+
+            vector_convergence_tangent = self.get_pseudo_tangent(
+                vector_convergence=convergence_sequence.get_end_vector(),
+                vector_reference=reference_vector,
+                base=base,
+            )
+
+            if self.convergence_radius > math.pi * 0.5:
+                # Add intermediate convergence
+                intermediate_vector = self.get_intermediate_convergence_direction(
+                    vector_convergence=convergence_sequence.get_end_vector(),
+                    vector_reference=reference_vector,
+                    base=base,
+                )
+
+                parent_id = (2, ii)
+                rotated_tree.add_node(
+                    node_id=parent_id,
+                    parent_id=conv_id,
+                    direction=intermediate_vector,
+                )
+            else:
+                parent_id = conv_id
+
+            rotated_tree.add_node(
+                node_id=ii,
+                parent_id=parent_id,
+                direction=vector_convergence_tangent,
+            )
+
+            node_weights.append(cont_weight * weights[ii])
+            node_list.append(ii)
+
+        # Add initial weight
+        node_list.append(initial_id)
+        node_weights.append(1 - sum(node_weights))
+
+        averaged_sequence = rotated_tree.reduce_weighted_to_sequence(
+            node_list=node_list, weights=node_weights
+        )
+
+        return averaged_sequence
 
     def avoid(
         self,
@@ -590,8 +645,9 @@ class RotationalAvoider(BaseAvoider):
         -------
         nonlinar_conv: Projected nonlinear velocity to be aligned with convergence velocity
         """
+        # if True:
+        #     raise Exception("Is this still used?")
         # TODO: remove
-        warnings.warn("This function is outdated.")
         # Invert matrix to get smooth summing.
         inv_nonlinear = dir_nonlinear.invert_normal()
 
@@ -780,7 +836,7 @@ class RotationalAvoider(BaseAvoider):
         dir_convergence = UnitDirection(base).from_vector(convergence_vector)
 
         if dir_convergence.norm() >= convergence_radius:
-            # Initial velocity 'dir_convergecne' already pointing away from obstacle
+            # Initial velocity 'dir_convergence' already pointing away from obstacle
             return dir_convergence
 
         # Find intersection a with radius of pi/2 inside the tangent radius,
@@ -852,13 +908,17 @@ class RotationalAvoider(BaseAvoider):
     def get_smooth_continuation_weight(
         self,
         weight: float,
-        dir_reference,
-        dir_convergence,
+        vector_reference: np.ndarray,
+        vector_convergence: np.ndarray,
+        base: np.ndarray,
     ) -> float:
         """
         dir_reference and dir_convergence are expected to be in the the direction-space, with respect
         to the negative of the normal
         """
+        dir_reference = UnitDirection(base).from_vector(vector_reference).as_angle()
+        dir_convergence = UnitDirection(base).from_vector(vector_convergence).as_angle()
+
         if weight <= 0.0:
             return 0.0
         if weight >= 1.0:
@@ -876,7 +936,7 @@ class RotationalAvoider(BaseAvoider):
             return 0.0
 
         continuation_weight = min(continuation_weight, 1.0)
-        continuation_weight = continuation_weight**self.smooth_continuation_power
+        continuation_weight = continuation_weight ** self.smooth_continuation_power
         weight = weight ** (1.0 / continuation_weight)
         return weight
 
@@ -905,6 +965,27 @@ class RotationalAvoider(BaseAvoider):
         # breakpoint()
         return UnitDirection(base).from_angle(dir_convergence_tangent).as_vector()
 
+    def get_intermediate_convergence_direction(
+        self,
+        vector_convergence: np.ndarray,
+        vector_reference: np.ndarray,
+        base: np.ndarray,
+    ) -> np.ndarray:
+        unitdir_convergence = UnitDirection(base).from_vector(vector_convergence)
+        unitdir_reference = UnitDirection(base).from_vector(vector_reference)
+
+        dir_intermediate_convergence = RotationalAvoider.get_tangent_convergence_direction(
+            dir_convergence=unitdir_convergence.as_angle(),
+            dir_reference=unitdir_reference.as_angle(),
+            # base=base,
+            convergence_radius=math.pi * 0.5,
+        )
+        unitdir_intermediate = UnitDirection(base).from_angle(
+            dir_intermediate_convergence
+        )
+
+        return unitdir_intermediate.as_vector()
+
     def directional_convergence_summing(
         self,
         convergence_vector: np.ndarray,
@@ -928,31 +1009,25 @@ class RotationalAvoider(BaseAvoider):
         converging_velocity: Weighted summing in direction-space to 'emulate' the modulation.
         """
         # Put int range
-        convergence_vector = convergence_vector / np.linalg.norm(convergence_vector)
-        reference_vector = reference_vector / np.linalg.norm(reference_vector)
-
-        unitdir_convergence = UnitDirection(base).from_vector(convergence_vector)
-        unitdir_reference = UnitDirection(base).from_vector(reference_vector)
+        # unitdir_convergence = UnitDirection(base).from_vector(convergence_vector)
+        # unitdir_reference = UnitDirection(base).from_vector(reference_vector)
 
         weight = self.get_smooth_continuation_weight(
-            weight, unitdir_convergence.as_angle(), unitdir_reference.as_angle()
+            weight, convergence_vector, reference_vector, base
         )
+
+        if weight <= 0:
+            return nonlinear_velocity
 
         vector_convergence_tangent = self.get_pseudo_tangent(
             convergence_vector, reference_vector, base=base
-        )
-        unitdir_initial = UnitDirection(base).from_vector(nonlinear_velocity)
-        unitdir_convergence_tangent = UnitDirection(base).from_vector(
-            vector_convergence_tangent
         )
 
         # This is now replacing the 'general_weighted_sum'
         # as it takes better into account the history
         direction_tree = VectorRotationTree()
-        direction_tree.set_root(root_idx=-1, direction=unitdir_convergence.as_vector())
-        direction_tree.add_node(
-            node_id=0, parent_id=-1, direction=unitdir_initial.as_vector()
-        )
+        direction_tree.set_root(root_idx=-1, direction=convergence_vector)
+        direction_tree.add_node(node_id=0, parent_id=-1, direction=nonlinear_velocity)
         direction_tree.add_node(
             node_id=1,
             parent_id=-1,
@@ -961,21 +1036,14 @@ class RotationalAvoider(BaseAvoider):
 
         if convergence_radius > math.pi * 0.5:
             # Add intermediate convergence
-            dir_intermediate_convergence = RotationalAvoider.get_tangent_convergence_direction(
-                dir_convergence=unitdir_convergence.as_angle(),
-                dir_reference=unitdir_reference.as_angle(),
-                # base=base,
-                convergence_radius=math.pi * 0.5,
-            )
-            unitdir_intermediate = UnitDirection(base).from_angle(
-                dir_intermediate_convergence
+            intermediate_vector = self.get_intermediate_convergence_direction(
+                convergence_vector, reference_vector, base
             )
 
             direction_tree.add_node(
                 node_id=2,
                 parent_id=1,
-                # direction=dir_intermediate_convergence.as_vector(),
-                direction=unitdir_intermediate.as_vector(),
+                direction=intermediate_vector,
             )
             parent_id = 2
         else:
@@ -984,7 +1052,7 @@ class RotationalAvoider(BaseAvoider):
         direction_tree.add_node(
             node_id=3,
             parent_id=parent_id,
-            direction=unitdir_convergence_tangent.as_vector(),
+            direction=vector_convergence_tangent,
         )
 
         averaged_direction = direction_tree.get_weighted_mean(

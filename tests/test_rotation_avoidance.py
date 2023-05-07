@@ -1202,7 +1202,7 @@ if (__name__) == "__main__":
     # test_convergence_tangent(visualize=True)
     # test_rotating_towards_tangent()
 
-    # test_single_circle_linear(visualize=True)
+    test_single_circle_linear(visualize=True)
     # test_single_repulsive_circle_linear_inverted(visualize=True)
 
     # _test_single_circle_nonlinear(visualize=True, save_figure=True)

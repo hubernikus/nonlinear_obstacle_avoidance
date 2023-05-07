@@ -403,9 +403,32 @@ def test_rotation_of_sequence():
     ), "Rotation should remain for vectors in the plane."
 
 
+def test_parallel_vector_of_different_magnitude():
+    """Check that it works with even vectors."""
+    v1 = np.array([4.0, 0.0])
+    v2 = np.array([1.0, 0.0])
+
+    rotation = VectorRotationXd.from_directions(v1, v2)
+    assert not np.any(np.isnan(rotation.base))
+
+    sequence = VectorRotationSequence.create_from_vector_array(np.vstack((v1, v2)).T)
+    assert not np.any(np.isnan(sequence.basis_array))
+
+
+def test_perpendicular_sequence():
+    v1 = np.array([3.0, -3.0])
+    v2 = np.array([0.70710678, -0.70710678])
+    sequence = VectorRotationSequence.create_from_vector_array(np.vstack((v1, v2)).T)
+    assert np.isclose(sequence.rotation_angles[0], 0)
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
+
+    test_perpendicular_sequence()
+
+    test_parallel_vector_of_different_magnitude()
 
     test_rotation_of_sequence()
 

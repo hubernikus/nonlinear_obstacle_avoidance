@@ -113,7 +113,7 @@ class ProjectedRotationDynamics:
                     dist_stretching = LA.norm(position) / LA.norm(
                         self.obstacle.center_position
                     )
-                    gamma = gamma**dist_stretching
+                    gamma = gamma ** dist_stretching
                 else:
                     gamma = self.max_gamma
 
@@ -310,8 +310,8 @@ class ProjectedRotationDynamics:
         radius = np.dot(dir_attractor_to_obstacle, dir_obstacle_to_position) * pos_norm
 
         # Ensure that the square root stays positive close to singularities
-        dot_prod = math.sqrt(max(pos_norm**2 - radius**2, 0))
-        dot_prod = dot_prod**self.dotprod_projection_power
+        dot_prod = math.sqrt(max(pos_norm ** 2 - radius ** 2, 0))
+        dot_prod = dot_prod ** self.dotprod_projection_power
         dot_prod = 2.0 / (dot_prod + 1) - 1
 
         if dot_prod < 1:
@@ -524,6 +524,7 @@ class ProjectedRotationDynamics:
         convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
             [1, 2], [(1 - weight), weight]
         )
+
         return convergence_sequence
 
     def evaluate_convergence_around_obstacle(

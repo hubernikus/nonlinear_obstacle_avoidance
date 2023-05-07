@@ -60,7 +60,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods**2))
+    out_direction *= math.sqrt(sum(dot_prods ** 2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -85,7 +85,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -252,11 +252,29 @@ class VectorRotationSequence:
             raise ValueError("Antiparallel vectors.")
 
         # Evaluate basis and angles
-        vec_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
-        vec_perp = vec_perp / LA.norm(vec_perp, axis=0)
-        return cls(
-            np.stack((vectors_array[:, :-1], vec_perp), axis=2), np.arccos(dot_prod)
+        ind_nonzero = dot_prod < 1.0
+        vecs_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
+        vecs_perp[:, ind_nonzero] = vecs_perp[:, ind_nonzero] / LA.norm(
+            vecs_perp[:, ind_nonzero], axis=0
         )
+
+        for ii in np.arange(ind_nonzero.shape[0])[np.logical_not(ind_nonzero)]:
+            # (Anti-)parallel vectors => calculate random perpendicular vector
+            vec_init = vectors_array[:, ii]
+            vec_perp = np.zeros(vec_init.shape)
+            if not LA.norm(vec_init[:2]):
+                vec_perp[0] = 1
+            else:
+                vec_perp[0] = vec_init[1]
+                vec_perp[1] = vec_init[0] * (-1)
+                vec_perp[:2] = vec_perp[:2] / LA.norm(vec_perp[:2])
+
+            vecs_perp[:, ii] = vec_perp
+
+        angles = np.zeros(ind_nonzero.shape[0])
+        angles[ind_nonzero] = np.arccos(np.maximum(dot_prod, 0.0))
+
+        return cls(np.stack((vectors_array[:, :-1], vecs_perp), axis=2), angles)
 
     @property
     def dimension(self):
@@ -410,6 +428,10 @@ class VectorRotationTree:
         child_id: Optional[NodeType] = None,
         level: Optional[int] = None,
     ) -> None:
+
+        if not (dir_norm := np.linalg.norm(direction)):
+            raise ValueError("Zero direction cannot be interpreted.")
+        direction = direction / dir_norm
 
         if node_id in self.graph.nodes():
             raise ValueError("Adding existing node.")

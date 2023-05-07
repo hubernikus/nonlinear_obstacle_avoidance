@@ -15,4 +15,14 @@ def evaluate_dynamics_sequence(
     base = dynamics.attractor_position - position
     final = dynamics.evaluate(position)
 
-    return VectorRotationSequence.create_from_vector_array(np.vstack((base, final)).T)
+    if not np.linalg.norm(base):
+        raise ValueError("Evaluation at the attractor.")
+
+    rotation = VectorRotationSequence.create_from_vector_array(
+        np.vstack((base, final)).T
+    )
+
+    if np.any(np.isnan(rotation.rotation_angles)):
+        breakpoint()
+
+    return rotation
