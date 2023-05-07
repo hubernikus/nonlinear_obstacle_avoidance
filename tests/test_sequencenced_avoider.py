@@ -76,6 +76,19 @@ def test_sequenced_linear(visualize=False):
 
         ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
 
+    direction = np.array([-1.0, 0.1])
+    velocity1 = avoider.evaluate_sequence(direction * 2)
+    velocity2 = avoider.evaluate_sequence(direction * 4)
+    assert not np.allclose(velocity1, velocity2), "No influence scaling."
+    assert velocity2[0] > velocity1[0], "More effect closer to the obstacle."
+
+    # Evaluate on surface
+    direction = direction / np.linalg.norm(direction)
+    velocity = avoider.evaluate_sequence(
+        direction * obstacle_environment[-1].axes_length[0] * 0.5
+    )
+    assert np.isclose(np.dot(direction, velocity), 0.0), "Not tangent on surface."
+
     position = np.array([1.0, 3.0])
     velocity = avoider.evaluate_sequence(position)
     assert velocity[0] > 0
@@ -88,4 +101,6 @@ def test_sequenced_linear(visualize=False):
 
 
 if (__name__) == "__main__":
+    plt.close("all")
+
     test_sequenced_linear(visualize=True)

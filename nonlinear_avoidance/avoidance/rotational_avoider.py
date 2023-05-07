@@ -156,7 +156,7 @@ class RotationalAvoider(BaseAvoider):
             return initial_sequence
 
         gamma_array = self.compute_obstacle_gamma(position, self.obstacle_environment)
-        weights = compute_weights(gamma_array)
+        importance_weights = compute_weights(gamma_array)
         inv_gamma_weight = get_weight_from_inv_of_gamma(gamma_array)
         normal_orthogonal_matrix = self.compute_normal_tensor(
             position, self.obstacle_environment
@@ -196,7 +196,7 @@ class RotationalAvoider(BaseAvoider):
             # environment through the reference point displacement (see 'loca_reference_point')
 
             cont_weight = self.get_smooth_continuation_weight(
-                weights[ii],
+                gamma=gamma_array[ii],
                 vector_convergence=convergence_sequence.get_end_vector(),
                 vector_reference=reference_vector,
                 base=base,
@@ -234,7 +234,7 @@ class RotationalAvoider(BaseAvoider):
                 direction=vector_convergence_tangent,
             )
 
-            node_weights.append(cont_weight * weights[ii])
+            node_weights.append(cont_weight * importance_weights[ii])
             node_list.append(ii)
 
         # Add initial weight
@@ -244,6 +244,8 @@ class RotationalAvoider(BaseAvoider):
         averaged_sequence = rotated_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=node_weights
         )
+
+        # breakpoint()
 
         return averaged_sequence
 
@@ -386,7 +388,8 @@ class RotationalAvoider(BaseAvoider):
             rotated_directions[:, it] = self.directional_convergence_summing(
                 convergence_vector=convergence_velocity,
                 reference_vector=reference_dir,
-                weight=inv_gamma_weight[it],
+                # weight=inv_gamma_weight[it],
+                gamma=gamma_array[t],
                 nonlinear_velocity=initial_velocity,
                 base=null_matrix,
                 convergence_radius=convergence_radius,
@@ -907,7 +910,7 @@ class RotationalAvoider(BaseAvoider):
 
     def get_smooth_continuation_weight(
         self,
-        weight: float,
+        gamma: float,
         vector_reference: np.ndarray,
         vector_convergence: np.ndarray,
         base: np.ndarray,
@@ -918,6 +921,8 @@ class RotationalAvoider(BaseAvoider):
         """
         dir_reference = UnitDirection(base).from_vector(vector_reference).as_angle()
         dir_convergence = UnitDirection(base).from_vector(vector_convergence).as_angle()
+
+        weight = 1.0 / gamma
 
         if weight <= 0.0:
             return 0.0
@@ -991,7 +996,7 @@ class RotationalAvoider(BaseAvoider):
         convergence_vector: np.ndarray,
         reference_vector: np.ndarray,
         base: np.ndarray,
-        weight: float,
+        gamma: float,
         nonlinear_velocity: Optional[np.ndarray] = None,
         convergence_radius: float = math.pi / 2,
     ) -> UnitDirection:
@@ -1013,7 +1018,7 @@ class RotationalAvoider(BaseAvoider):
         # unitdir_reference = UnitDirection(base).from_vector(reference_vector)
 
         weight = self.get_smooth_continuation_weight(
-            weight, convergence_vector, reference_vector, base
+            gamma, convergence_vector, reference_vector, base
         )
 
         if weight <= 0:
