@@ -15,7 +15,7 @@ from typing import Optional
 import numpy as np
 from numpy import linalg as LA
 
-from vartools.math import get_intersection_with_circle, CircleIntersectionType
+from vartools.math import get_intersection_with_circle, IntersectionType
 from vartools.linalg import get_orthogonal_basis
 from vartools.directional_space import get_directional_weighted_sum
 from vartools.directional_space import get_angle_from_vector
@@ -389,7 +389,7 @@ class RotationalAvoider(BaseAvoider):
                 convergence_vector=convergence_velocity,
                 reference_vector=reference_dir,
                 # weight=inv_gamma_weight[it],
-                gamma=gamma_array[t],
+                gamma=gamma_array[it],
                 nonlinear_velocity=initial_velocity,
                 base=null_matrix,
                 convergence_radius=convergence_radius,
@@ -755,7 +755,7 @@ class RotationalAvoider(BaseAvoider):
             start_position=angle_ref,
             direction=(angle_init - angle_ref),
             radius=convergence_radius,
-            intersection_type=CircleIntersectionType.FAR,
+            intersection_type=IntersectionType.FAR,
         )
 
         if surface_angle is None:
@@ -814,7 +814,8 @@ class RotationalAvoider(BaseAvoider):
             start_position=dir_reference,
             direction=(dir_convergence - dir_reference),
             radius=convergence_radius,
-            only_positive=True,
+            # only_positive=True,
+            intersection_type=IntersectionType.FAR,
         )
 
         if surface_angle is None:

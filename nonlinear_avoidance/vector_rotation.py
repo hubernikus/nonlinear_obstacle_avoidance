@@ -272,7 +272,7 @@ class VectorRotationSequence:
             vecs_perp[:, ii] = vec_perp
 
         angles = np.zeros(ind_nonzero.shape[0])
-        angles[ind_nonzero] = np.arccos(np.maximum(dot_prod, 0.0))
+        angles[ind_nonzero] = np.arccos(np.maximum(dot_prod[ind_nonzero], 0.0))
 
         return cls(np.stack((vectors_array[:, :-1], vecs_perp), axis=2), angles)
 
