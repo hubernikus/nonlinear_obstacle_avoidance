@@ -721,7 +721,6 @@ class VectorRotationTree:
                 "part_orientation"
             ].base[:, 0]
             shared_basis = get_orthogonal_basis(shared_first_basis)
-            # Store basis
 
             # Get the rotation-vector (second -base vector) of all of the
             # same-level rotation-structs in the local_basis
@@ -801,9 +800,12 @@ class VectorRotationTree:
             for ii, node in enumerate(all_successors):
                 self._graph.nodes[node]["part_orientation"].base = all_basis[:, ii, :]
 
-        vector_sequence.append_from_base_and_angle(
-            np.vstack((shared_first_basis, averaged_direction)).T, new_angle
-        )
+        try:
+            vector_sequence.append_from_base_and_angle(
+                np.vstack((shared_first_basis, averaged_direction)).T, new_angle
+            )
+        except:
+            breakpoint()
 
         # final_rotation = VectorRotationXd(
         #     base=np.vstack((shared_first_basis, averaged_direction)).T,

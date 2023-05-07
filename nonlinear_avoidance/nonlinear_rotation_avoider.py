@@ -206,7 +206,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
     def evaluate_convergence_around_obstacle(self, position, obstacle):
         raise NotImplementedError()
 
-    def compute_gamma_weights(self, position: np.ndarray) -> Optional[np.ndarray]:
+    def compute_gamma_weights(self, position: np.ndarray) -> np.ndarray:
         gamma_array = np.zeros((self.n_obstacles))
         for ii in range(self.n_obstacles):
             gamma_array[ii] = self._rotation_avoider.obstacle_environment[ii].get_gamma(
@@ -227,7 +227,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             ind_obs = gamma_array < self._rotation_avoider.cut_off_gamma
 
             if not np.sum(ind_obs):
-                return None
+                return np.zeros(0, dtype=bool)
 
             weights = 1.0 / (gamma_array[ind_obs] - gamma_min) - 1 / (
                 self.cut_off_gamma - gamma_min
@@ -250,11 +250,14 @@ class SingularityConvergenceDynamics(BaseAvoider):
         self, position: np.ndarray, initial_sequence: VectorRotationSequence
     ) -> VectorRotationSequence:
         ind_obs = self.compute_gamma_weights(position)
+        if not len(ind_obs):
+            return initial_sequence
 
         # Assumption of shared root_id
         root_id = -10
+        initial_id = -1
         direction_tree = VectorRotationTree.from_sequence(
-            root_id=root_id, node_id=-1, sequence=initial_sequence
+            root_id=root_id, node_id=initial_id, sequence=initial_sequence
         )
 
         for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
@@ -269,9 +272,11 @@ class SingularityConvergenceDynamics(BaseAvoider):
                 parent_id=root_id,
             )
 
+        node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)
+        node_weights = np.append(self.weights[ind_obs], 1 - sum(self.weights[ind_obs]))
         rotation_sequence = direction_tree.reduce_weighted_to_sequence(
-            node_list=np.arange(self.n_obstacles)[ind_obs],
-            weights=self.weights[ind_obs],
+            node_list=node_list,
+            weights=node_weights,
         )
         return rotation_sequence
 
@@ -287,7 +292,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
         """
         # TODO: this gamma/weight calculation could be shared...
         ind_obs = self.compute_gamma_weights(position)
-        if ind_obs is None:
+        if not len(ind_obs):
             return initial_velocity
 
         # Initial velocity will be the 'base velocity'
@@ -325,6 +330,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             node_list=np.arange(self.n_obstacles)[ind_obs],
             weights=self.weights[ind_obs],
         )
+
         return rotation_sequence.get_end_vector()
 
         # TODO: finish this with history-of-rotation

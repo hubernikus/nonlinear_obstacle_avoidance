@@ -212,9 +212,71 @@ def test_multiple_obstacles(visualize=False):
     assert velocity[1] > 0
 
 
+def test_sequenced_avoidance_dynamics(visualize=False):
+    dynamics = create_segment_from_points(
+        [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
+    )
+
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([0.2, 0.3]), 0 * math.pi / 180.0),
+            axes_length=np.array([3.0, 1.0]),
+        )
+    )
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.attractor_position,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    avoider = SingularityConvergenceDynamics(
+        initial_dynamics=dynamics,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    if visualize:
+        fig, ax = plt.subplots(figsize=(6, 5))
+        # x_lim = [-4, 4]
+        # y_lim = [-4, 4]
+        x_lim = [-2, 2]
+        y_lim = [-2, 2]
+
+        n_grid = 20
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            # attractor_position=dynamic.attractor_position,
+            do_quiver=True,
+            # show_ticks=False,
+        )
+
+        plot_obstacles(
+            obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+        )
+
+        ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+
+    position = np.array([-0.7, -0.4])
+    velocity = avoider.evaluate_sequence(position)
+    assert velocity[0] < 0, "Avoiding towards the left"
+
+    position = np.array([1.3, -0.8])
+    velocity = avoider.evaluate_sequence(position)
+    assert velocity[0] > 0, "Avoiding towards the right"
+
+
 if (__name__) == "__main__":
     plt.close("all")
 
     # test_sequenced_linear_single_circle(visualize=False)
     # test_sequenced_linear_cuboid(visualize=True)
-    test_multiple_obstacles(visualize=False)
+    # test_multiple_obstacles(visualize=False)
+    test_sequenced_avoidance_dynamics(visualize=True)
