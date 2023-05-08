@@ -186,16 +186,19 @@ class SingularityConvergenceDynamics(BaseAvoider):
         initial_sequence = self.evaluate_initial_dynamics_sequence(position)
         if initial_sequence is None:
             return np.zeros(self.dimension)
+        print("Got Initial")
 
         convergence_sequence = self.evaluate_weighted_dynamics_sequence(
             position, initial_sequence
         )
+        print("Got Convergence")
 
         rotated_sequence = self._rotation_avoider.avoid_sequence(
             position=position,
             initial_sequence=initial_sequence,
             convergence_sequence=convergence_sequence,
         )
+        print("Got Rotational")
 
         return rotated_sequence.get_end_vector()
 
@@ -260,10 +263,21 @@ class SingularityConvergenceDynamics(BaseAvoider):
             root_id=root_id, node_id=initial_id, sequence=initial_sequence
         )
 
+        node_list = []
+        node_weights = []
+
         for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
+            projected_weight = self.obstacle_convergence.evaluate_projected_weight(
+                position, self._rotation_avoider.obstacle_environment[ii]
+            )
+            if projected_weight <= 0:
+                continue
+
             obstacle_convergence_sequence = (
                 self.obstacle_convergence.evaluate_convergence_sequence_around_obstacle(
-                    position, obstacle=self._rotation_avoider.obstacle_environment[ii]
+                    position,
+                    obstacle=self._rotation_avoider.obstacle_environment[ii],
+                    initial_sequence=initial_sequence,
                 )
             )
             direction_tree.add_sequence(
@@ -271,9 +285,12 @@ class SingularityConvergenceDynamics(BaseAvoider):
                 node_id=it_obs,
                 parent_id=root_id,
             )
+            node_list.append(it_obs)
+            node_weights.append(self.weights[it_obs] * projected_weight)
 
-        node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)
-        node_weights = np.append(self.weights[ind_obs], 1 - sum(self.weights[ind_obs]))
+        print("Got all obs-convergence")
+        # node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)
+        # node_weights = np.append(self.weights[ind_obs], 1 - sum(self.weights[ind_obs]))
         rotation_sequence = direction_tree.reduce_weighted_to_sequence(
             node_list=node_list,
             weights=node_weights,

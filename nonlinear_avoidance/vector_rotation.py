@@ -60,7 +60,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods ** 2))
+    out_direction *= math.sqrt(sum(dot_prods**2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -85,7 +85,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -621,6 +621,7 @@ class VectorRotationTree:
         self, node_list: list[NodeType], weights: npt.ArrayLike
     ) -> VectorRotationSequence:
 
+        print("Doing another reduction.")
         sorted_list = self.get_nodes_ascending()
         self.update_partial_rotations(node_list, weights, sorted_list)
         return self.evaluate_graph_summing(sorted_list)

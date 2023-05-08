@@ -113,7 +113,7 @@ class ProjectedRotationDynamics:
                     dist_stretching = LA.norm(position) / LA.norm(
                         self.obstacle.center_position
                     )
-                    gamma = gamma ** dist_stretching
+                    gamma = gamma**dist_stretching
                 else:
                     gamma = self.max_gamma
 
@@ -310,8 +310,8 @@ class ProjectedRotationDynamics:
         radius = np.dot(dir_attractor_to_obstacle, dir_obstacle_to_position) * pos_norm
 
         # Ensure that the square root stays positive close to singularities
-        dot_prod = math.sqrt(max(pos_norm ** 2 - radius ** 2, 0))
-        dot_prod = dot_prod ** self.dotprod_projection_power
+        dot_prod = math.sqrt(max(pos_norm**2 - radius**2, 0))
+        dot_prod = dot_prod**self.dotprod_projection_power
         dot_prod = 2.0 / (dot_prod + 1) - 1
 
         if dot_prod < 1:
@@ -471,12 +471,16 @@ class ProjectedRotationDynamics:
         )
         return rotation_pos_to_transform
 
-    def _evaluate_projected_weight(
+    def evaluate_projected_weight(
         self, position: np.ndarray, obstacle: Obstacle
     ) -> float:
         # Obstacle velocity will not change when being transformed, as it's the static point
+
+        self.obstacle = obstacle  # Just to be sure
+
         projected_position = self.get_projected_position(position)
         proj_gamma = obstacle.get_gamma(projected_position, in_global_frame=True)
+
         if proj_gamma <= 1:
             return 1.0
         else:
@@ -486,6 +490,7 @@ class ProjectedRotationDynamics:
         self,
         position: Vector,
         obstacle: Obstacle,
+        initial_sequence: VectorRotationSequence,
     ) -> VectorRotationSequence:
         self.obstacle = obstacle
 
@@ -493,13 +498,9 @@ class ProjectedRotationDynamics:
         # obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
         #     obstacle.center_position
         # )
-        initial_sequence = evaluate_dynamics_sequence(
-            position, dynamics=self.initial_dynamics
-        )
-        obstacle_sequence = evaluate_dynamics_sequence(
-            obstacle.center_position, dynamics=self.initial_dynamics
-        )
-
+        # initial_sequence = evaluate_dynamics_sequence(
+        #     position, dynamics=self.initial_dynamics
+        # )
         # Evaluate weighted position
         rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
             position, obstacle
@@ -508,24 +509,28 @@ class ProjectedRotationDynamics:
             # Opposite -> zero weight
             return initial_sequence
 
+        obstacle_sequence = evaluate_dynamics_sequence(
+            obstacle.center_position, dynamics=self.initial_dynamics
+        )
+
         obstacle_sequence.push_root_from_base_and_angle(
             rotation_pos_to_transform.base, rotation_pos_to_transform.rotation_angle
         )
 
-        # Create tree and reduce to single-sequence
-        convergence_tree = VectorRotationTree.from_sequence(
-            root_id=0, node_id=1, sequence=initial_sequence
-        )
-        convergence_tree.add_sequence(
-            parent_id=0, node_id=2, sequence=obstacle_sequence
-        )
+        # # Create tree and reduce to single-sequence
+        # convergence_tree = VectorRotationTree.from_sequence(
+        #     root_id=0, node_id=1, sequence=initial_sequence
+        # )
+        # convergence_tree.add_sequence(
+        #     parent_id=0, node_id=2, sequence=obstacle_sequence
+        # )
 
-        weight = self._evaluate_projected_weight(position, obstacle)
-        convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
-            [1, 2], [(1 - weight), weight]
-        )
+        # weight = self.evaluate_projected_weight(position, obstacle)
+        # convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
+        #     [1, 2], [(1 - weight), weight]
+        # )
 
-        return convergence_sequence
+        return obstacle_sequence
 
     def evaluate_convergence_around_obstacle(
         self,
@@ -551,7 +556,7 @@ class ProjectedRotationDynamics:
         initial_velocity_transformed = rotation_pos_to_transform.rotate(
             initial_velocity
         )
-        weight = self._evaluate_projected_weight(position, obstacle)
+        weight = self.evaluate_projected_weight(position, obstacle)
 
         # TODO: use VectorRotationXd for this...
         averaged_direction_transformed = get_directional_weighted_sum(

@@ -2,6 +2,8 @@
 Move Around Corners with Smooth Dynamics
 """
 import math
+from timeit import default_timer as timer
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -273,10 +275,73 @@ def test_sequenced_avoidance_dynamics(visualize=False):
     assert velocity[0] > 0, "Avoiding towards the right"
 
 
+def example_timeit():
+    dynamics = create_segment_from_points(
+        [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
+    )
+
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([0.2, 0.3]), 0 * math.pi / 180.0),
+            axes_length=np.array([3.0, 1.0]),
+        )
+    )
+
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([0.2, 3.3]), 20 * math.pi / 180.0),
+            axes_length=np.array([3.0, 1.0]),
+        )
+    )
+
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([-3.2, 0.3]), 90 * math.pi / 180.0),
+            axes_length=np.array([3.0, 1.0]),
+        )
+    )
+
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([-0.2, -0.4]), 50 * math.pi / 180.0),
+            axes_length=np.array([3.0, 1.0]),
+        )
+    )
+
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(np.array([-1.4, -0.4]), 10 * math.pi / 180.0),
+            axes_length=np.array([2.0, 1.5]),
+        )
+    )
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.attractor_position,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    avoider = SingularityConvergenceDynamics(
+        initial_dynamics=dynamics,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    position = np.array([1.0, 2.0])
+
+    start = timer()
+    velocity = avoider.evaluate_sequence(position)
+    end = timer()
+    print(f"Time {(end - start)*1000} ms.")
+    print(f"Number of obstacles: {obstacle_environment.n_obstacles}.")
+
+
 if (__name__) == "__main__":
     plt.close("all")
 
-    # test_sequenced_linear_single_circle(visualize=False)
+    # test_sequenced_linear_single_circle(visualize=True)
     # test_sequenced_linear_cuboid(visualize=True)
-    # test_multiple_obstacles(visualize=False)
-    test_sequenced_avoidance_dynamics(visualize=True)
+    # test_multiple_obstacles(visualize=True)
+    # test_sequenced_avoidance_dynamics(visualize=True)
+    example_timeit()
