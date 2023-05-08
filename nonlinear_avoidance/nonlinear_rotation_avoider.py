@@ -72,10 +72,7 @@ class ConvergenceDynamicsWithoutSingularity:
     def evaluate_convergence_around_obstacle(
         self, position: npt.ArrayLike, obstacle: Obstacle
     ) -> np.ndarray:
-        return self.initial_dynamics.evaluate(
-            # TODO: could also be reference point...
-            obstacle.center_position
-        )
+        return self.initial_dynamics.evaluate(obstacle.global_reference_point)
 
     def get_base_convergence(self, position: npt.ArrayLike) -> np.ndarray:
         return self.convergence_dynamics.evaluate(position)
@@ -186,19 +183,19 @@ class SingularityConvergenceDynamics(BaseAvoider):
         initial_sequence = self.evaluate_initial_dynamics_sequence(position)
         if initial_sequence is None:
             return np.zeros(self.dimension)
-        print("Got Initial")
+        # print("Got Initial")
 
         convergence_sequence = self.evaluate_weighted_dynamics_sequence(
             position, initial_sequence
         )
-        print("Got Convergence")
+        # print("Got Convergence")
 
         rotated_sequence = self._rotation_avoider.avoid_sequence(
             position=position,
             initial_sequence=initial_sequence,
             convergence_sequence=convergence_sequence,
         )
-        print("Got Rotational")
+        # print("Got Rotational")
 
         return rotated_sequence.get_end_vector()
 
@@ -288,9 +285,11 @@ class SingularityConvergenceDynamics(BaseAvoider):
             node_list.append(it_obs)
             node_weights.append(self.weights[it_obs] * projected_weight)
 
-        print("Got all obs-convergence")
+        # print("Got all obs-convergence")
         # node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)
         # node_weights = np.append(self.weights[ind_obs], 1 - sum(self.weights[ind_obs]))
+        node_list.append(initial_id)
+        node_weights.append(1 - sum(node_weights))
         rotation_sequence = direction_tree.reduce_weighted_to_sequence(
             node_list=node_list,
             weights=node_weights,

@@ -76,11 +76,6 @@ class ProjectedRotationDynamics:
 
         # reference_velocity = reference_velocity / self.maximum_velocity
 
-        # attractor_dir = self.attractor_position - obstacle.center_position
-        # if not (attr_norm := LA.norm(attractor_dir)):
-        #     warnings.warn("Obstacle is at attractor - zero deviation")
-        #     return
-
         self.min_gamma = min_gamma
         self.max_gamma = max_gamma
         # Modify if needed
@@ -109,9 +104,11 @@ class ProjectedRotationDynamics:
                 dot_product = np.dot(attractor_dir, self.rotation.base0)
                 gamma = gamma ** (2 / (dot_product + 1))
 
-                if dist_obs := LA.norm(self.obstacle.center_position):
+                # if dist_obs := LA.norm(self.obstacle.center_position):
+                if dist_obs := LA.norm(self.obstacle.global_reference_point):
                     dist_stretching = LA.norm(position) / LA.norm(
-                        self.obstacle.center_position
+                        # self.obstacle.center_position
+                        self.obstacle.global_reference_point
                     )
                     gamma = gamma**dist_stretching
                 else:
@@ -141,7 +138,7 @@ class ProjectedRotationDynamics:
         if in_obstacle_frame:
             relative_position = position
         else:
-            relative_position = position - self.obstacle.center_position
+            relative_position = position - self.obstacle.global_reference_point
 
         pos_norm = LA.norm(relative_position)
 
@@ -150,7 +147,7 @@ class ProjectedRotationDynamics:
             if in_obstacle_frame:
                 return np.zeros_like(position)
             else:
-                return np.copy(self.obstacle.center_position)
+                return np.copy(self.obstacle.global_reference_point)
 
         deflated_position = (
             (pos_norm - radius * deflation_weight) / pos_norm
@@ -159,7 +156,7 @@ class ProjectedRotationDynamics:
         if in_obstacle_frame:
             return deflated_position
         else:
-            return deflated_position + self.obstacle.center_position
+            return deflated_position + self.obstacle.global_reference_point
 
     def _get_position_after_inflating_obstacle(
         self,
@@ -179,7 +176,7 @@ class ProjectedRotationDynamics:
             # Make sure it is float
             relative_position = np.copy(position).astype(float)
         else:
-            relative_position = position - self.obstacle.center_position
+            relative_position = position - self.obstacle.global_reference_point
 
         if not (pos_norm := LA.norm(relative_position)):
             # Needs a tiny value
@@ -193,7 +190,7 @@ class ProjectedRotationDynamics:
         if in_obstacle_frame:
             return inflated_position
         else:
-            return inflated_position + self.obstacle.center_position
+            return inflated_position + self.obstacle.global_reference_point
 
     def _get_folded_position_opposite_kernel_point(
         self,
@@ -213,7 +210,7 @@ class ProjectedRotationDynamics:
             vec_attractor_to_obstacle = (-1) * attractor_position
         else:
             vec_attractor_to_obstacle = (
-                self.obstacle.center_position - attractor_position
+                self.obstacle.global_reference_point - attractor_position
             )
 
         # 'Unfold' the circular plane into an infinite -y/+y-plane
@@ -261,7 +258,9 @@ class ProjectedRotationDynamics:
         transformed_position = transformed_position * dist_attr_obs
 
         if not in_obstacle_frame:
-            transformed_position = transformed_position + self.obstacle.center_position
+            transformed_position = (
+                transformed_position + self.obstacle.global_reference_point
+            )
 
         return transformed_position
 
@@ -278,7 +277,7 @@ class ProjectedRotationDynamics:
             dir_attractor_to_obstacle = (-1) * attractor_position
         else:
             dir_attractor_to_obstacle = (
-                self.obstacle.center_position - attractor_position
+                self.obstacle.global_reference_point - attractor_position
             )
 
         if not (dist_attr_obs := LA.norm(dir_attractor_to_obstacle)):
@@ -294,7 +293,7 @@ class ProjectedRotationDynamics:
             dir_obstacle_to_position = transformed_position
         else:
             dir_obstacle_to_position = (
-                transformed_position - self.obstacle.center_position
+                transformed_position - self.obstacle.global_reference_point
             )
 
         # The normalization with with attractor distance scales the 'radial' direction
@@ -409,7 +408,7 @@ class ProjectedRotationDynamics:
         """Returns projected lyapunov gradient function.
 
         It is assumed that z-axis is the base gradient."""
-        attractor_dir = self.attractor_position - self.obstacle.center_position
+        attractor_dir = self.attractor_position - self.obstacle.global_reference_point
 
         if not (dist_attractor := LA.norm(attractor_dir)):
             return np.zeros_like(attractor_dir)
@@ -453,12 +452,12 @@ class ProjectedRotationDynamics:
             return None
         dir_attr_to_pos = dir_attr_to_pos / dir_norm
 
-        # dir_obs_to_pos = self.attractor_position - obstacle.center_position
+        # dir_obs_to_pos = self.attractor_position - obstacle.global_reference_point
         # if not (dir_norm := LA.norm(dir_obs_to_pos)):
         #     raise NotImplementedError("Position is at center-of the obstacle.")
         # dir_obs_to_pos = dir_obs_to_pos / dir_norm
 
-        dir_attr_to_obs = self.attractor_position - obstacle.center_position
+        dir_attr_to_obs = self.attractor_position - obstacle.global_reference_point
         if not (obs_norm := LA.norm(dir_attr_to_obs)):
             raise NotImplementedError("Obstacle is at attractor.")
         dir_attr_to_obs = dir_attr_to_obs / obs_norm
@@ -496,7 +495,7 @@ class ProjectedRotationDynamics:
 
         # initial_sequence = self.initial_dynamics.evaluate_dynamics_sequence(position)
         # obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
-        #     obstacle.center_position
+        #     obstacle.global_reference_point
         # )
         # initial_sequence = evaluate_dynamics_sequence(
         #     position, dynamics=self.initial_dynamics
@@ -510,7 +509,7 @@ class ProjectedRotationDynamics:
             return initial_sequence
 
         obstacle_sequence = evaluate_dynamics_sequence(
-            obstacle.center_position, dynamics=self.initial_dynamics
+            obstacle.global_reference_point, dynamics=self.initial_dynamics
         )
 
         obstacle_sequence.push_root_from_base_and_angle(
@@ -542,7 +541,9 @@ class ProjectedRotationDynamics:
         self.obstacle = obstacle
 
         initial_velocity = self.initial_dynamics.evaluate(position)
-        obstacle_velocity = self.initial_dynamics.evaluate(obstacle.center_position)
+        obstacle_velocity = self.initial_dynamics.evaluate(
+            obstacle.global_reference_point
+        )
 
         # base_convergence_direction = self.get_base_convergence(position)
         # The transform for the obstacle-velocity is zero

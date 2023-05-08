@@ -621,7 +621,6 @@ class VectorRotationTree:
         self, node_list: list[NodeType], weights: npt.ArrayLike
     ) -> VectorRotationSequence:
 
-        print("Doing another reduction.")
         sorted_list = self.get_nodes_ascending()
         self.update_partial_rotations(node_list, weights, sorted_list)
         return self.evaluate_graph_summing(sorted_list)
