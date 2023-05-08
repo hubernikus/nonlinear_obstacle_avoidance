@@ -117,6 +117,19 @@ def main(n_grid=30):
             marker="o",
         )
 
+    dimension = 2
+    it_max = 1000
+    dt = 0.1
+    trajectory = np.zeros((dimension, it_max))
+    position_start = np.array([-4, -4.0])
+    trajectory[:, 0] = position_start
+    for ii in range(1, it_max):
+        velocity = avoider.evaluate_sequence(trajectory[:, ii - 1])
+        trajectory[:, ii] = trajectory[:, ii - 1] + velocity * dt
+
+    ax.plot(trajectory[0, :], trajectory[1, :], ":", color="black")
+    ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color="black")
+
 
 def test_simple_arch_sequence_avoidance(visualize=False):
     dynamics = create_segment_from_points(
@@ -150,7 +163,7 @@ def test_simple_arch_sequence_avoidance(visualize=False):
     )
 
     if visualize:
-        n_grid = 10
+        n_grid = 20
         x_lim = [-3, 3]
         y_lim = [-3, 3]
 
@@ -201,6 +214,6 @@ if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
-    # main(n_grid=10)
-    test_simple_arch_sequence_avoidance(visualize=True)
+    main(n_grid=10)
+    # test_simple_arch_sequence_avoidance(visualize=True)
     # test_common_root_of_sequence()

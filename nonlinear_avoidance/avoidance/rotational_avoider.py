@@ -236,16 +236,25 @@ class RotationalAvoider(BaseAvoider):
 
             node_weights.append(cont_weight * importance_weights[ii])
             node_list.append(ii)
+            # print("Tangent", vector_convergence_tangent)
 
         # Add initial weight
         node_list.append(initial_id)
         node_weights.append(1 - sum(node_weights))
 
+        # print("Final Sequence")
         averaged_sequence = rotated_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=node_weights
         )
+        # print("Init Angles", initial_sequence.rotation_angles)
+        # print("End init", initial_sequence.get_end_vector())
 
-        # breakpoint()
+        # print("Angles", convergence_sequence.rotation_angles)
+        # print("End conv", convergence_sequence.get_end_vector())
+
+        # print("cont_weight", cont_weight)
+        # print("impo_weights", importance_weights)
+        # print("node_weights", node_weights)
 
         return averaged_sequence
 
@@ -942,8 +951,9 @@ class RotationalAvoider(BaseAvoider):
             return 0.0
 
         continuation_weight = min(continuation_weight, 1.0)
-        continuation_weight = continuation_weight ** self.smooth_continuation_power
+        continuation_weight = continuation_weight**self.smooth_continuation_power
         weight = weight ** (1.0 / continuation_weight)
+
         return weight
 
     def get_pseudo_tangent(

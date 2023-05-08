@@ -746,6 +746,7 @@ class VectorRotationTree:
                 # averaged_direction = shared_basis @ (local_mean_basis / new_angle)
                 averaged_direction = local_mean_basis / new_angle
             else:
+
                 # No rotation, hence it's the first vector
                 averaged_direction = shared_basis[:, 0]
 
@@ -792,6 +793,7 @@ class VectorRotationTree:
                 ).reshape(self.dimension, -1, 2)
 
                 vector_sequence.append_from_base_and_angle(new_base, new_angle)
+                # print("base", new_base[:, 0])
 
             else:
                 # Zero transformation angle, hence just reshape
@@ -800,12 +802,10 @@ class VectorRotationTree:
             for ii, node in enumerate(all_successors):
                 self._graph.nodes[node]["part_orientation"].base = all_basis[:, ii, :]
 
-        try:
-            vector_sequence.append_from_base_and_angle(
-                np.vstack((shared_first_basis, averaged_direction)).T, new_angle
-            )
-        except:
-            breakpoint()
+        vector_sequence.append_from_base_and_angle(
+            np.vstack((shared_first_basis, averaged_direction)).T, new_angle
+        )
+        # print("base", shared_first_basis)
 
         # final_rotation = VectorRotationXd(
         #     base=np.vstack((shared_first_basis, averaged_direction)).T,

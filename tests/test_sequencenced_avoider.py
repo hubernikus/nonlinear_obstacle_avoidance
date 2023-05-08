@@ -36,6 +36,7 @@ def test_sequenced_linear_single_circle(visualize=False):
         Ellipse(
             pose=Pose.create_trivial(2),
             axes_length=np.array([4.0, 4.0]),
+            distance_scaling=0.3,
         )
     )
     rotation_projector = ProjectedRotationDynamics(
@@ -55,7 +56,7 @@ def test_sequenced_linear_single_circle(visualize=False):
         fig, ax = plt.subplots(figsize=(6, 5))
         x_lim = [-5, 5]
         y_lim = [-5, 5]
-        n_grid = 11
+        n_grid = 21
 
         plot_obstacle_dynamics(
             obstacle_container=[],
@@ -335,63 +336,26 @@ def test_sequenced_avoidance_dynamics_single(visualize=False):
     assert velocity[0] > 0, "Avoiding towards the right"
 
 
-def test_sequenced_avoidance_dynamics_multiple(visualize=False):
+def test_sequenced_avoidance_dynamics_reference(visualize=False):
     dynamics = create_segment_from_points(
-        # [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
         [[-7.0, -4.0], [0.0, -4.0], [0.0, 4.0], [7.5, 4.0]]
     )
 
     table_length = axes_length = np.array([1.5, 0.75])
     margin = 0.5
+    distance_scaling = 1.0
 
     obstacle_environment = RotationContainer()
-    obstacle_environment.append(
-        Cuboid(
-            pose=Pose(position=[-3.4, -2.5], orientation=-0.1 * np.pi),
-            axes_length=table_length,
-            margin_absolut=margin,
-        )
-    )
-    obstacle_environment.append(
-        Cuboid(
-            pose=Pose(position=[4.0, 3.6], orientation=np.pi / 2),
-            axes_length=table_length,
-            margin_absolut=margin,
-        )
-    )
-
     shared_reference = np.array([0.0, 0.75])
-    obstacle_environment.append(
-        Cuboid(
-            pose=Pose(position=[1.2, 0.5], orientation=-0.2 * np.pi),
-            axes_length=table_length,
-            margin_absolut=margin,
-        )
-    )
-    obstacle_environment[-1].set_reference_point(shared_reference, in_global_frame=True)
-
     obstacle_environment.append(
         Cuboid(
             pose=Pose(position=[-0.4, 1.3], orientation=0.4 * np.pi),
             axes_length=table_length,
             margin_absolut=margin,
+            distance_scaling=distance_scaling,
         )
     )
     obstacle_environment[-1].set_reference_point(shared_reference, in_global_frame=True)
-    obstacle_environment.append(
-        Cuboid(
-            pose=Pose(position=[-0.2, -3.9], orientation=-0.3 * np.pi),
-            axes_length=table_length,
-            margin_absolut=margin,
-        )
-    )
-    obstacle_environment.append(
-        Cuboid(
-            pose=Pose(position=[-0.3, 4.0], orientation=-0.9 * np.pi),
-            axes_length=table_length,
-            margin_absolut=margin,
-        )
-    )
 
     rotation_projector = ProjectedRotationDynamics(
         attractor_position=dynamics.attractor_position,
@@ -408,10 +372,119 @@ def test_sequenced_avoidance_dynamics_multiple(visualize=False):
 
     if visualize:
         fig, ax = plt.subplots(figsize=(6, 5))
-        x_lim = [-4, 4]
-        y_lim = [-4, 4]
-        # x_lim = [-2, 2]
-        # y_lim = [-2, 2]
+        # x_lim = [-4, 4]
+        # y_lim = [-4, 4]
+        x_lim = [-2, 0]
+        y_lim = [-1, 1]
+
+        n_grid = 40
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            # attractor_position=dynamic.attractor_position,
+            do_quiver=True,
+            # show_ticks=False,
+        )
+
+        plot_obstacles(
+            obstacle_container=obstacle_environment,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            draw_reference=True,
+        )
+
+        ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+
+    position = np.array([-1.0, 0.1])
+    velocity1 = avoider.evaluate_sequence(position)
+    assert velocity1[0] < 0, "Avoidance to the left..."
+    # TODO: fast change below -> should this be changed(?)
+
+
+def test_sequenced_avoidance_dynamics_multiple(visualize=False):
+    dynamics = create_segment_from_points(
+        # [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
+        [[-7.0, -4.0], [0.0, -4.0], [0.0, 4.0], [7.5, 4.0]]
+    )
+
+    table_length = axes_length = np.array([1.5, 0.75])
+    margin = 0.5
+    distance_scaling = 1.0
+
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[-3.4, -2.5], orientation=-0.1 * np.pi),
+            axes_length=table_length,
+            margin_absolut=margin,
+        )
+    )
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[4.0, 3.6], orientation=np.pi / 2),
+            axes_length=table_length,
+            margin_absolut=margin,
+        )
+    )
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[-0.2, -3.9], orientation=-0.3 * np.pi),
+            axes_length=table_length,
+            margin_absolut=margin,
+        )
+    )
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[-0.3, 4.0], orientation=-0.9 * np.pi),
+            axes_length=table_length,
+            margin_absolut=margin,
+        )
+    )
+
+    shared_reference = np.array([0.0, 0.75])
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[1.2, 0.5], orientation=-0.2 * np.pi),
+            axes_length=table_length,
+            margin_absolut=margin,
+            distance_scaling=distance_scaling,
+        )
+    )
+    obstacle_environment[-1].set_reference_point(shared_reference, in_global_frame=True)
+
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose(position=[-0.4, 1.3], orientation=0.4 * np.pi),
+            axes_length=table_length,
+            margin_absolut=margin,
+            distance_scaling=distance_scaling,
+        )
+    )
+    obstacle_environment[-1].set_reference_point(shared_reference, in_global_frame=True)
+
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.attractor_position,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    avoider = SingularityConvergenceDynamics(
+        initial_dynamics=dynamics,
+        # convergence_system=convergence_dynamics,
+        obstacle_environment=obstacle_environment,
+        obstacle_convergence=rotation_projector,
+    )
+
+    if visualize:
+        fig, ax = plt.subplots(figsize=(7, 5))
+        x_lim = [-7, 8]
+        y_lim = [-6, 6]
 
         n_grid = 20
 
@@ -437,25 +510,15 @@ def test_sequenced_avoidance_dynamics_multiple(visualize=False):
 
         ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
 
-        print(f"Time {(end - start)*1000:.2f} ms.")
-        print(f"Number of obstacles: {obstacle_environment.n_obstacles}.")
-
-    # position = np.array([-0.7, -0.4])
-    # velocity = avoider.evaluate_sequence(position)
-    # assert velocity[0] < 0, "Avoiding towards the left"
-
-    # position = np.array([1.3, -0.8])
-    # velocity = avoider.evaluate_sequence(position)
-    # assert velocity[0] > 0, "Avoiding towards the right"
-
 
 if (__name__) == "__main__":
-    plt.close("all")
+    # plt.close("all")
 
     # test_sequenced_linear_single_circle(visualize=True)
     # test_sequenced_linear_cuboid(visualize=True)
     # test_multiple_obstacles(visualize=True)
     # test_sequenced_avoidance_dynamics_single(visualize=True)
-    # test_sequenced_avoidance_dynamics_multiple(visualize=True)
-    test_sequenced_linear_intersecting_circles(visualize=True)
-    # example_timeit()
+
+    # test_sequenced_linear_intersecting_circles(visualize=True)
+    # test_sequenced_avoidance_dynamics_reference(visualize=False)
+    test_sequenced_avoidance_dynamics_multiple(visualize=True)

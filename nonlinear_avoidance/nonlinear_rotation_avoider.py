@@ -206,14 +206,15 @@ class SingularityConvergenceDynamics(BaseAvoider):
     def evaluate_convergence_around_obstacle(self, position, obstacle):
         raise NotImplementedError()
 
-    def compute_gamma_weights(self, position: np.ndarray) -> np.ndarray:
+    def compute_gamma_weights(
+        self, position: np.ndarray, gamma_min: float = 1.0, weight_power: float = 2.0
+    ) -> np.ndarray:
         gamma_array = np.zeros((self.n_obstacles))
         for ii in range(self.n_obstacles):
             gamma_array[ii] = self._rotation_avoider.obstacle_environment[ii].get_gamma(
                 position, in_global_frame=True
             )
 
-        gamma_min = 1.0
         # Store weights -> mostly for visualization
         self.weights = np.zeros(self.n_obstacles)
 
@@ -232,16 +233,20 @@ class SingularityConvergenceDynamics(BaseAvoider):
             weights = 1.0 / (gamma_array[ind_obs] - gamma_min) - 1 / (
                 self.cut_off_gamma - gamma_min
             )
+            weights = weights**weight_power
+
+            # weights = weights**weight_power
             if (weight_sum := np.sum(weights)) > 0:
                 # Normalize weight, but leave possibility to be smaller than one (!)
                 weights = weights / weight_sum
 
             # Influence of each obstacle -> but better mapping to [0, 1]
-            ww_weights = (
-                1 / gamma_array[ind_obs] - 1 / self._rotation_avoider.cut_off_gamma
-            )
-            ww_weights = ww_weights / (1 - 1 / self._rotation_avoider.cut_off_gamma)
-            weights = weights * np.minimum(1, ww_weights)
+            # ww_weights = (
+            #     1.0 / gamma_array[ind_obs] - 1.0 / self._rotation_avoider.cut_off_gamma
+            # )
+            # ww_weights = ww_weights / (1.0 - 1.0 / self._rotation_avoider.cut_off_gamma)
+            # breakpoint()
+            # weights = weights * np.minimum(1, ww_weights)
 
         self.weights[ind_obs] = weights
         return ind_obs
@@ -294,6 +299,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             node_list=node_list,
             weights=node_weights,
         )
+        # breakpoint()
         return rotation_sequence
 
     def evaluate_weighted_dynamics(
