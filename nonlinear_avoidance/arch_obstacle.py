@@ -2,7 +2,8 @@
 Create 'Arch'-Obstacle which might be often used
 """
 from dataclasses import dataclass, field
-from typing import Optional, Iterator
+from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
 
@@ -16,55 +17,13 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
+from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     SingularityConvergenceDynamics,
 )
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
-
-
-@dataclass(slots=True)
-class MultiObstacleContainer:
-    _obstacle_list: list[HierarchyObstacle] = field(default_factory=list)
-
-    def is_collision_free(self, position: np.ndarray) -> bool:
-        for obstacle_tree in self._obstacle_list:
-            if obstacle_tree.is_collision_free(position):
-                continue
-            return False
-
-        return True
-
-    def get_gamma(self, position: np.ndarray, in_global_frame: bool = True) -> float:
-        if not in_global_frame:
-            raise NotImplementedError()
-        gammas = np.zeros(len(self._obstacle_list))
-        for oo, obs in enumerate(self._obstacle_list):
-            gammas[oo] = obs.get_gamma(position, in_global_frame=True)
-
-        return min(gammas)
-
-    def append(self, obstacle: HierarchyObstacle) -> None:
-        self._obstacle_list.append(obstacle)
-
-    def __iter__(self) -> Iterator[int]:
-        return iter(self._obstacle_list)
-
-    def __len__(self) -> int:
-        return len(self._obstacle_list)
-
-    def is_in_free_space(
-        self, position: np.ndarray, in_global_frame: bool = True
-    ) -> bool:
-        if not in_global_frame:
-            raise NotImplementedError()
-        for obs in self:
-            if obs.is_in_free_space(position, in_global_frame=True):
-                continue
-            return False
-
-        return True
 
 
 class BlockArchObstacle:

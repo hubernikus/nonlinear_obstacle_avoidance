@@ -958,7 +958,7 @@ class RotationalAvoider(BaseAvoider):
             return 0.0
 
         continuation_weight = min(continuation_weight, 1.0)
-        continuation_weight = continuation_weight ** self.smooth_continuation_power
+        continuation_weight = continuation_weight**self.smooth_continuation_power
         weight = weight ** (1.0 / continuation_weight)
 
         return weight

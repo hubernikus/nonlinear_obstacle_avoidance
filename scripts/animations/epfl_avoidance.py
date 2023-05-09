@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 import networkx as nx
 
-from vartools.states import Pose
+from vartools.states import Pose, Twist
 from vartools.animator import Animator
 from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 
@@ -24,6 +24,7 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
 
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 
@@ -262,89 +263,6 @@ def create_obstacle_l(margin_absolut=0.0, scaling=1.0, pose: Optional[Pose] = No
     return letter_obstacle
 
 
-@dataclass
-class MultiObstacle:
-    pose: Pose
-    margin_absolut: float = 0
-
-    _graph: nx.DiGraph = field(default_factory=lambda: nx.DiGraph())
-    _local_poses: list[Pose] = field(default_factory=list)
-    _obstacle_list: list[Obstacle] = field(default_factory=list)
-
-    _root_idx: int = 0
-
-    @property
-    def dimension(self) -> int:
-        return self.pose.dimension
-
-    @property
-    def n_components(self) -> int:
-        return len(self._obstacle_list)
-
-    @property
-    def root_idx(self) -> int:
-        return self._root_idx
-
-    def get_gamma(self, position, in_global_frame: bool = True):
-        if not in_global_frame:
-            position = self.pose.transform_pose_from_relative(position)
-
-        gammas = [
-            obs.get_gamma(position, in_global_frame=True) for obs in self._obstacle_list
-        ]
-        return np.min(gammas)
-
-    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
-        if idx_obs == self.root_idx:
-            return None
-        else:
-            return list(self._graph.predecessors(idx_obs))[0]
-
-    def get_component(self, idx_obs: int) -> Obstacle:
-        return self._obstacle_list[idx_obs]
-
-    def set_root(self, obstacle: Obstacle) -> None:
-        self._local_poses.append(obstacle.pose)
-        obstacle.pose = self.pose.transform_pose_from_relative(self._local_poses[-1])
-
-        self._obstacle_list.append(obstacle)
-        self._root_idx = 0  # Obstacle ID
-        self._graph.add_node(
-            self._root_idx, references_children=[], indeces_children=[]
-        )
-
-    def add_component(
-        self,
-        obstacle: Obstacle,
-        reference_position: npt.ArrayLike,
-        parent_ind: int,
-    ) -> None:
-        """Create and add an obstacle container in the local frame of reference."""
-        reference_position = np.array(reference_position)
-        obstacle.set_reference_point(reference_position, in_global_frame=False)
-
-        new_id = len(self._obstacle_list)
-        # Put obstacle to 'global' frame, but store local pose
-        self._local_poses.append(obstacle.pose)
-        obstacle.pose = self.pose.transform_pose_from_relative(self._local_poses[-1])
-        self._obstacle_list.append(obstacle)
-
-        self._graph.add_node(
-            new_id,
-            local_reference=reference_position,
-            indeces_children=[],
-            references_children=[],
-        )
-
-        self._graph.nodes[parent_ind]["indeces_children"].append(new_id)
-        self._graph.add_edge(parent_ind, new_id)
-
-    def update_obstacles(self, delta_time):
-        # Update all positions of the moved obstacles
-        for pose, obs in zip(self._local_poses, self._obstacle_list):
-            obs.shape = self.pose.transform_pose_from_relative(pose)
-
-
 def create_epfl_multi_container(scaling=1.0, margin_absolut=0.1):
     container = MultiObstacleContainer()
     container.append(create_obstacle_e(margin_absolut, scaling))
@@ -422,7 +340,7 @@ def visualize_avoidance(visualize=True):
 
 
 class AnimatorRotationAvoidanceEPFL(Animator):
-    def setup(self, container, x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
+    def setup(self, container, dynamics=[], x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
         self.attractor = np.array([6, -25.0])
         self.n_traj = 20
 
@@ -430,6 +348,7 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
 
         self.container = container
+        self.dynamics = dynamics
         # self.attractor = np.array([13, 4.0])
 
         self.initial_dynamics = LinearSystem(
@@ -476,12 +395,18 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         if not ii % 10:
             print(f"Iteration {ii}")
 
-        for tt in range(self.n_traj):
-            pos = self.trajectories[tt][:, ii]
-            rotated_velocity = self.avoider.evaluate(pos)
-            self.trajectories[tt][:, ii + 1] = (
-                pos + rotated_velocity * self.dt_simulation
-            )
+        for dynamics, tree in zip(self.dynamics, self.container):
+            # Get updated dynamics and apply
+            pose = tree.get_pose()
+            twist = dynamics(pose)
+
+            pose.position = twist.linear * self.dt_simulation + pose.position
+
+            if twist.angular is not None:
+                pose.orientation = twist.angular * self.dt_simulation + pose.orientation
+
+            tree.update_pose(pose)
+            tree.twist = twist
 
         # for obs in self.environment:
         #     obs.pose.position = (
@@ -490,6 +415,13 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         #     obs.pose.orientation = (
         #         self.dt_simulation * obs.twist.angular + obs.pose.orientation
         #     )
+
+        for tt in range(self.n_traj):
+            pos = self.trajectories[tt][:, ii]
+            rotated_velocity = self.avoider.evaluate(pos)
+            self.trajectories[tt][:, ii + 1] = (
+                pos + rotated_velocity * self.dt_simulation
+            )
 
         self.ax.clear()
 
@@ -596,10 +528,121 @@ def animation_chaotic_epfl(save_animation=False):
     animator.run(save_animation=save_animation)
 
 
+@dataclass
+class LinearMovement:
+    start_position: np.ndarray
+    direction: np.ndarray
+    distance_max: float
+
+    # Internal state - to ensure motion
+    step: int = 0
+    frequency: float = 0.1
+
+    def evaluate(self, pose):
+        self.step += self.frequency
+
+        next_position = (
+            (1 + np.cos(self.step - np.pi * 0.5))
+            / 2.0
+            * self.distance_max
+            * self.direction
+        ) + self.start_position
+
+        return Twist(linear=(next_position - pose.position))
+
+
+@dataclass
+class AngularBackForth:
+    start_orientation: float
+    delta_angle: float
+
+    frequency: float = 0.1
+    step: int = 0
+
+    dimension: int = 2
+
+    def evaluate(self, pose):
+        self.step += self.frequency
+
+        next_angle = -np.sin(self.step) * self.delta_angle + self.start_orientation
+
+        return Twist(
+            linear=np.zeros(self.dimension), angular=(next_angle - pose.orientation)
+        )
+
+
+@dataclass
+class CircularMovement:
+    start_position: np.ndarray
+    radius: float
+
+    # Internal state - to ensure motion
+    step: int = 0
+    frequency: float = 0.07
+
+    def evaluate(self, pose):
+        self.step += self.frequency
+
+        next_position = (
+            self.radius * np.array([-np.cos(self.step), np.sin(self.step)])
+            + self.start_position
+        )
+
+        return Twist(linear=(next_position - pose.position))
+
+
+@dataclass
+class ContinuousRotation:
+    start_orientation: float
+
+    # Internal state - to ensure motion
+    step: int = 0
+    frequency: float = -0.2
+
+    dimension: int = 2
+
+    def evaluate(self, pose):
+        self.step += self.frequency
+        return Twist(linear=np.zeros(self.dimension), angular=self.frequency)
+
+
+def animation_dynamic_epfl(save_animation=False):
+    container = create_chaotic_epfl_container(scaling=1.0 / 50, margin_absolut=0.0)
+
+    dynamics = []
+    pose = container.get_obstacle_tree(0).get_pose()
+    direction = np.array([np.cos(pose.orientation), np.sin(pose.orientation)])
+    dynamics.append(LinearMovement(pose.position, -direction, distance_max=2).evaluate)
+
+    pose = container.get_obstacle_tree(1).get_pose()
+    dynamics.append(
+        AngularBackForth(start_orientation=pose.orientation, delta_angle=0.7).evaluate
+    )
+
+    pose = container.get_obstacle_tree(2).get_pose()
+    dynamics.append(ContinuousRotation(start_orientation=pose.orientation).evaluate)
+
+    pose = container.get_obstacle_tree(3).get_pose()
+    dynamics.append(CircularMovement(pose.position, radius=1.0).evaluate)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_messi_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container, x_lim=[-3, 14.5], y_lim=[-2, 6.0], dynamics=dynamics
+    )
+    animator.run(save_animation=save_animation)
+
+
 if (__name__) == "__main__":
     plt.close("all")
     # epfl_logo_parser()
     plt.style.use("dark_background")
     # visualize_avoidance()
-    animation_epfl(save_animation=True)
-    animation_chaotic_epfl(save_animation=True)
+    # animation_epfl(save_animation=True)
+    # animation_chaotic_epfl(save_animation=False)
+    animation_dynamic_epfl(save_animation=False)

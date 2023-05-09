@@ -36,6 +36,45 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 
+
+class HierarchyObstacle(Protocol):
+    # + all methods of a general obstacle(?)
+    @property
+    def n_components(self) -> int:
+        ...
+
+    @property
+    def root_idx(self) -> int:
+        ...
+
+    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
+        ...
+
+    def get_component(self, idx_obs: int) -> Obstacle:
+        ...
+
+
+def compute_multiobstacle_relative_velocity(
+    position: np.ndarray,
+    environment: HierarchyObstacle,
+    cutoff_gamma: float = 100,
+) -> np.ndarray:
+
+    if position.shape[0] > 2:
+        raise NotImplementedError()
+
+    # Weights
+    gammas = np.zeros(len(environment))
+    for ii, obs in enumerate(environment):
+        gammas[ii] = obs.get_gamma(position, in_global_frame=True)
+    weights = compute_weights(gammas)
+
+    relative_velocity = np.zeros_like(position)
+    for ii, obs in enumerate(environment):
+        if weights[ii] <= 0:
+            continue
+
+
 # @dataclass(slots=True)
 # class NodeKey:
 #     """Returns simple (and reversible) hash-key."""
@@ -57,23 +96,6 @@ NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 
 #     def __hash__(self) -> int:
 #         return self._hash
-
-
-class HierarchyObstacle(Protocol):
-    # + all methods of a general obstacle(?)
-    @property
-    def n_components(self) -> int:
-        ...
-
-    @property
-    def root_idx(self) -> int:
-        ...
-
-    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
-        ...
-
-    def get_component(self, idx_obs: int) -> Obstacle:
-        ...
 
 
 class MultiObstacleAvoider:
@@ -145,6 +167,7 @@ class MultiObstacleAvoider:
             )
 
     def evaluate(self, position: Vector) -> Vector:
+        # breakpoint()
         velocity = self.initial_dynamics.evaluate(position)
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
@@ -154,7 +177,11 @@ class MultiObstacleAvoider:
         else:
             convergence_direction = None
 
-        return self.get_tangent_direction(position, velocity, convergence_direction)
+        final_velocity = self.get_tangent_direction(
+            position, velocity, convergence_direction
+        )
+
+        return final_velocity
 
     def get_tangent_direction(
         self,

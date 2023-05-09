@@ -194,7 +194,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             position=position,
             initial_sequence=initial_sequence,
             convergence_sequence=convergence_sequence,
-            # convergence_default=False,
+            convergence_default=False,
         )
         # print("Got Rotational")
 
