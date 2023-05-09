@@ -147,6 +147,7 @@ class RotationalAvoider(BaseAvoider):
         position: np.ndarray,
         initial_sequence: VectorRotationSequence,
         convergence_sequence: VectorRotationSequence,
+        convergence_default: bool = True,
     ) -> VectorRotationSequence:
         """The evaluation is under the assumption that only close obstacles are in the list.
 
@@ -236,7 +237,13 @@ class RotationalAvoider(BaseAvoider):
 
             node_weights.append(cont_weight * importance_weights[ii])
             node_list.append(ii)
-            # print("Tangent", vector_convergence_tangent)
+
+        if convergence_default:
+            # In the surrounding of the obstacle fall back to the convergence,
+            # rather than the initial dynamics
+            node_list.append(conv_id)
+            node_weights.append(sum(importance_weights) - sum(node_weights))
+            print("Fallback weight of:", node_weights[-1])
 
         # Add initial weight
         node_list.append(initial_id)
@@ -951,7 +958,7 @@ class RotationalAvoider(BaseAvoider):
             return 0.0
 
         continuation_weight = min(continuation_weight, 1.0)
-        continuation_weight = continuation_weight**self.smooth_continuation_power
+        continuation_weight = continuation_weight ** self.smooth_continuation_power
         weight = weight ** (1.0 / continuation_weight)
 
         return weight

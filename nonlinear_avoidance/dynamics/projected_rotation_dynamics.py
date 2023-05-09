@@ -110,7 +110,7 @@ class ProjectedRotationDynamics:
                         # self.obstacle.center_position
                         self.obstacle.global_reference_point
                     )
-                    gamma = gamma**dist_stretching
+                    gamma = gamma ** dist_stretching
                 else:
                     gamma = self.max_gamma
 
@@ -309,8 +309,8 @@ class ProjectedRotationDynamics:
         radius = np.dot(dir_attractor_to_obstacle, dir_obstacle_to_position) * pos_norm
 
         # Ensure that the square root stays positive close to singularities
-        dot_prod = math.sqrt(max(pos_norm**2 - radius**2, 0))
-        dot_prod = dot_prod**self.dotprod_projection_power
+        dot_prod = math.sqrt(max(pos_norm ** 2 - radius ** 2, 0))
+        dot_prod = dot_prod ** self.dotprod_projection_power
         dot_prod = 2.0 / (dot_prod + 1) - 1
 
         if dot_prod < 1:
@@ -471,7 +471,7 @@ class ProjectedRotationDynamics:
         return rotation_pos_to_transform
 
     def evaluate_projected_weight(
-        self, position: np.ndarray, obstacle: Obstacle
+        self, position: np.ndarray, obstacle: Obstacle, weight_power: float = 0.5
     ) -> float:
         # Obstacle velocity will not change when being transformed, as it's the static point
 
@@ -480,10 +480,11 @@ class ProjectedRotationDynamics:
         projected_position = self.get_projected_position(position)
         proj_gamma = obstacle.get_gamma(projected_position, in_global_frame=True)
 
-        if proj_gamma <= 1:
+        if proj_gamma <= 1.0:
             return 1.0
-        else:
-            return 1.0 / proj_gamma
+
+        weight = (1.0 / proj_gamma) ** weight_power
+        return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(
         self,

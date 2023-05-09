@@ -194,6 +194,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             position=position,
             initial_sequence=initial_sequence,
             convergence_sequence=convergence_sequence,
+            convergence_default=False,
         )
         # print("Got Rotational")
 
@@ -233,7 +234,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             weights = 1.0 / (gamma_array[ind_obs] - gamma_min) - 1 / (
                 self.cut_off_gamma - gamma_min
             )
-            weights = weights**weight_power
+            weights = weights ** weight_power
 
             # weights = weights**weight_power
             if (weight_sum := np.sum(weights)) > 0:
@@ -254,9 +255,9 @@ class SingularityConvergenceDynamics(BaseAvoider):
     def evaluate_weighted_dynamics_sequence(
         self, position: np.ndarray, initial_sequence: VectorRotationSequence
     ) -> VectorRotationSequence:
-        ind_obs = self.compute_gamma_weights(position)
-        if not len(ind_obs):
-            return initial_sequence
+        # ind_obs = self.compute_gamma_weights(position)
+        # if not len(ind_obs):
+        #     return initial_sequence
 
         # Assumption of shared root_id
         root_id = -10
@@ -268,7 +269,8 @@ class SingularityConvergenceDynamics(BaseAvoider):
         node_list = []
         node_weights = []
 
-        for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
+        # for ii, it_obs in enumerate(np.arange(self.n_obstacles)[ind_obs]):
+        for ii, it_obs in enumerate(np.arange(self.n_obstacles)):
             projected_weight = self.obstacle_convergence.evaluate_projected_weight(
                 position, self._rotation_avoider.obstacle_environment[ii]
             )
@@ -288,18 +290,24 @@ class SingularityConvergenceDynamics(BaseAvoider):
                 parent_id=root_id,
             )
             node_list.append(it_obs)
-            node_weights.append(self.weights[it_obs] * projected_weight)
+            node_weights.append(projected_weight)
+            # node_weights.append(self.weights[it_obs] * projected_weight)
 
         # print("Got all obs-convergence")
         # node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)
         # node_weights = np.append(self.weights[ind_obs], 1 - sum(self.weights[ind_obs]))
-        node_list.append(initial_id)
-        node_weights.append(1 - sum(node_weights))
+
+        if (weight_sum := np.sum(node_weights)) >= 1:
+            node_weights = np.array(node_weights) / sum(node_weights)
+        else:
+            node_list.append(initial_id)
+            node_weights.append(1 - sum(node_weights))
+
         rotation_sequence = direction_tree.reduce_weighted_to_sequence(
             node_list=node_list,
             weights=node_weights,
         )
-        # breakpoint()
+
         return rotation_sequence
 
     def evaluate_weighted_dynamics(

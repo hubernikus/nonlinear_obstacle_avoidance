@@ -283,7 +283,7 @@ def test_sequenced_avoidance_dynamics_single(visualize=False):
     obstacle_environment = RotationContainer()
     obstacle_environment.append(
         Cuboid(
-            pose=Pose(np.array([0.2, 0.3]), 0 * math.pi / 180.0),
+            pose=Pose(np.array([0.2, 0.0]), 0 * math.pi / 180.0),
             axes_length=np.array([3.0, 1.0]),
         )
     )
@@ -300,15 +300,43 @@ def test_sequenced_avoidance_dynamics_single(visualize=False):
         obstacle_convergence=rotation_projector,
     )
 
+    def convergence_direction(position):
+        initial_sequence = avoider.evaluate_initial_dynamics_sequence(position)
+        if initial_sequence is None:
+            return np.zeros(avoider.dimension)
+
+        conv_sequnce = avoider.evaluate_weighted_dynamics_sequence(
+            position, initial_sequence
+        )
+        return conv_sequnce.get_end_vector()
+
     if visualize:
-        fig, ax = plt.subplots(figsize=(6, 5))
-        # x_lim = [-4, 4]
-        # y_lim = [-4, 4]
         x_lim = [-2, 2]
         y_lim = [-2, 2]
+        # x_lim = [-4, 4]
+        # y_lim = [-4, 4]
 
-        n_grid = 20
+        n_grid = 16
+        figsize = (6, 5)
 
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=dynamics.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            do_quiver=True,
+        )
+
+        plot_obstacles(
+            obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+        )
+        ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+        ax.set_title("Initial dynamics")
+
+        fig, ax = plt.subplots(figsize=figsize)
         plot_obstacle_dynamics(
             obstacle_container=[],
             dynamics=avoider.evaluate_sequence,
@@ -316,16 +344,30 @@ def test_sequenced_avoidance_dynamics_single(visualize=False):
             y_lim=y_lim,
             n_grid=n_grid,
             ax=ax,
-            # attractor_position=dynamic.attractor_position,
             do_quiver=True,
-            # show_ticks=False,
         )
 
         plot_obstacles(
             obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
         )
-
         ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+        ax.set_title("Final dynamics")
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            do_quiver=True,
+        )
+        plot_obstacles(
+            obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+        )
+        ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+        ax.set_title("Convergence direction")
 
     position = np.array([-0.7, -0.4])
     velocity = avoider.evaluate_sequence(position)
@@ -405,6 +447,10 @@ def test_sequenced_avoidance_dynamics_reference(visualize=False):
     velocity1 = avoider.evaluate_sequence(position)
     assert velocity1[0] < 0, "Avoidance to the left..."
     # TODO: fast change below -> should this be changed(?)
+
+    position = np.array([-1.0, -0.1])
+    velocity1 = avoider.evaluate_sequence(position)
+    # assert velocity1[0] < 0, "Avoidance to the left..."
 
 
 def test_sequenced_avoidance_dynamics_multiple(visualize=False):
@@ -510,6 +556,16 @@ def test_sequenced_avoidance_dynamics_multiple(visualize=False):
 
         ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
 
+    position = np.array([0.9, -0.9])
+    velocity = avoider.evaluate_sequence(position)
+    assert velocity[0] > 0
+    assert velocity[1] > 0
+
+    position = np.array([-1.2, 0.15])
+    velocity = avoider.evaluate_sequence(position)
+    assert velocity[0] < 0
+    assert velocity[1] > 0
+
 
 if (__name__) == "__main__":
     # plt.close("all")
@@ -520,5 +576,5 @@ if (__name__) == "__main__":
     # test_sequenced_avoidance_dynamics_single(visualize=True)
 
     # test_sequenced_linear_intersecting_circles(visualize=True)
-    # test_sequenced_avoidance_dynamics_reference(visualize=False)
-    test_sequenced_avoidance_dynamics_multiple(visualize=True)
+    # test_sequenced_avoidance_dynamics_reference(visualize=True)
+    test_sequenced_avoidance_dynamics_multiple(visualize=False)
