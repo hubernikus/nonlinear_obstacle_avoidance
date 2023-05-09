@@ -14,7 +14,9 @@ from numpy import linalg as LA
 import warnings
 
 from vartools.linalg import get_orthogonal_basis
+from vartools.states import Pose
 from vartools.dynamical_systems import DynamicalSystem
+from vartools.dynamical_systems import LinearSystem
 from vartools.dynamical_systems import CircularStable
 
 # from vartools.linalg import get_orthogonal_basis
@@ -22,6 +24,7 @@ from vartools.dynamical_systems import CircularStable
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
+from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 from nonlinear_avoidance.avoidance import (
@@ -950,9 +953,7 @@ def test_projection_inversion():
 
 
 def test_projected_attractor_weighting(visualize=False):
-    dynamics = create_segment_from_points(
-        [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
-    )
+    dynamics = LinearSystem(attractor_position=np.array([4.0, 2.5]))
 
     obstacle_environment = RotationContainer()
     obstacle_environment.append(
@@ -964,7 +965,7 @@ def test_projected_attractor_weighting(visualize=False):
     )
 
     rotation_projector = ProjectedRotationDynamics(
-        attractor_position=dynamics.segments[-1].end,
+        attractor_position=dynamics.attractor_position,
         initial_dynamics=dynamics,
         # reference_velocity=lambda x: x - center_velocity.center_position,
     )
@@ -987,6 +988,7 @@ def test_projected_attractor_weighting(visualize=False):
 
         positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
         weights = np.zeros(positions.shape[1])
+
         for it in range(positions.shape[1]):
             weights[it] = rotation_projector.evaluate_projected_weight(
                 positions[:, it], obstacle_environment[-1]

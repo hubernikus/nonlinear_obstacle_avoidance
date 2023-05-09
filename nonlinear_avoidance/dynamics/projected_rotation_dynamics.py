@@ -471,7 +471,7 @@ class ProjectedRotationDynamics:
         return rotation_pos_to_transform
 
     def evaluate_projected_weight(
-        self, position: np.ndarray, obstacle: Obstacle, weight_power: float = 1.0 / 4.0
+        self, position: np.ndarray, obstacle: Obstacle, weight_power: float = 1.0 / 2.0
     ) -> float:
         # Obstacle velocity will not change when being transformed, as it's the static point
 
@@ -484,7 +484,7 @@ class ProjectedRotationDynamics:
         if proj_gamma <= 1.0 or gamma <= 1.0:
             return 1.0
 
-        weight = (1.0 / (proj_gamma * gamma * gamma)) ** weight_power
+        weight = (1.0 / (proj_gamma * gamma)) ** weight_power
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(
