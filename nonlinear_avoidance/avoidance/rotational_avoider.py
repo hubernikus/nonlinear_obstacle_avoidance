@@ -243,7 +243,7 @@ class RotationalAvoider(BaseAvoider):
             # rather than the initial dynamics
             node_list.append(conv_id)
             node_weights.append(sum(importance_weights) - sum(node_weights))
-            print("Fallback weight of:", node_weights[-1])
+            # print("Fallback weight of:", node_weights[-1])
 
         # Add initial weight
         node_list.append(initial_id)

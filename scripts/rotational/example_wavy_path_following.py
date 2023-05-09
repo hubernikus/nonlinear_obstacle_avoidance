@@ -26,7 +26,6 @@ def main(n_grid=30):
     x_lim = [-5, 5]
     y_lim = [-5, 5]
 
-    # dynamics = create_segment_from_points([[0.0, 0], [4.0, 0], [4.0, 4.0], [8.0, 4.0]])
     dynamics = create_segment_from_points(
         [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
     )
@@ -97,7 +96,7 @@ def main(n_grid=30):
 
     plot_obstacle_dynamics(
         obstacle_container=obstacle_environment,
-        dynamics=avoider.evaluate,
+        dynamics=avoider.evaluate_sequence,
         x_lim=x_lim,
         y_lim=y_lim,
         n_grid=n_grid,
@@ -119,7 +118,7 @@ def main(n_grid=30):
 
     dimension = 2
     it_max = 1000
-    dt = 0.1
+    dt = 0.02
     trajectory = np.zeros((dimension, it_max))
     position_start = np.array([-4, -4.0])
     trajectory[:, 0] = position_start
@@ -170,7 +169,7 @@ def test_simple_arch_sequence_avoidance(visualize=False):
         fig, ax = plt.subplots(figsize=(6, 5))
         plot_obstacle_dynamics(
             obstacle_container=obstacle_environment,
-            dynamics=avoider.evaluate,
+            dynamics=avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
             n_grid=n_grid,
