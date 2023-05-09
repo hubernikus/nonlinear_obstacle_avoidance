@@ -593,6 +593,16 @@ def test_single_sequence_avoidance_with_margin(visualize=False):
         obstacle_convergence=rotation_projector,
     )
 
+    def convergence_direction(position):
+        initial_sequence = avoider.evaluate_initial_dynamics_sequence(position)
+        if initial_sequence is None:
+            return np.zeros(avoider.dimension)
+
+        conv_sequnce = avoider.evaluate_weighted_dynamics_sequence(
+            position, initial_sequence
+        )
+        return conv_sequnce.get_end_vector()
+
     if visualize:
         x_lim = [-5, 5]
         y_lim = [-5, 5]
@@ -633,6 +643,13 @@ def test_single_sequence_avoidance_with_margin(visualize=False):
         )
         ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
         ax.set_title("Final dynamics")
+
+    position = np.array([-0.30, -1.6])
+    velocity1 = avoider.evaluate_sequence(position)
+
+    position = np.array([-0.30, 3.7])
+    velocity2 = avoider.evaluate_sequence(position)
+    assert velocity1[1] > velocity2[1]
 
 
 if (__name__) == "__main__":

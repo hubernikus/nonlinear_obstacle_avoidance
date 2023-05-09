@@ -234,7 +234,7 @@ class SingularityConvergenceDynamics(BaseAvoider):
             weights = 1.0 / (gamma_array[ind_obs] - gamma_min) - 1 / (
                 self.cut_off_gamma - gamma_min
             )
-            weights = weights ** weight_power
+            weights = weights**weight_power
 
             # weights = weights**weight_power
             if (weight_sum := np.sum(weights)) > 0:
@@ -292,6 +292,8 @@ class SingularityConvergenceDynamics(BaseAvoider):
             node_list.append(it_obs)
             node_weights.append(projected_weight)
             # node_weights.append(self.weights[it_obs] * projected_weight)
+
+            # print("obs conv", obstacle_convergence_sequence.get_end_vector())
 
         # print("Got all obs-convergence")
         # node_list = np.append(np.arange(self.n_obstacles)[ind_obs], initial_id)

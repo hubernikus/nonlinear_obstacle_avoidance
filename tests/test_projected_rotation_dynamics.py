@@ -949,6 +949,72 @@ def test_projection_inversion():
     assert np.allclose(pos, pos_folded)
 
 
+def test_projected_attractor_weighting(visualize=False):
+    dynamics = create_segment_from_points(
+        [[-4.0, -2.5], [0.0, -2.5], [0.0, 2.5], [4.0, 2.5]]
+    )
+
+    obstacle_environment = RotationContainer()
+    obstacle_environment.append(
+        Cuboid(
+            pose=Pose.create_trivial(2),
+            axes_length=np.array([1.5, 0.75]),
+            margin_absolut=0.5,
+        )
+    )
+
+    rotation_projector = ProjectedRotationDynamics(
+        attractor_position=dynamics.segments[-1].end,
+        initial_dynamics=dynamics,
+        # reference_velocity=lambda x: x - center_velocity.center_position,
+    )
+
+    if visualize:
+        x_lim = [-5, 5]
+        y_lim = [-5, 5]
+        n_grid = 20
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+        plot_obstacles(
+            obstacle_container=obstacle_environment, x_lim=x_lim, y_lim=y_lim, ax=ax
+        )
+        ax.plot(dynamics.attractor_position[0], dynamics.attractor_position[1], "*k")
+
+        nx = ny = 50
+        x_vals, y_vals = np.meshgrid(
+            np.linspace(x_lim[0], x_lim[1], nx), np.linspace(y_lim[0], y_lim[1], ny)
+        )
+
+        positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
+        weights = np.zeros(positions.shape[1])
+        for it in range(positions.shape[1]):
+            weights[it] = rotation_projector.evaluate_projected_weight(
+                positions[:, it], obstacle_environment[-1]
+            )
+
+        cs = ax.contourf(
+            positions[0, :].reshape(nx, ny),
+            positions[1, :].reshape(nx, ny),
+            weights.reshape(nx, ny),
+            levels=np.linspace(0, 1, 11),
+            cmap="Greys",
+        )
+        cbar = fig.colorbar(cs)
+
+    # Below but close
+    position = np.array([-0.30, -1.6])
+    weight1 = rotation_projector.evaluate_projected_weight(
+        position, obstacle_environment[-1]
+    )
+
+    # Above but far
+    position = np.array([-0.30, 3.7])
+    weight2 = rotation_projector.evaluate_projected_weight(
+        position, obstacle_environment[-1]
+    )
+    assert weight1 > weight2
+
+
 if (__name__) == "__main__":
     setup = {
         "attractor_color": "#db6e14",
@@ -970,7 +1036,8 @@ if (__name__) == "__main__":
     plt.ion()
     plt.close("all")
 
-    test_projection_inversion()
+    test_projected_attractor_weighting(visualize=True)
+    # test_projection_inversion()
 
     # _test_base_gamma(visualize=True, visualize_vectors=True, save_figure=True, **setup)
     # test_obstacle_inflation(visualize=True, **setup, save_figure=True)
@@ -983,7 +1050,7 @@ if (__name__) == "__main__":
     # test_inverse_projection_around_obstacle(visualize=False)
     # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=True)
 
-    test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=False)
+    # test_inverse_projection_around_obstacle(visualize=True, **setup, save_figure=False)
     # test_inverse_projection_around_obstacle(visualize=False, **setup, save_figure=False)
 
     # test_obstacle_inflation(visualize=True, **setup)
