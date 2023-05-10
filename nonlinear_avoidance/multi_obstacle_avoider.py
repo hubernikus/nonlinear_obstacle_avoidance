@@ -24,8 +24,9 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.hierarchy_obstacle_protocol import HierarchyObstacle
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
-from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer
+from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     ObstacleConvergenceDynamics,
     ConvergenceDynamicsWithoutSingularity,
@@ -38,56 +39,46 @@ NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 
 
-class HierarchyObstacle(Protocol):
-    # + all methods of a general obstacle(?)
-    @property
-    def n_components(self) -> int:
-        ...
-
-    @property
-    def root_idx(self) -> int:
-        ...
-
-    def get_parent_idx(self, idx_obs: int) -> Optional[int]:
-        ...
-
-    def get_component(self, idx_obs: int) -> Obstacle:
-        ...
-
-    def __iter__(self):
-        ...
-
-
 def compute_multiobstacle_relative_velocity(
     position: np.ndarray,
     environment: MultiObstacleContainer,
-    cutoff_gamma: float = 100,
+    cutoff_gamma: float = 10,
 ) -> np.ndarray:
 
     if position.shape[0] > 2:
         raise NotImplementedError()
 
     # Weights
-    gammas = np.zeros(environment.n_components)
+    n_obstacles = len(environment)
+    gammas = np.zeros(n_obstacles)
     for ii, obs in enumerate(environment):
         gammas[ii] = obs.get_gamma(position, in_global_frame=True)
 
-    weights = compute_weights(gammas)
-    angular_weight = np.exp(-1.0 * (np.max([gammas[ii], 1]) - 1))
+    weights = compute_weights(gammas, 1.0)
+    angular_weight = np.exp(-1.0 * (np.maximum(gammas, 1.0) - 1))
+    breakpoint()
 
     relative_velocity = np.zeros_like(position)
     for ii, obs in enumerate(environment):
         if weights[ii] <= 0:
             continue
 
+        pose = obs.get_pose()
         relative_velocity = relative_velocity + obs.twist.linear
 
         if obs.twist.angular:
-            angular_velocity = np.cross(obs.twist.angular, position - obs.pose.position)
-            relative_velocity = relative_velocity + angular_weight * angular_velocity
+            angular_velocity = np.cross(
+                np.array([0, 0, obs.twist.angular]),
+                np.hstack((position - pose.position, 0)),
+            )
+            relative_velocity = (
+                relative_velocity
+                + weights[ii] * angular_weight[ii] * angular_velocity[:2]
+            )
 
-        if obs.is_deforming:
-            raise NotImplemented()
+        if hasattr(obs, "is_deforming"):
+            if obs.is_deforming:
+                raise NotImplemented()
 
     return relative_velocity
 
@@ -184,8 +175,10 @@ class MultiObstacleAvoider:
             )
 
     def evaluate(self, position: Vector) -> Vector:
-        breakpoint()
-        relative_velocity = compute_multiobstacle_relative_velocity(position)
+        # breakpoint()
+        relative_velocity = compute_multiobstacle_relative_velocity(
+            position, self.obstacle_list
+        )
         velocity = self.initial_dynamics.evaluate(position)
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating

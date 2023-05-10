@@ -23,7 +23,8 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 
-from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer, BlockArchObstacle
+from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
+from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
 
 
 def test_2d_blocky_arch(visualize=False):

@@ -45,7 +45,7 @@ class MultiObstacle:
         for pose, obs in zip(self._local_poses, self._obstacle_list):
             obs.pose = self._pose.transform_pose_from_relative(pose)
 
-    def get_gamma(self, position, in_global_frame: bool = True):
+    def get_gamma(self, position, in_global_frame: bool = True) -> float:
         if not in_global_frame:
             position = self._pose.transform_pose_from_relative(position)
 

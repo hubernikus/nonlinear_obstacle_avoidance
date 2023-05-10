@@ -25,7 +25,7 @@ from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
 )
 
 from nonlinear_avoidance.multi_obstacle import MultiObstacle
-from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer
+from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 
 

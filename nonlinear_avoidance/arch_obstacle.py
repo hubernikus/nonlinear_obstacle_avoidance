@@ -15,9 +15,7 @@ from vartools.dynamical_systems import LinearSystem
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
-from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
-from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
-from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
+# from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     SingularityConvergenceDynamics,
 )

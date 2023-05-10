@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Iterator
 import numpy as np
 
-from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
+from nonlinear_avoidance.hierarchy_obstacle_protocol import HierarchyObstacle
 
 
 @dataclass(slots=True)
@@ -25,6 +25,7 @@ class MultiObstacleContainer:
         return True
 
     def get_gamma(self, position: np.ndarray, in_global_frame: bool = True) -> float:
+        """Returns minimum gamma across the container."""
         if not in_global_frame:
             raise NotImplementedError()
         gammas = np.zeros(len(self._obstacle_list))
