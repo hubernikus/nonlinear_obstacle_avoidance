@@ -25,6 +25,7 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
+from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     ObstacleConvergenceDynamics,
     ConvergenceDynamicsWithoutSingularity,
@@ -53,10 +54,13 @@ class HierarchyObstacle(Protocol):
     def get_component(self, idx_obs: int) -> Obstacle:
         ...
 
+    def __iter__(self):
+        ...
+
 
 def compute_multiobstacle_relative_velocity(
     position: np.ndarray,
-    environment: HierarchyObstacle,
+    environment: MultiObstacleContainer,
     cutoff_gamma: float = 100,
 ) -> np.ndarray:
 
@@ -64,15 +68,28 @@ def compute_multiobstacle_relative_velocity(
         raise NotImplementedError()
 
     # Weights
-    gammas = np.zeros(len(environment))
+    gammas = np.zeros(environment.n_components)
     for ii, obs in enumerate(environment):
         gammas[ii] = obs.get_gamma(position, in_global_frame=True)
+
     weights = compute_weights(gammas)
+    angular_weight = np.exp(-1.0 * (np.max([gammas[ii], 1]) - 1))
 
     relative_velocity = np.zeros_like(position)
     for ii, obs in enumerate(environment):
         if weights[ii] <= 0:
             continue
+
+        relative_velocity = relative_velocity + obs.twist.linear
+
+        if obs.twist.angular:
+            angular_velocity = np.cross(obs.twist.angular, position - obs.pose.position)
+            relative_velocity = relative_velocity + angular_weight * angular_velocity
+
+        if obs.is_deforming:
+            raise NotImplemented()
+
+    return relative_velocity
 
 
 # @dataclass(slots=True)
@@ -167,7 +184,8 @@ class MultiObstacleAvoider:
             )
 
     def evaluate(self, position: Vector) -> Vector:
-        # breakpoint()
+        breakpoint()
+        relative_velocity = compute_multiobstacle_relative_velocity(position)
         velocity = self.initial_dynamics.evaluate(position)
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
@@ -177,10 +195,13 @@ class MultiObstacleAvoider:
         else:
             convergence_direction = None
 
+        # velocity = velocity - relative_velocity
+
         final_velocity = self.get_tangent_direction(
             position, velocity, convergence_direction
         )
 
+        final_velocity = final_velocity + relative_velocity
         return final_velocity
 
     def get_tangent_direction(

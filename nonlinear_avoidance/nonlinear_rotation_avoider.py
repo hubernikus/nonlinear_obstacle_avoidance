@@ -175,9 +175,17 @@ class SingularityConvergenceDynamics(BaseAvoider):
         return rotated_velocity * initial_norm
 
     def evaluate_sequence(self, position: np.ndarray) -> np.ndarray:
-        if not np.linalg.norm(
-            position - self._rotation_avoider.initial_dynamics.attractor_position
-        ):
+        if hasattr(self._rotation_avoider.initial_dynamics, "evaluate_magnitude"):
+            magnitude = self._rotation_avoider.initial_dynamics.evaluate_magnitude(
+                position
+            )
+        else:
+            initial_velocity = self._rotation_avoider.initial_dynamics.evaluate(
+                position
+            )
+            magnitude = np.linalg.norm(initial_velocity)
+
+        if not magnitude:
             return np.zeros_like(position)
 
         initial_sequence = self.evaluate_initial_dynamics_sequence(position)
@@ -196,9 +204,8 @@ class SingularityConvergenceDynamics(BaseAvoider):
             convergence_sequence=convergence_sequence,
             convergence_default=False,
         )
-        # print("Got Rotational")
 
-        return rotated_sequence.get_end_vector()
+        return rotated_sequence.get_end_vector() * magnitude
 
     def get_base_convergence(self, position: np.ndarray) -> np.ndarray:
         # TODO: test this...
