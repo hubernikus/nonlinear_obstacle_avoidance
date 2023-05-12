@@ -21,7 +21,6 @@ def plot_qolo(position, direction, ax):
         cval=255,
         # mode="closest",
     )
-    breakpoint()
 
     length_x_rotated = np.abs(np.cos(rot)) * length_x + np.abs(np.sin(rot)) * length_y
 

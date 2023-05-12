@@ -56,7 +56,6 @@ def compute_multiobstacle_relative_velocity(
 
     weights = compute_weights(gammas, 1.0)
     angular_weight = np.exp(-1.0 * (np.maximum(gammas, 1.0) - 1))
-    breakpoint()
 
     relative_velocity = np.zeros_like(position)
     for ii, obs in enumerate(environment):
@@ -79,7 +78,7 @@ def compute_multiobstacle_relative_velocity(
         if hasattr(obs, "is_deforming"):
             if obs.is_deforming:
                 raise NotImplemented()
-
+    breakpoint()
     return relative_velocity
 
 

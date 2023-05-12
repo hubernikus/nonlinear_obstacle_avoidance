@@ -391,10 +391,7 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         cm = plt.get_cmap("gist_rainbow")
         self.color_list = [cm(1.0 * cc / self.n_traj) for cc in range(self.n_traj)]
 
-    def update_step(self, ii: int) -> None:
-        if not ii % 10:
-            print(f"Iteration {ii}")
-
+    def update_obstacle_pose(self):
         for dynamics, tree in zip(self.dynamics, self.container):
             # Get updated dynamics and apply
             pose = tree.get_pose()
@@ -407,6 +404,12 @@ class AnimatorRotationAvoidanceEPFL(Animator):
 
             tree.update_pose(pose)
             tree.twist = twist
+
+    def update_step(self, ii: int) -> None:
+        if not ii % 10:
+            print(f"Iteration {ii}")
+
+        self.update_obstacle_pose()
 
         # for obs in self.environment:
         #     obs.pose.position = (
@@ -635,6 +638,12 @@ def animation_dynamic_epfl(save_animation=False):
     animator.setup(
         container=container, x_lim=[-3, 14.5], y_lim=[-2, 6.0], dynamics=dynamics
     )
+
+    # Specifin Position
+    animator.update_obstacle_pose()
+    position = np.array([0.8, 0.9])
+    velocity = animator.avoider.evaluate(position)
+    breakpoint()
     animator.run(save_animation=save_animation)
 
 
@@ -643,6 +652,6 @@ if (__name__) == "__main__":
     # epfl_logo_parser()
     plt.style.use("dark_background")
     # visualize_avoidance()
-    # animation_epfl(save_animation=True)
+    animation_epfl(save_animation=True)
     # animation_chaotic_epfl(save_animation=False)
-    animation_dynamic_epfl(save_animation=False)
+    # animation_dynamic_epfl(save_animation=False)
