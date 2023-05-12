@@ -46,7 +46,14 @@ def compute_multiobstacle_relative_velocity(
 ) -> np.ndarray:
 
     if position.shape[0] > 2:
-        raise NotImplementedError()
+        warnings.warn("No dynamic evaluation for higher dynensions.")
+        return np.zeros_like(position)
+
+    # Quick check if the environment is even dynamic
+    for obs in environment:
+        if not hasattr(obs, "twist"):
+            return np.zeros_like(position)
+        break
 
     # Weights
     n_obstacles = len(environment)

@@ -145,6 +145,9 @@ class MultiBodyObstacle:
         else:
             return list(self._graph.predecessors(idx_obs))[0]
 
+    def get_pose(self) -> Pose:
+        return self._obstacle_list[self.root_idx].pose
+
     @property
     def root_id(self) -> int:
         return self.root_idx
