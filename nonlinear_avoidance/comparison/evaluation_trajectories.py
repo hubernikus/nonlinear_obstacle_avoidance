@@ -207,6 +207,12 @@ def print_table(evaluation_list):
 
     value = [f"{ee.dist_to_path:.2f}" for ee in evaluation_list]
     print(" & ".join(["$\\Delta R^2$"] + value) + " \\\\ \hline")
+    value = [f"{ee.squared_error_velocity:.2f}" for ee in evaluation_list]
+    print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
+
+    # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
+    value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5 :.2f}" for ee in evaluation_list]
+    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
 
     value = [f"{ee.squared_acceleration:.2f}" for ee in evaluation_list]
     print(" & ".join(["$a$"] + value) + " \\\\ \hline")
@@ -216,17 +222,10 @@ def print_table(evaluation_list):
     ]
     print(" & ".join(["$\\langle a \\rangle [1e-4 m/s]$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.squared_error_velocity:.2f}" for ee in evaluation_list]
-    print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
-
-    # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
-    value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5 :.2f}" for ee in evaluation_list]
-    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
-
 
 if (__name__) == "__main__":
     # if False:
-    if True:
+    if False:
         # n_runs = 5
         n_runs = -1  # All runs...
 

@@ -146,12 +146,12 @@ class TrajectoryEvaluator:
 
         print(f"Evaluating #{self.n_runs} runs.")
 
-        self.dist_to_path_list = np.zeros(len(files_list))
-        self.squared_acceleration_list = np.zeros(len(files_list))
-        self.squared_error_velocity_list = np.zeros(len(files_list))
+        self.dist_to_path_list = np.zeros(self.n_runs)
+        self.squared_acceleration_list = np.zeros(self.n_runs)
+        self.squared_error_velocity_list = np.zeros(self.n_runs)
 
-        self.dotprod_err_velocity_list = np.zeros(len(files_list))
-        self.dotprod_acceleration_list = np.zeros(len(files_list))
+        self.dotprod_err_velocity_list = np.zeros(self.n_runs)
+        self.dotprod_acceleration_list = np.zeros(self.n_runs)
 
         for ii, filename in enumerate(files_list):
             trajectory = np.loadtxt(
@@ -172,33 +172,24 @@ class TrajectoryEvaluator:
             else:
                 self.n_converged += 1
 
-            self.dist_to_path_list[ii] = (
-                mean_squared_error_to_path(
-                    trajectory, center_position=np.zeros(2), radius=2.0
-                )
-                / self.n_runs
+            self.dist_to_path_list[ii] = mean_squared_error_to_path(
+                trajectory, center_position=np.zeros(2), radius=2.0
             )
 
-            self.squared_error_velocity_list[ii] = (
-                mean_squared_velocity_deviation(
-                    trajectory, initial_dynamics.evaluate, delta_time
-                )
-                / self.n_runs
+            self.squared_error_velocity_list[ii] = mean_squared_velocity_deviation(
+                trajectory, initial_dynamics.evaluate, delta_time
             )
 
-            self.dotprod_err_velocity_list[ii] = (
-                dot_product_velocity_deviation(
-                    trajectory, initial_dynamics.evaluate, delta_time
-                )
-                / self.n_runs
+            self.dotprod_err_velocity_list[ii] = dot_product_velocity_deviation(
+                trajectory, initial_dynamics.evaluate, delta_time
             )
 
-            self.squared_acceleration_list[ii] = (
-                mean_squared_acceleration(trajectory, delta_time) / self.n_runs
+            self.squared_acceleration_list[ii] = mean_squared_acceleration(
+                trajectory, delta_time
             )
 
-            self.dotprod_acceleration_list[ii] = (
-                dot_product_acceleration(trajectory, delta_time) / self.n_runs
+            self.dotprod_acceleration_list[ii] = dot_product_acceleration(
+                trajectory, delta_time
             )
 
         self.dist_to_path = np.mean(self.dist_to_path_list)
@@ -250,6 +241,21 @@ def print_table(evaluation_list):
     print(" & ".join(["$\\Delta R^2$"] + value) + " \\\\ \hline")
 
     value = [
+        f"{ee.squared_error_velocity:.2f}"
+        + " \\pm "
+        + f"{ee.squared_error_velocity_std:.2f}"
+        for ee in evaluation_list
+    ]
+    print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
+
+    # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
+    value = [
+        f"{ee.nics_err_velocity:.2f}" + " \\pm " + f"{ee.nics_err_velocity_std:.2f}"
+        for ee in evaluation_list
+    ]
+    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
+
+    value = [
         f"{ee.squared_acceleration:.2f}"
         + " \\pm "
         + f"{ee.squared_acceleration_std:.2f}"
@@ -267,21 +273,6 @@ def print_table(evaluation_list):
         for ee in evaluation_list
     ]
     print(" & ".join(["$\\langle a \\rangle [1e-4 m/s]$"] + value) + " \\\\ \hline")
-
-    value = [
-        f"{ee.squared_error_velocity:.2f}"
-        + " \\pm "
-        + f"{ee.squared_error_velocity_std:.2f}"
-        for ee in evaluation_list
-    ]
-    print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
-
-    # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
-    value = [
-        f"{ee.nics_err_velocity:.2f}" + " \\pm " + f"{ee.nics_err_velocity_std:.2f}"
-        for ee in evaluation_list
-    ]
-    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
 
 
 if (__name__) == "__main__":
