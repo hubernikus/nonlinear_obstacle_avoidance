@@ -45,6 +45,17 @@ class MultiObstacle:
         for pose, obs in zip(self._local_poses, self._obstacle_list):
             obs.pose = self._pose.transform_pose_from_relative(pose)
 
+    def update_deformation(self, step_size: float) -> None:
+        if not hasattr(self, "deformation_rate"):
+            return
+
+        factor = 1 + self.deformation_rate * step_size
+        for pose, obs in zip(self._local_poses, self._obstacle_list):
+            pose.position = factor * pose.position
+            obs.axes_length = factor * obs.axes_length
+
+            obs.pose = self._pose.transform_pose_from_relative(pose)
+
     def get_gamma(self, position, in_global_frame: bool = True) -> float:
         if not in_global_frame:
             position = self._pose.transform_pose_from_relative(position)

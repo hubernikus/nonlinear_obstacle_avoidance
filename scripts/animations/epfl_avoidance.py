@@ -344,12 +344,14 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         self,
         container,
         dynamics=[],
+        deformations=[],
         x_lim=[-2, 14.5],
         y_lim=[-2, 6.0],
         do_plotting: bool = True,
+        n_traj: int = 20,
     ):
         self.attractor = np.array([6, -25.0])
-        self.n_traj = 20
+        self.n_traj = n_traj
 
         # self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
         if do_plotting:
@@ -357,6 +359,7 @@ class AnimatorRotationAvoidanceEPFL(Animator):
 
         self.container = container
         self.dynamics = dynamics
+        self.deformations = deformations
         # self.attractor = np.array([13, 4.0])
 
         self.initial_dynamics = LinearSystem(
@@ -367,7 +370,8 @@ class AnimatorRotationAvoidanceEPFL(Animator):
             obstacle_container=self.container,
             initial_dynamics=self.initial_dynamics,
             create_convergence_dynamics=True,
-            convergence_radius=0.5 * np.pi,
+            # convergence_radius=0.55 * np.pi,
+            convergence_radius=0.50 * np.pi,
         )
 
         # self.start_positions = np.vstack(
@@ -404,6 +408,9 @@ class AnimatorRotationAvoidanceEPFL(Animator):
         for dynamics, tree in zip(self.dynamics, self.container):
             # Get updated dynamics and apply
             pose = tree.get_pose()
+            if dynamics is None:
+                continue
+
             twist = dynamics(pose)
 
             pose.position = twist.linear * self.dt_simulation + pose.position
@@ -413,6 +420,13 @@ class AnimatorRotationAvoidanceEPFL(Animator):
 
             tree.update_pose(pose)
             tree.twist = twist
+
+        for deformation_rate, tree in zip(self.deformations, self.container):
+            if deformation_rate is None:
+                continue
+
+            tree.deformation_rate = deformation_rate.evaluate()
+            tree.update_deformation(self.dt_simulation)
 
     def update_step(self, ii: int) -> None:
         if not ii % 10:
@@ -434,6 +448,13 @@ class AnimatorRotationAvoidanceEPFL(Animator):
             self.trajectories[tt][:, ii + 1] = (
                 pos + rotated_velocity * self.dt_simulation
             )
+
+            # TODO: remove after debug
+            if self.container.get_gamma(pos) < 1:
+                print("position:", self.trajectories[tt][:, ii])
+                print("step:", ii)
+                print("id_traj:", tt)
+                # breakpoint()
 
         self.ax.clear()
 
@@ -558,17 +579,17 @@ class LinearMovement:
     step: int = 0
     frequency: float = 0.1
 
+    p_factor: float = 5.0
+
     def evaluate(self, pose):
         self.step += self.frequency
+        # print("linear step", self.step)
 
         next_position = (
-            (1 + np.cos(self.step - np.pi * 0.5))
-            / 2.0
-            * self.distance_max
-            * self.direction
+            (1 - np.cos(self.step)) / 2.0 * self.distance_max * self.direction
         ) + self.start_position
 
-        return Twist(linear=(next_position - pose.position))
+        return Twist(linear=self.p_factor * (next_position - pose.position))
 
 
 @dataclass
@@ -581,14 +602,36 @@ class AngularBackForth:
 
     dimension: int = 2
 
+    p_factor: float = 5.0
+
     def evaluate(self, pose):
         self.step += self.frequency
+        # print("angular step", self.step)
 
-        next_angle = -np.sin(self.step) * self.delta_angle + self.start_orientation
+        next_angle = (
+            np.cos(self.step) - 1.0
+        ) * 0.5 * self.delta_angle + self.start_orientation
 
         return Twist(
-            linear=np.zeros(self.dimension), angular=(next_angle - pose.orientation)
+            linear=np.zeros(self.dimension),
+            angular=self.p_factor * (next_angle - pose.orientation),
         )
+
+
+@dataclass
+class ScalarBackForth:
+
+    frequency: float = 0.1
+    step: int = 0
+
+    dimension: int = 2
+
+    p_factor: float = -0.5
+
+    def evaluate(self, pose=None):
+        self.step += self.frequency
+
+        return self.p_factor * np.sin(self.step)
 
 
 @dataclass
@@ -604,7 +647,7 @@ class CircularMovement:
         self.step += self.frequency
 
         next_position = (
-            self.radius * np.array([-np.cos(self.step), np.sin(self.step)])
+            self.radius * np.array([-np.cos(self.step), -np.sin(self.step)])
             + self.start_position
         )
 
@@ -617,7 +660,7 @@ class ContinuousRotation:
 
     # Internal state - to ensure motion
     step: int = 0
-    frequency: float = -0.2
+    frequency: float = -0.3
 
     dimension: int = 2
 
@@ -629,38 +672,52 @@ class ContinuousRotation:
 def animation_dynamic_epfl(save_animation=False):
     container = create_chaotic_epfl_container(scaling=1.0 / 50, margin_absolut=0.0)
 
-    dynamics = []
-    pose = container.get_obstacle_tree(0).get_pose()
+    dynamics = [None] * 4
+    deformations = [None] * 4
+
+    ii = 0
+    pose = container.get_obstacle_tree(ii).get_pose()
     direction = np.array([np.cos(pose.orientation), np.sin(pose.orientation)])
-    dynamics.append(LinearMovement(pose.position, -direction, distance_max=2).evaluate)
+    dynamics[ii] = LinearMovement(pose.position, -direction, distance_max=2).evaluate
 
-    pose = container.get_obstacle_tree(1).get_pose()
-    dynamics.append(
-        AngularBackForth(start_orientation=pose.orientation, delta_angle=0.7).evaluate
-    )
+    ii = 1
+    pose = container.get_obstacle_tree(ii).get_pose()
+    dynamics[ii] = AngularBackForth(
+        start_orientation=pose.orientation, delta_angle=-0.3
+    ).evaluate
 
-    pose = container.get_obstacle_tree(2).get_pose()
-    dynamics.append(ContinuousRotation(start_orientation=pose.orientation).evaluate)
+    ii = 2
+    pose = container.get_obstacle_tree(ii).get_pose()
+    # dynamics[ii] = ContinuousRotation(start_orientation=pose.orientation).evaluate
+    deformations[ii] = ScalarBackForth()
 
-    pose = container.get_obstacle_tree(3).get_pose()
-    dynamics.append(CircularMovement(pose.position, radius=1.0).evaluate)
+    ii = 3
+    pose = container.get_obstacle_tree(ii).get_pose()
+    pose.position[0] = pose.position[0] + 1.0
+    container.get_obstacle_tree(ii).update_pose(pose)
+    dynamics[ii] = CircularMovement(pose.position, radius=1.0).evaluate
 
     animator = AnimatorRotationAvoidanceEPFL(
         dt_simulation=0.07,
         dt_sleep=0.001,
         it_max=220,
-        animation_name="dark_messi_epfl_avoidance",
+        animation_name="dark_dynamic_epfl_avoidance",
         file_type=".gif",
     )
     animator.setup(
-        container=container, x_lim=[-3, 14.5], y_lim=[-2, 6.0], dynamics=dynamics
+        container=container,
+        x_lim=[-3, 14.8],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+        n_traj=20,
     )
 
     # Specifin Position
     animator.update_obstacle_pose()
-    position = np.array([0.8, 0.9])
+    position = np.array([13.0, 6.5])
     velocity = animator.avoider.evaluate(position)
-    breakpoint()
+
     animator.run(save_animation=save_animation)
 
 
@@ -721,6 +778,153 @@ def test_integration_normal_epfl(visualize=False):
     assert not np.any(np.isnan(velocity)), "Evaluation inside needs to be valid."
 
 
+def test_dynamic_multi_tree_evaluation(visualize=False):
+    container = MultiObstacleContainer()
+    pose = Pose([-0.3, 1.5], orientation=10 * math.pi / 180)
+    container.append(create_obstacle_e(scaling=1.0 / 50, margin_absolut=0.0, pose=pose))
+
+    dynamics = []
+    pose = container.get_obstacle_tree(0).get_pose()
+    direction = np.array([np.cos(pose.orientation), np.sin(pose.orientation)])
+    dynamics.append(LinearMovement(pose.position, -direction, distance_max=2).evaluate)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_dynamic_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container,
+        x_lim=[-5, 5],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+    )
+
+    animator.run(save_animation=False)
+
+
+def test_dynamic_multi_tree_evaluation_single_e(visualize=False):
+    container = MultiObstacleContainer()
+    pose = Pose([-0.3, 1.5], orientation=10 * math.pi / 180)
+    container.append(create_obstacle_e(scaling=1.0 / 50, margin_absolut=0.0, pose=pose))
+
+    dynamics = []
+    pose = container.get_obstacle_tree(0).get_pose()
+    direction = np.array([np.cos(pose.orientation), np.sin(pose.orientation)])
+    dynamics.append(LinearMovement(pose.position, -direction, distance_max=2).evaluate)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_dynamic_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container,
+        x_lim=[-5, 5],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+    )
+
+    animator.run(save_animation=False)
+
+
+def _test_dynamic_multi_tree_evaluation_single_e(visualize=False):
+    scaling = 1.0 / 50
+    margin_absolut = 0.0
+
+    container = MultiObstacleContainer()
+    pose = Pose([-0.3, 1.5], orientation=10 * math.pi / 180)
+    container.append(create_obstacle_e(margin_absolut, scaling * 1.6, pose))
+
+    dynamics = []
+    direction = np.array([np.cos(pose.orientation), np.sin(pose.orientation)])
+    dynamics.append(LinearMovement(pose.position, -direction, distance_max=2).evaluate)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_dynamic_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container,
+        x_lim=[-5, 5],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+    )
+
+    animator.run(save_animation=False)
+
+
+def _test_dynamic_single_f_expanding():
+    scaling = 1.0 / 50
+    margin_absolut = 0.0
+
+    container = MultiObstacleContainer()
+    pose = Pose([8.5, 2], orientation=70 * math.pi / 180)
+    container.append(create_obstacle_f(margin_absolut, scaling, pose))
+
+    dynamics = []
+    deformations = []
+    # dynamics.append(ContinuousRotation(start_orientation=pose.orientation).evaluate)
+    deformations.append(ScalarBackForth())
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_dynamic_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container,
+        x_lim=[5, 13],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+    )
+
+    animator.run(save_animation=False)
+
+
+def _test_dynamic_single_f_rotating():
+    scaling = 1.0 / 50
+    margin_absolut = 0.0
+
+    container = MultiObstacleContainer()
+    pose = Pose([8.5, 2], orientation=170 * math.pi / 180)
+    container.append(create_obstacle_f(margin_absolut, scaling, pose))
+
+    dynamics = []
+    deformations = []
+    dynamics.append(ContinuousRotation(start_orientation=pose.orientation).evaluate)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=0.07,
+        dt_sleep=0.001,
+        it_max=220,
+        animation_name="dark_dynamic_epfl_avoidance",
+        file_type=".gif",
+    )
+    animator.setup(
+        container=container,
+        x_lim=[5, 13],
+        y_lim=[-2.2, 6.6],
+        dynamics=dynamics,
+        deformations=deformations,
+    )
+
+    animator.run(save_animation=False)
+
+
 if (__name__) == "__main__":
     # plt.close("all")
     # epfl_logo_parser()
@@ -728,6 +932,9 @@ if (__name__) == "__main__":
     # visualize_avoidance()
     # animation_epfl(save_animation=False)
     # animation_chaotic_epfl(save_animation=False)
-    # animation_dynamic_epfl(save_animation=False)
+    # animation_dynamic_epfl(save_animation=True)
 
-    test_integration_normal_epfl(visualize=True)
+    # test_integration_normal_epfl(visualize=True)
+    # _test_dynamic_multi_tree_evaluation_single_e(visualize=True)
+    # _test_dynamic_single_f_expanding()
+    # _test_dynamic_single_f_rotating()

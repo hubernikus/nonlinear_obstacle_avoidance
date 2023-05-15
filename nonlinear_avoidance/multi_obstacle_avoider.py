@@ -5,12 +5,14 @@ for now limited to 2D (in order to find intersections easily).
 """
 
 import math
+import warnings
 from dataclasses import dataclass
 
 from collections import namedtuple
 from typing import Optional, Protocol, Hashable
 
 import numpy as np
+import numpy.typing as npt
 from numpy import linalg
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
@@ -39,6 +41,35 @@ NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 
 
+def compute_gamma_weights(
+    distMeas: npt.ArrayLike,
+    distMeas_lowerLimit: float = 1,
+    weightPow: float = 1,
+) -> np.ndarray:
+    """Compute weights based on a distance measure (with no upper limit)"""
+    distMeas = np.array(distMeas)
+    n_points = distMeas.shape[0]
+
+    critical_points = distMeas <= distMeas_lowerLimit
+
+    if np.sum(critical_points):  # at least one
+        if np.sum(critical_points) == 1:
+            w = critical_points * 1.0
+            return w
+        else:
+            # TODO: continuous weighting function
+            warnings.warn("Implement continuity of weighting function.")
+            w = critical_points * 1.0 / np.sum(critical_points)
+            return w
+
+    distMeas = distMeas - distMeas_lowerLimit
+    w = (1 / distMeas) ** weightPow
+    if np.sum(w) <= 1:
+        return w
+
+    return w / np.sum(w)  # Normalization
+
+
 def compute_multiobstacle_relative_velocity(
     position: np.ndarray,
     environment: MultiObstacleContainer,
@@ -49,43 +80,47 @@ def compute_multiobstacle_relative_velocity(
         warnings.warn("No dynamic evaluation for higher dynensions.")
         return np.zeros_like(position)
 
-    # Quick check if the environment is even dynamic
-    for obs in environment:
-        if not hasattr(obs, "twist"):
-            return np.zeros_like(position)
-        return np.zeros_like(position)
-
     # Weights
     n_obstacles = len(environment)
     gammas = np.zeros(n_obstacles)
     for ii, obs in enumerate(environment):
         gammas[ii] = obs.get_gamma(position, in_global_frame=True)
 
-    weights = compute_weights(gammas, 1.0)
-    angular_weight = np.exp(-1.0 * (np.maximum(gammas, 1.0) - 1))
+    weights = compute_gamma_weights(gammas, 1.0)
+    # weights = compute_weights(gammas, 1.0)
+    influence_weight = np.exp(-1.0 * (np.maximum(gammas, 1.0) - 1))
+
+    # weights = influence_weight * weights
 
     relative_velocity = np.zeros_like(position)
     for ii, obs in enumerate(environment):
         if weights[ii] <= 0:
             continue
-
         pose = obs.get_pose()
-        relative_velocity = relative_velocity + obs.twist.linear
 
-        if obs.twist.angular:
-            angular_velocity = np.cross(
-                np.array([0, 0, obs.twist.angular]),
-                np.hstack((position - pose.position, 0)),
-            )
+        if hasattr(obs, "twist") and obs.twist is not None:
+            relative_velocity = relative_velocity + obs.twist.linear * weights[ii]
+
+            if obs.twist.angular:
+                angular_velocity = np.cross(
+                    np.array([0, 0, obs.twist.angular]),
+                    np.hstack((position - pose.position, 0)),
+                )
+                relative_velocity = (
+                    relative_velocity
+                    + weights[ii] * influence_weight[ii] * angular_velocity[:2]
+                )
+
+        if hasattr(obs, "deformation_rate"):
             relative_velocity = (
                 relative_velocity
-                + weights[ii] * angular_weight[ii] * angular_velocity[:2]
+                + weights[ii] * (position - pose.position) * obs.deformation_rate
             )
 
-        if hasattr(obs, "is_deforming"):
-            if obs.is_deforming:
-                raise NotImplemented()
-    breakpoint()
+    #     print("velocity", relative_velocity)
+
+    # breakpoint()
+
     return relative_velocity
 
 
@@ -199,7 +234,9 @@ class MultiObstacleAvoider:
         final_velocity = self.get_tangent_direction(
             position, velocity, convergence_direction
         )
-        # breakpoint()
+
+        if np.allclose(position, [8.01070118, 3.10260951]):
+            breakpoint()
 
         final_velocity = final_velocity + relative_velocity
         return final_velocity
@@ -290,6 +327,9 @@ class MultiObstacleAvoider:
         )
         # print("weights", weights)
         # breakpoint()
+        if np.allclose(position, [8.01070118, 3.10260951]):
+            breakpoint()
+
         return weighted_tangent
 
     def compute_gamma_and_weights(
@@ -419,6 +459,7 @@ class MultiObstacleAvoider:
             base_velocity,
             normal=normal_directions[-1],
             reference=reference_directions[-1],
+            convergence_radius=np.pi * 0.5,
         )
 
         # Should this not be the normal parent ?
