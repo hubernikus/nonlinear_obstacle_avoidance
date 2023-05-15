@@ -113,10 +113,14 @@ class TrajectoryEvaluator:
     dist_to_path: float = 0
 
     squared_acceleration: float = 0
+    squared_acceleration_std: float = 0
     squared_error_velocity: float = 0
+    squared_error_velocity_std: float = 0
 
     dotprod_err_velocity: float = 0
+    dotprod_err_velocity_std: float = 0
     dotprod_acceleration: float = 0
+    dotprod_acceleration_std: float = 0
 
     n_local_minima: int = 0
     n_converged: int = 0
@@ -142,6 +146,13 @@ class TrajectoryEvaluator:
 
         print(f"Evaluating #{self.n_runs} runs.")
 
+        self.dist_to_path_list = np.zeros(len(files_list))
+        self.squared_acceleration_list = np.zeros(len(files_list))
+        self.squared_error_velocity_list = np.zeros(len(files_list))
+
+        self.dotprod_err_velocity_list = np.zeros(len(files_list))
+        self.dotprod_acceleration_list = np.zeros(len(files_list))
+
         for ii, filename in enumerate(files_list):
             trajectory = np.loadtxt(
                 os.path.join(datafolder_path, filename),
@@ -161,34 +172,60 @@ class TrajectoryEvaluator:
             else:
                 self.n_converged += 1
 
-            self.dist_to_path += (
+            self.dist_to_path_list[ii] = (
                 mean_squared_error_to_path(
                     trajectory, center_position=np.zeros(2), radius=2.0
                 )
                 / self.n_runs
             )
 
-            self.squared_error_velocity += (
+            self.squared_error_velocity_list[ii] = (
                 mean_squared_velocity_deviation(
                     trajectory, initial_dynamics.evaluate, delta_time
                 )
                 / self.n_runs
             )
 
-            self.dotprod_err_velocity += (
+            self.dotprod_err_velocity_list[ii] = (
                 dot_product_velocity_deviation(
                     trajectory, initial_dynamics.evaluate, delta_time
                 )
                 / self.n_runs
             )
 
-            self.squared_acceleration += (
+            self.squared_acceleration_list[ii] = (
                 mean_squared_acceleration(trajectory, delta_time) / self.n_runs
             )
 
-            self.dotprod_acceleration += (
+            self.dotprod_acceleration_list[ii] = (
                 dot_product_acceleration(trajectory, delta_time) / self.n_runs
             )
+
+        self.dist_to_path = np.mean(self.dist_to_path_list)
+        self.dist_to_path_std = np.std(self.dist_to_path_list)
+
+        self.squared_acceleration = np.mean(self.squared_acceleration_list)
+        self.squared_acceleration_std = np.std(self.squared_acceleration_list)
+
+        self.squared_error_velocity = np.mean(self.squared_error_velocity_list)
+        self.squared_error_velocity_std = np.std(self.squared_error_velocity_list)
+
+        self.dotprod_err_velocity = np.mean(self.dotprod_err_velocity_list)
+        self.dotprod_err_velocity_std = np.std(self.dotprod_err_velocity_list)
+
+        self.nics_err_velocity_list = (1.0 - self.dotprod_err_velocity_list) * 0.5
+        self.nics_err_velocity = np.mean(self.nics_err_velocity_list)
+        self.nics_err_velocity_std = np.std(self.nics_err_velocity_list)
+
+        self.nics_err_velocity_list = self.dotprod_err_velocity_list
+        self.nics_err_velocity = np.mean(self.dotprod_err_velocity_list)
+
+        self.dotprod_acceleration = np.mean(self.dotprod_acceleration_list)
+        self.dotprod_acceleration_std = np.std(self.dotprod_acceleration_list)
+
+        self.nics_acceleration_list = (1.0 - self.dotprod_acceleration_list) * 0.5
+        self.nics_acceleration = np.mean(self.nics_acceleration_list)
+        self.nics_acceleration_std = np.std(self.nics_acceleration_list)
 
 
 def print_table(evaluation_list):
@@ -205,22 +242,45 @@ def print_table(evaluation_list):
     ]
     print(" & ".join(["$N^m$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.dist_to_path:.2f}" for ee in evaluation_list]
+    value = [
+        f"{ee.dist_to_path:.2f}" + " \\pm " + f"{ee.dist_to_path_std:.2f}"
+        for ee in evaluation_list
+    ]
+    # std = [f"{ee.dist_to_path_std:.2f}" for ee in evaluation_list]
     print(" & ".join(["$\\Delta R^2$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.squared_acceleration:.2f}" for ee in evaluation_list]
+    value = [
+        f"{ee.squared_acceleration:.2f}"
+        + " \\pm "
+        + f"{ee.squared_acceleration_std:.2f}"
+        for ee in evaluation_list
+    ]
     print(" & ".join(["$a$"] + value) + " \\\\ \hline")
 
+    # value = [
+    #     f"{(1.0 - ee.dotprod_acceleration) * 0.5 * 1e4:.2f}" for ee in evaluation_list
+    # ]
     value = [
-        f"{(1.0 - ee.dotprod_acceleration) * 0.5 * 1e4:.2f}" for ee in evaluation_list
+        f"{ee.nics_acceleration*1e4:.2f}"
+        + " \\pm "
+        + f"{ee.nics_acceleration_std*1e4:.2f}"
+        for ee in evaluation_list
     ]
     print(" & ".join(["$\\langle a \\rangle [1e-4 m/s]$"] + value) + " \\\\ \hline")
 
-    value = [f"{ee.squared_error_velocity:.2f}" for ee in evaluation_list]
+    value = [
+        f"{ee.squared_error_velocity:.2f}"
+        + " \\pm "
+        + f"{ee.squared_error_velocity_std:.2f}"
+        for ee in evaluation_list
+    ]
     print(" & ".join(["$\Delta v$"] + value) + " \\\\ \hline")
 
     # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
-    value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5 :.2f}" for ee in evaluation_list]
+    value = [
+        f"{ee.nics_err_velocity:.2f}" + " \\pm " + f"{ee.nics_err_velocity_std:.2f}"
+        for ee in evaluation_list
+    ]
     print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
 
 
