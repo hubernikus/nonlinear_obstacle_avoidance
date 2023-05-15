@@ -53,7 +53,7 @@ def compute_multiobstacle_relative_velocity(
     for obs in environment:
         if not hasattr(obs, "twist"):
             return np.zeros_like(position)
-        break
+        return np.zeros_like(position)
 
     # Weights
     n_obstacles = len(environment)
@@ -121,7 +121,7 @@ class MultiObstacleAvoider:
         obstacle: Optional[HierarchyObstacle] = None,
         initial_dynamics: Optional[DynamicalSystem] = None,
         convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
-        convergence_radius: float = math.pi * 5e-2,
+        convergence_radius: float = math.pi * 0.5,
         smooth_continuation_power: float = 0.1,
         obstacle_container: Optional[list[HierarchyObstacle]] = None,
         create_convergence_dynamics: bool = False,
@@ -199,6 +199,7 @@ class MultiObstacleAvoider:
         final_velocity = self.get_tangent_direction(
             position, velocity, convergence_direction
         )
+        # breakpoint()
 
         final_velocity = final_velocity + relative_velocity
         return final_velocity
@@ -258,10 +259,20 @@ class MultiObstacleAvoider:
                 gamma_weights=gamma_weights,
             )
 
-            component_weights.append(
-                gamma_weights[gamma_weights > 0]
-                * (1 / np.min(gamma_values)) ** self.gamma_power_scaling
-            )
+            # if np.any(gamma_weights <= 0.0):
+            #     breakpoint()
+
+            # component_weights.append(
+            #     gamma_weights[gamma_weights > 0]
+            #     * (1 / np.maximum(gamma_values, 1.0)) ** self.gamma_power_scaling
+            # )
+            # Make the weight sum is below 1
+            component_weights.append(gamma_weights[gamma_weights > 0])
+
+            if np.sum(component_weights[-1]) > 1.0:
+                # breakpoint()
+                # TODO: remove when never called (for debugging only...)
+                raise ValueError("Unexpected weights...")
 
             obstacle_gammas[obs_idx] = np.min(gamma_values)
 
@@ -277,7 +288,8 @@ class MultiObstacleAvoider:
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
-
+        # print("weights", weights)
+        # breakpoint()
         return weighted_tangent
 
     def compute_gamma_and_weights(
@@ -331,6 +343,9 @@ class MultiObstacleAvoider:
             self._update_tangent_branch(
                 position, comp_id, base_velocity, obstacle, obs_idx
             )
+
+        # if np.any(gamma_weights <= 0):
+        #     breakpoint()
 
         return node_list
 
@@ -422,6 +437,7 @@ class MultiObstacleAvoider:
                 tangent,
                 normal=normal_directions[ii],
                 reference=reference_directions[ii],
+                convergence_radius=self.convergence_radius,
             )
 
             self._tangent_tree.add_node(
@@ -430,6 +446,8 @@ class MultiObstacleAvoider:
                 parent_id=NodeKey(obs_idx, comp_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
+
+            # print(f"node{ii} : tangent={tangent}")
 
 
 def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):

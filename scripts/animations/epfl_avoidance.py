@@ -340,12 +340,20 @@ def visualize_avoidance(visualize=True):
 
 
 class AnimatorRotationAvoidanceEPFL(Animator):
-    def setup(self, container, dynamics=[], x_lim=[-2, 14.5], y_lim=[-2, 6.0]):
+    def setup(
+        self,
+        container,
+        dynamics=[],
+        x_lim=[-2, 14.5],
+        y_lim=[-2, 6.0],
+        do_plotting: bool = True,
+    ):
         self.attractor = np.array([6, -25.0])
         self.n_traj = 20
 
         # self.fig, self.ax = plt.subplots(figsize=(12, 9 / 4 * 3))
-        self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
+        if do_plotting:
+            self.fig, self.ax = plt.subplots(figsize=(19.20, 10.80))  # Kind-of HD
 
         self.container = container
         self.dynamics = dynamics
@@ -359,6 +367,7 @@ class AnimatorRotationAvoidanceEPFL(Animator):
             obstacle_container=self.container,
             initial_dynamics=self.initial_dynamics,
             create_convergence_dynamics=True,
+            convergence_radius=0.5 * np.pi,
         )
 
         # self.start_positions = np.vstack(
@@ -515,6 +524,14 @@ def animation_epfl(save_animation=False):
         file_type=".gif",
     )
     animator.setup(container=container)
+
+    # Specifin Position
+    animator.update_obstacle_pose()
+    position = np.array([0.8, 0.9])
+    velocity = animator.avoider.evaluate(position)
+    # breakpoint()
+    animator.run(save_animation=save_animation)
+
     animator.run(save_animation=save_animation)
 
 
@@ -647,11 +664,70 @@ def animation_dynamic_epfl(save_animation=False):
     animator.run(save_animation=save_animation)
 
 
+def test_integration_normal_epfl(visualize=False):
+    position_start = np.array([7.55, 6.0])
+    dimension = 2
+    it_max = 160
+    dt_simulation = 0.07
+
+    container = create_epfl_multi_container(scaling=1.0 / 50, margin_absolut=0.0)
+
+    animator = AnimatorRotationAvoidanceEPFL(
+        dt_simulation=dt_simulation,
+        dt_sleep=0.001,
+        it_max=it_max,
+        # animation_name="dark_epfl_avoidance",
+        # file_type=".gif",
+    )
+    animator.setup(container=container, do_plotting=False)
+
+    if visualize:
+        fig, ax = plt.subplots()
+        for multi_obs in animator.container:
+            plot_obstacles(
+                obstacle_container=multi_obs._obstacle_list,
+                ax=ax,
+                x_lim=animator.x_lim,
+                y_lim=animator.y_lim,
+                draw_reference=False,
+                draw_center=False,
+                noTicks=True,
+                # reference_point_number=True,
+                # show_obstacle_number=True,
+                # ** kwargs,
+            )
+
+        trajectory = np.zeros((dimension, it_max + 1))
+        trajectory[:, 0] = position_start
+        for ii in range(it_max):
+            velocity = animator.avoider.evaluate(trajectory[:, ii])
+            trajectory[:, ii + 1] = trajectory[:, ii] + velocity * dt_simulation
+
+            if container.get_gamma(trajectory[:, ii + 1]) < 1:
+                print("position", trajectory[:, ii + 1])
+                # breakpoint()
+
+        plt.plot(trajectory[0, :], trajectory[1, :])
+        # breakpoint()
+
+    position = np.array([8.36, 3.5])  # Todo: what should this be (it's inside..)
+    velocity = animator.avoider.evaluate(position)
+    assert velocity[0] > 0, "Expected avoidance to the wright.x"
+    assert np.isclose(velocity[1], 0), "Expected tangent velocity."
+
+    position = np.array([9.219, 3.650])  # Todo: what should this be (it's inside..)
+    velocity = animator.avoider.evaluate(position)
+    # TODO: what should the velocity be inside?
+    assert not np.any(np.isnan(velocity)), "Evaluation inside needs to be valid."
+
+
 if (__name__) == "__main__":
-    plt.close("all")
+    # plt.close("all")
     # epfl_logo_parser()
     plt.style.use("dark_background")
     # visualize_avoidance()
-    animation_epfl(save_animation=True)
+    # animation_epfl(save_animation=False)
     # animation_chaotic_epfl(save_animation=False)
     # animation_dynamic_epfl(save_animation=False)
+
+    test_integration_normal_epfl(visualize=True)

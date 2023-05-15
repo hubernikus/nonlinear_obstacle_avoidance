@@ -250,7 +250,7 @@ def test_multi_arch_obstacle(visualize=False):
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] < 0, "Expected to rotate down."
 
-    position = np.array([-2.4, -0.19])
+    position = np.array([2.1, -0.19])
     averaged_direction = multibstacle_avoider.get_tangent_direction(position, velocity)
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] > 0, "Expected to rotate down."
@@ -259,6 +259,6 @@ def test_multi_arch_obstacle(visualize=False):
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
     # test_2d_blocky_arch_rotated(visualize=True)
-    test_multi_arch_obstacle(visualize=False)
+    test_multi_arch_obstacle(visualize=True)
 
     print("Tests done.")
