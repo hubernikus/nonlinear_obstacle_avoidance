@@ -29,6 +29,8 @@ class TrajectoryEvaluator:
         if self.df is None:
             self.df = pd.read_csv(self.root_path / self.data_path / self.data_file)
 
+        self.n_runs = self.df.shape[0]
+        self.frac_converged = sum(self.df[" converged"] > 0) / self.n_runs
         df = self.df[converged]
 
         self.distance_mean = df[" distance"].mean()
@@ -43,7 +45,6 @@ class TrajectoryEvaluator:
 
 
 def get_converged(evaluator_list):
-
     converged = evaluator_list[0].get_converged()
     for evaluator in evaluator_list:
         converged = converged * evaluator.get_converged()
@@ -53,9 +54,10 @@ def get_converged(evaluator_list):
 
 def evaluate():
     evaluator_list = []
-    evaluator_list.append(TrajectoryEvaluator("wavy_path_global_nonlinear.csv"))
-    evaluator_list.append(TrajectoryEvaluator("wavy_path_switching_path.csv"))
+
     evaluator_list.append(TrajectoryEvaluator("wavy_path_switching_straight.csv"))
+    evaluator_list.append(TrajectoryEvaluator("wavy_path_switching_path.csv"))
+    evaluator_list.append(TrajectoryEvaluator("wavy_path_global_nonlinear.csv"))
 
     indeces_converged = get_converged(evaluator_list)
     for evaluator in evaluator_list:
@@ -68,23 +70,26 @@ def print_results(evaluation_list):
     value = [ee.data_file for ee in evaluation_list]
     print(" & ".join(["Name"] + value) + " \\\\ \hline")
 
+    value = [f"{ee.frac_converged * 100:.0f}" for ee in evaluation_list]
+    print(" & ".join(["Converged [\\%]"] + value) + " \\\\ \hline")
+
     value = [
-        f"{ee.distance_mean:.2f}" + " \\pm " + f"{ee.distance_var:.2f}"
+        f"{ee.occupied_mean * 100:.2f}" + " $\\pm$ " + f"{ee.occupied_std * 100:.2f}"
+        for ee in evaluation_list
+    ]
+    print(" & ".join(["Free [\\%]"] + value) + " \\\\ \hline")
+
+    value = [
+        f"{ee.gammas_mean:.2f}" + " $\\pm$ " + f"{ee.gammas_var:.2f}"
         for ee in evaluation_list
     ]
     print(" & ".join(["$\Delta d$"] + value) + " \\\\ \hline")
 
     value = [
-        f"{ee.occupied_mean * 100:.2f}" + " \\pm " + f"{ee.occupied_std * 100:.2f}"
+        f"{ee.distance_mean:.2f}" + " $\\pm$ " + f"{ee.distance_var:.2f}"
         for ee in evaluation_list
     ]
-    print(" & ".join(["$Free [%]$"] + value) + " \\\\ \hline")
-
-    value = [
-        f"{ee.distance_mean:.2f}" + " \\pm " + f"{ee.distance_var:.2f}"
-        for ee in evaluation_list
-    ]
-    print(" & ".join(["$Pathlength [m]$"] + value) + " \\\\ \hline")
+    print(" & ".join(["Pathlength [m]"] + value) + " \\\\ \hline")
 
 
 if (__name__) == "__main__":
