@@ -576,3 +576,115 @@ def create_2d_human():
     new_human.align_position_with_parent(idx_obs)
 
     return new_human
+
+
+def create_3d_human():
+    upper_arm_axes = [0.5, 0.5, 0.18]
+    lower_arm_axes = [0.4, 0.4, 0.14]
+    head_dimension = [0.2, 0.25, 0.3]
+
+    dimension = 3
+
+    new_human = MultiBodyObstacle(
+        visualization_handler=None,
+        pose_updater=None,
+        robot=None,
+    )
+
+    distance_scaling = 3
+
+    new_human.set_root(
+        Cuboid(
+            axes_length=[0.4, 0.2, 0.7],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        name="body",
+    )
+    new_human[-1].set_reference_point(np.array([0, 0, -0.3]), in_global_frame=False)
+
+    new_human.add_component(
+        Ellipse(
+            axes_length=[0.12, 0.12, 0.12],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        name="neck",
+        parent_name="body",
+        reference_position=[0.0, 0, -0.05],
+        parent_reference_position=[0.0, 0, 0.30],
+    )
+
+    new_human.add_component(
+        Ellipse(
+            axes_length=[0.2, 0.25, 0.3],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        name="head",
+        parent_name="neck",
+        reference_position=[0.0, 0, -0.12],
+        parent_reference_position=[0.0, 0, 0.05],
+    )
+
+    # new_human.add_component(
+    #     Ellipse(
+    #         axes_length=upper_arm_axes,
+    #         center_position=np.zeros(dimension),
+    #         distance_scaling=distance_scaling,
+    #     ),
+    #     name="upperarm1",
+    #     parent_name="body",
+    #     reference_position=[-0.2, 0],
+    #     parent_reference_position=[0.15, 0.3],
+    # )
+
+    # new_human.add_component(
+    #     Ellipse(
+    #         axes_length=lower_arm_axes,
+    #         center_position=np.zeros(dimension),
+    #         distance_scaling=distance_scaling,
+    #     ),
+    #     name="lowerarm1",
+    #     parent_name="upperarm1",
+    #     reference_position=[-0.18, 0],
+    #     parent_reference_position=[0.2, 0],
+    # )
+
+    # new_human.add_component(
+    #     Ellipse(
+    #         axes_length=upper_arm_axes,
+    #         center_position=np.zeros(dimension),
+    #         distance_scaling=distance_scaling,
+    #     ),
+    #     name="upperarm2",
+    #     parent_name="body",
+    #     reference_position=[0.2, 0],
+    #     parent_reference_position=[-0.15, 0.3],
+    # )
+
+    # new_human.add_component(
+    #     Ellipse(
+    #         axes_length=lower_arm_axes,
+    #         center_position=np.zeros(dimension),
+    #         distance_scaling=distance_scaling,
+    #     ),
+    #     name="lowerarm2",
+    #     parent_name="upperarm2",
+    #     reference_position=[0.18, 0],
+    #     parent_reference_position=[-0.2, 0],
+    # )
+
+    # new_human.update()
+
+    # idx_obs = new_human.get_obstacle_id_from_name("lowerarm1")
+    # new_human[idx_obs].orientation = 70 * np.pi / 180
+    # # new_human.set_orientation(idx_obs, orientation=)
+    # new_human.align_position_with_parent(idx_obs)
+
+    # idx_obs = new_human.get_obstacle_id_from_name("lowerarm2")
+    # new_human[idx_obs].orientation = 45 * np.pi / 180
+    # # new_human.set_orientation(idx_obs, orientation=)
+    # new_human.align_position_with_parent(idx_obs)
+
+    return new_human
