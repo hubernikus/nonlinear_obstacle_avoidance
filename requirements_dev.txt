@@ -1,5 +1,7 @@
 ### Packages for More Extensive Testing and Scripting. ###
 pandas
+mayavi
+PyQt5
 
 # =======
 ipython==7.34  # 8-series of ipython has gives random error when reloading
