@@ -194,6 +194,12 @@ class MultiBodyObstacle:
             self.position_filters.append(None)
             self.orientation_filters.append(None)
 
+    def print_orientations(self):
+        # TODO: helper / debug function should be removed in the future
+        for ii, obs in enumerate(self._obstacle_list):
+            print(f"ii: {ii} has orientation", obs.pose.orientation)
+            print(f"ii: {ii} has orientation", obs.orientation)
+
     def get_update_id(self, idx_node: int) -> int:
         return self._graph.nodes[idx_node]["update_id"]
 
@@ -241,7 +247,6 @@ class MultiBodyObstacle:
     def update_using_optitrack(self, transform_to_robot_frame: bool = True) -> None:
         if self.pose_updater is not None:
             new_object_poses = self.pose_updater.get_messages()
-
         else:
             new_object_poses = []
         indeces_measures = [oo.obs_id for oo in new_object_poses]
@@ -261,10 +266,6 @@ class MultiBodyObstacle:
 
                 self.robot.pose.position = franka_object.position
                 self.robot.pose.rotation = franka_object.rotation
-
-                # print("Robot")
-                # print(self.robot.position)
-                # print("Euler[Robot", self.robot.rotation.as_euler("xyz"))
 
         # Update filters and put to poses
         filtered_poses = [None] * self.n_components
@@ -326,7 +327,6 @@ class MultiBodyObstacle:
             # self.update_dynamic_obstacle(self.root_idx, filtered_poses[self.root_idx])
             self[self.root_idx].pose = filtered_poses[self.root_idx]
             self[self.root_idx].pose.position[2] = 0.2  # Set root position specific
-            # breakpoint()
 
             # Assumption of rotation only in z (since it's a human in 2D)
             zyx_rot = self[self.root_idx].pose.orientation.as_euler("zyx")
@@ -338,11 +338,9 @@ class MultiBodyObstacle:
             idx_node = obs_indeces[it_node]
             obs_indeces = obs_indeces + list(self._graph.successors(idx_node))
 
+            # print("it_node", it_node)
+            # print("orientation", self[idx_node].orientation)
             it_node += 1  # Iterate
-
-            # idx_optitrack = self._graph.nodes[idx_node]["update_id"]
-            # try:
-            # idx_measure = indeces_measures.index(idx_optitrack)
 
             if filtered_poses[idx_node] is None:
                 # Static opbstacle - no optitrack exists...
@@ -425,9 +423,13 @@ class MultiBodyObstacle:
         """Update obstacle with respect to the movement of the body-parts (limbs)
         under the assumption of FULL-TRUST(!) to the orientation."""
         idx_parent = list(self._graph.predecessors(idx_obs))[0]
+        # try:
         reference_obstacle = self[idx_obs].pose.transform_position_from_relative(
             self._graph.nodes[idx_obs]["local_reference"]
         )
+        # except:
+        #     # breakpoint()
+        #     raise Excpetion
 
         idx_local_ref = self._graph.nodes[idx_parent]["indeces_children"].index(idx_obs)
 
@@ -595,7 +597,7 @@ def create_3d_human():
 
     new_human.set_root(
         Cuboid(
-            axes_length=[0.4, 0.2, 0.7],
+            axes_length=np.array([0.4, 0.2, 0.7]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
@@ -605,26 +607,26 @@ def create_3d_human():
 
     new_human.add_component(
         Ellipse(
-            axes_length=[0.12, 0.12, 0.12],
+            axes_length=np.array([0.12, 0.12, 0.12]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
         name="neck",
         parent_name="body",
-        reference_position=[0.0, 0, -0.05],
-        parent_reference_position=[0.0, 0, 0.30],
+        reference_position=np.array([0.0, 0, -0.05]),
+        parent_reference_position=np.array([0.0, 0, 0.30]),
     )
 
     new_human.add_component(
         Ellipse(
-            axes_length=[0.2, 0.25, 0.3],
+            axes_length=np.array([0.2, 0.25, 0.3]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
         name="head",
         parent_name="neck",
-        reference_position=[0.0, 0, -0.12],
-        parent_reference_position=[0.0, 0, 0.05],
+        reference_position=np.array([0.0, 0, -0.12]),
+        parent_reference_position=np.array([0.0, 0, 0.05]),
     )
 
     # new_human.add_component(
@@ -675,7 +677,7 @@ def create_3d_human():
     #     parent_reference_position=[-0.2, 0],
     # )
 
-    # new_human.update()
+    new_human.update()
 
     # idx_obs = new_human.get_obstacle_id_from_name("lowerarm1")
     # new_human[idx_obs].orientation = 70 * np.pi / 180

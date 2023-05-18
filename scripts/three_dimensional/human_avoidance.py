@@ -1,5 +1,5 @@
 from __future__ import annotations  # To be removed in future python versions
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 
 import numpy as np
@@ -11,11 +11,12 @@ from mayavi.modules.api import Surface
 from mayavi import mlab
 
 from vartools.states import Pose
-from vartools.colors import hex_to_rgba_float
+from vartools.colors import hex_to_rgba, hex_to_rgba_float
 from vartools.linalg import get_orthogonal_basis
 
-from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
+from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
 from nonlinear_avoidance.multi_body_human import create_3d_human
@@ -54,7 +55,6 @@ class Visualization3D:
                 actor.property.opacity = 0.7
 
                 # tuple(np.random.rand(3))
-                # breakpoint()
                 actor.property.color = self.obstacle_color[:3]
 
                 # Colour ellipses by their scalar indices into colour map
@@ -68,6 +68,7 @@ class Visualization3D:
                 # actor.property.frontface_culling = True
                 if obs.pose.orientation is not None:
                     actor.actor.orientation = obs.pose.orientation.as_euler("xyz")
+                print(obs.center_position)
                 actor.actor.origin = obs.center_position
                 actor.actor.position = obs.center_position
                 actor.actor.scale = obs.axes_length
@@ -79,42 +80,79 @@ class Visualization3D:
             #     )
 
 
-def cube_faces(center_position, axes_length):
-    xmin, ymin, zmin = center_position - axes_length
-    faces = []
+@dataclass
+class CubeVisualizer:
+    n_grid = 2
+    obstacle: Obstacle
+    faces: list = field(default_factory=lambda: [])
 
-    x, y = np.mgrid[xmin:xmax:3j, ymin:ymax:3j]
-    z = np.ones(y.shape) * zmin
-    faces.append((x, y, z))
+    obstacle_color = hex_to_rgba("724545ff")
 
-    x, y = np.mgrid[xmin:xmax:3j, ymin:ymax:3j]
-    z = np.ones(y.shape) * zmax
-    faces.append((x, y, z))
+    def __post_init__(self):
+        self.faces = self.compute_cube_faces(self.obstacle.axes_length)
 
-    x, z = np.mgrid[xmin:xmax:3j, zmin:zmax:3j]
-    y = np.ones(z.shape) * ymin
-    faces.append((x, y, z))
+    def compute_cube_faces(self, axes_length):
+        xmin, ymin, zmin = -axes_length * 0.5
+        xmax, ymax, zmax = axes_length * 0.5
 
-    x, z = np.mgrid[xmin:xmax:3j, zmin:zmax:3j]
-    y = np.ones(z.shape) * ymax
-    faces.append((x, y, z))
+        nn = self.n_grid * 1j
 
-    y, z = np.mgrid[ymin:ymax:3j, zmin:zmax:3j]
-    x = np.ones(z.shape) * xmin
-    faces.append((x, y, z))
+        faces = []
+        x, y = np.mgrid[xmin:xmax:nn, ymin:ymax:nn]
+        z = np.ones(y.shape) * zmin
+        faces.append((x, y, z))
 
-    y, z = np.mgrid[ymin:ymax:3j, zmin:zmax:3j]
-    x = np.ones(z.shape) * xmax
-    faces.append((x, y, z))
+        x, y = np.mgrid[xmin:xmax:nn, ymin:ymax:nn]
+        z = np.ones(y.shape) * zmax
+        faces.append((x, y, z))
 
-    return faces
+        x, z = np.mgrid[xmin:xmax:nn, zmin:zmax:nn]
+        y = np.ones(z.shape) * ymin
+        faces.append((x, y, z))
 
+        x, z = np.mgrid[xmin:xmax:nn, zmin:zmax:nn]
+        y = np.ones(z.shape) * ymax
+        faces.append((x, y, z))
 
-def draw_cube(center_position, axes_length):
-    faces = cube_faces(center_position, axes_length)
-    for grid in faces:
-        x, y, z = grid
-        mlab.mesh(x, y, z, opacity=0.4)
+        y, z = np.mgrid[ymin:ymax:nn, zmin:zmax:nn]
+        x = np.ones(z.shape) * xmin
+        faces.append((x, y, z))
+
+        y, z = np.mgrid[ymin:ymax:nn, zmin:zmax:nn]
+        x = np.ones(z.shape) * xmax
+        faces.append((x, y, z))
+
+        return faces
+
+    def transform_faces_from_relative(self, pose: Pose) -> list:
+        global_faces: list = []
+        for grid in self.faces:
+            xx, yy, zz = grid
+            pos = pose.transform_positions_from_relative(
+                np.vstack((xx.flatten(), yy.flatten(), zz.flatten()))
+            )
+            global_faces.append(
+                (
+                    pos[0, :].reshape(self.n_grid, self.n_grid),
+                    pos[1, :].reshape(self.n_grid, self.n_grid),
+                    pos[2, :].reshape(self.n_grid, self.n_grid),
+                )
+            )
+
+        return global_faces
+
+    def draw_cube(self) -> None:
+        global_faces = self.transform_faces_from_relative(self.obstacle.pose)
+
+        for grid in global_faces:
+            x, y, z = grid
+            mesh = mlab.mesh(x, y, z, opacity=1.0)
+            # The lut is a 255x4 array, with the columns representing RGBA
+            # (red, green, blue, alpha) coded with integers going from 0 to 255.
+            mesh.module_manager.scalar_lut_manager.lut.number_of_colors = 2
+            mesh.module_manager.scalar_lut_manager.lut.table = np.tile(
+                self.obstacle_color, (2, 1)
+            )
 
 
 def get_perpendicular_vector(initial: Vector, nominal: Vector) -> Vector:
@@ -176,13 +214,15 @@ def integrate_trajectory(
 
 
 def main():
-    visualizer = Visualization3D()
-
     human_obstacle = create_3d_human()
 
+    visualizer = Visualization3D()
     visualizer.plot_obstacles(human_obstacle)
 
-    breakpoint()
+    cube = human_obstacle[0]
+    visualizer = CubeVisualizer(cube)
+    visualizer.draw_cube()
+
     # fig = mlab.figure(size=(800, 600))
     # plot_multi_obstacle_3d(, obstacle=human_obstacle)
 
@@ -210,4 +250,5 @@ def main():
 
 
 if (__name__) == "__main__":
+    mlab.close(all=True)
     main()
