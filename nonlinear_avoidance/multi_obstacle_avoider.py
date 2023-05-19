@@ -75,7 +75,6 @@ def compute_multiobstacle_relative_velocity(
     environment: MultiObstacleContainer,
     cutoff_gamma: float = 10,
 ) -> np.ndarray:
-
     if position.shape[0] > 2:
         warnings.warn("No dynamic evaluation for higher dynensions.")
         return np.zeros_like(position)
@@ -235,9 +234,6 @@ class MultiObstacleAvoider:
             position, velocity, convergence_direction
         )
 
-        if np.allclose(position, [8.01070118, 3.10260951]):
-            breakpoint()
-
         final_velocity = final_velocity + relative_velocity
         return final_velocity
 
@@ -325,10 +321,6 @@ class MultiObstacleAvoider:
         weighted_tangent = self._tangent_tree.get_weighted_mean(
             node_list=node_list, weights=weights
         )
-        # print("weights", weights)
-        # breakpoint()
-        if np.allclose(position, [8.01070118, 3.10260951]):
-            breakpoint()
 
         return weighted_tangent
 

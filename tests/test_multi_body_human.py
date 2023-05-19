@@ -291,7 +291,7 @@ if (__name__) == "__main__":
     plt.ion()
 
     # test_2d_blocky_arch(visualize=True)
-    # test_2d_human_with_linear(visualize=True)
-    test_2d_human_with_circular(visualize=True, savefig=False)
+    test_2d_human_with_linear(visualize=True)
+    # test_2d_human_with_circular(visualize=True, savefig=False)
 
     print("[INFO] Done.")

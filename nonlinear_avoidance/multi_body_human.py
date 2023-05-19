@@ -360,6 +360,17 @@ class MultiBodyObstacle:
                 # Reset position filter
                 # self.position_filters[idx_node]._position = self[idx_node].pose.position
 
+    def align_obstacle_tree(self):
+        obs_indeces = list(self._graph.successors(self.root_idx))
+        it_node = 0
+        while it_node < len(obs_indeces):
+            idx_node = obs_indeces[it_node]
+            obs_indeces = obs_indeces + list(self._graph.successors(idx_node))
+
+            it_node += 1  # Iterate
+
+            self.align_position_with_parent(idx_node)
+
     # def set_orientation(self, idx_obs: int, orientation: float | Rotation) -> None:
     #     self[idx_obs].orientation = orientation
     #     self.align_position_with_parent(idx_node)
@@ -441,14 +452,15 @@ class MultiBodyObstacle:
         )
 
         delta_ref = reference_parent - reference_obstacle
-
         # Full believe in orientation (and parent)
         self[idx_obs].pose.position = self[idx_obs].pose.position + delta_ref
 
     def update(self):
-        self.update_using_optitrack()
-
-        self.align_obstacle_tree()
+        if self.pose_updater is not None:
+            self.update_using_optitrack()
+        else:
+            self.align_obstacle_tree()
+            print("Do w/out optitrack")
 
         if self.robot is not None:
             self.robot.publish_robot_transform()
@@ -586,6 +598,9 @@ def create_3d_human():
     upper_arm_axes = [0.5, 0.18, 0.18]
     lower_arm_axes = [0.4, 0.14, 0.14]
     head_dimension = [0.2, 0.25, 0.3]
+    legs_axes = [1.0, 0.2, 0.25]
+
+    margin_absolut = 0.0
 
     dimension = 3
 
@@ -602,6 +617,7 @@ def create_3d_human():
             axes_length=np.array([0.4, 0.25, 0.7]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
         ),
         name="body",
     )
@@ -609,9 +625,11 @@ def create_3d_human():
 
     new_human.add_component(
         Cuboid(
-            axes_length=np.array([0.12, 0.2, 0.12]),
+            # axes_length=np.array([0.12, 0.2, 0.12]),
+            axes_length=np.array([0.12, 0.15, 0.12]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
         ),
         name="neck",
         parent_name="body",
@@ -624,6 +642,7 @@ def create_3d_human():
             axes_length=np.array([0.2, 0.25, 0.3]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
         ),
         name="head",
         parent_name="neck",
@@ -636,6 +655,8 @@ def create_3d_human():
             axes_length=upper_arm_axes,
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            orientation=Rotation.from_euler("xyz", [0, 0.25 * np.pi, -0.3 * np.pi]),
         ),
         name="upperarm1",
         parent_name="body",
@@ -648,6 +669,8 @@ def create_3d_human():
             axes_length=lower_arm_axes,
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            orientation=Rotation.from_euler("xyz", [0, 0.2 * np.pi, -0.8 * np.pi]),
         ),
         name="lowerarm1",
         parent_name="upperarm1",
@@ -655,31 +678,64 @@ def create_3d_human():
         parent_reference_position=[0.2, 0, 0],
     )
 
-    # new_human.add_component(
-    #     Ellipse(
-    #         axes_length=upper_arm_axes,
-    #         center_position=np.zeros(dimension),
-    #         distance_scaling=distance_scaling,
-    #     ),
-    #     name="upperarm2",
-    #     parent_name="body",
-    #     reference_position=[0.2, 0],
-    #     parent_reference_position=[-0.15, 0.3],
-    # )
+    new_human.add_component(
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            orientation=Rotation.from_euler("xyz", [0, 0.3 * np.pi, 0]),
+        ),
+        name="upperarm2",
+        parent_name="body",
+        reference_position=[0.2, 0, 0],
+        parent_reference_position=[-0.15, 0, 0.3],
+    )
 
-    # new_human.add_component(
-    #     Ellipse(
-    #         axes_length=lower_arm_axes,
-    #         center_position=np.zeros(dimension),
-    #         distance_scaling=distance_scaling,
-    #     ),
-    #     name="lowerarm2",
-    #     parent_name="upperarm2",
-    #     reference_position=[0.18, 0],
-    #     parent_reference_position=[-0.2, 0],
-    # )
+    new_human.add_component(
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            orientation=Rotation.from_euler("xyz", [0, 0.5 * np.pi, 0]),
+        ),
+        name="lowerarm2",
+        parent_name="upperarm2",
+        reference_position=[0.18, 0.0, 0],
+        parent_reference_position=[-0.2, 0.0, 0],
+    )
 
-    new_human.update()
+    # Plus legs (!)
+    new_human.add_component(
+        Ellipse(
+            axes_length=legs_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            # orientation=Rotation.from_euler("zy", [np.pi * 0.5, np.pi * 0.4]),
+            orientation=Rotation.from_euler("zx", [-np.pi * 0.5, np.pi * 0.4]),
+        ),
+        name="leg1",
+        parent_name="body",
+        reference_position=[-0.42, 0, 0],
+        parent_reference_position=[0.15, 0, -0.3],
+    )
+
+    new_human.add_component(
+        Ellipse(
+            axes_length=legs_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+            margin_absolut=margin_absolut,
+            # orientation=Rotation.from_euler("zy", [np.pi * 0.5, np.pi * 0.4]),
+            orientation=Rotation.from_euler("zx", [np.pi * 0.5, -np.pi * 0.4]),
+        ),
+        name="leg2",
+        parent_name="body",
+        reference_position=[-0.42, 0, 0],
+        parent_reference_position=[-0.15, 0, -0.3],
+    )
 
     # idx_obs = new_human.get_obstacle_id_from_name("lowerarm1")
     # new_human[idx_obs].orientation = 70 * np.pi / 180
@@ -691,4 +747,5 @@ def create_3d_human():
     # # new_human.set_orientation(idx_obs, orientation=)
     # new_human.align_position_with_parent(idx_obs)
 
+    new_human.update()
     return new_human

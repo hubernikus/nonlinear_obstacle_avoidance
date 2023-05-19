@@ -20,12 +20,11 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from nonlinear_avoidance.multi_ellipse_obstacle import MultiEllipseObstacle
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
 from nonlinear_avoidance.datatypes import Vector
-
-from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 
 
 def test_triple_ellipse_environment(visualize=False, savefig=False):
