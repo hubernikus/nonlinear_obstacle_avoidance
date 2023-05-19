@@ -34,6 +34,11 @@ class Visualization3D:
             bgcolor=(1, 1, 1), fgcolor=(0, 0, 0), size=(800, 600)
         )
         self.scene.scene.disable_render = True  # for speed
+        # self.scene.view(0, 45)
+        mlab.view(90, 90)
+
+        self.obstacle_color = np.array(self.obstacle_color)
+        self.obstacle_color[-1] = 0.5
 
     def plot_obstacles(self, obstacles):
         for obs in obstacles:
@@ -51,15 +56,11 @@ class Visualization3D:
                 actor = surface.actor  # mayavi actor, actor.actor is tvtk actor
                 # defaults to 0 for some reason, ah don't need it, turn off scalar visibility instead
                 # actor.property.ambient = 1
-
-                actor.property.opacity = 0.7
-
-                # tuple(np.random.rand(3))
-                actor.property.color = self.obstacle_color[:3]
+                actor.property.opacity = self.obstacle_color[-1]
+                actor.property.color = tuple(self.obstacle_color[:3])
 
                 # Colour ellipses by their scalar indices into colour map
                 actor.mapper.scalar_visibility = False
-                # breakpoint()
 
                 # gets rid of weird rendering artifact when opacity is < 1
                 actor.property.backface_culling = True
@@ -68,10 +69,10 @@ class Visualization3D:
                 # actor.property.frontface_culling = True
                 if obs.pose.orientation is not None:
                     actor.actor.orientation = obs.pose.orientation.as_euler("xyz")
-                print(obs.center_position)
+
                 actor.actor.origin = obs.center_position
                 actor.actor.position = obs.center_position
-                actor.actor.scale = obs.axes_length
+                actor.actor.scale = obs.axes_length * 0.5
                 actor.enable_texture = True
 
             # if isinstance(obs, Cuboid):
@@ -80,16 +81,25 @@ class Visualization3D:
             #     )
 
 
+def plot_reference_points(obstacles):
+    for ii, obs in enumerate(obstacles):
+        point = obs.get_reference_point(in_global_frame=True)
+        mlab.points3d(point[0], point[1], point[2], scale_factor=0.1)
+
+
 @dataclass
 class CubeVisualizer:
     n_grid = 2
     obstacle: Obstacle
     faces: list = field(default_factory=lambda: [])
 
-    obstacle_color = hex_to_rgba("724545ff")
+    obstacle_color: np.ndarray = hex_to_rgba("724545ff")
 
     def __post_init__(self):
         self.faces = self.compute_cube_faces(self.obstacle.axes_length)
+
+        self.obstacle_color = np.array(self.obstacle_color)
+        self.obstacle_color[-1] = 120
 
     def compute_cube_faces(self, axes_length):
         xmin, ymin, zmin = -axes_length * 0.5
@@ -225,10 +235,14 @@ def main():
 
     # fig = mlab.figure(size=(800, 600))
     # plot_multi_obstacle_3d(, obstacle=human_obstacle)
+    plot_reference_points(human_obstacle._obstacle_list)
+
+    if True:
+        return
 
     dynamics = SpiralingDynamics3D.create_from_direction(
-        np.array([0, 0, 0.0]),
-        np.array([1, 0, 0.0]),
+        center=np.array([0, 0, 0.0]),
+        direction=np.array([0.0, 1, 0.0]),
     )
     start_positions = [
         [-2.0, -1, 0.0],

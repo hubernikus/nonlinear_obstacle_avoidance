@@ -448,6 +448,8 @@ class MultiBodyObstacle:
     def update(self):
         self.update_using_optitrack()
 
+        self.align_obstacle_tree()
+
         if self.robot is not None:
             self.robot.publish_robot_transform()
 
@@ -581,8 +583,8 @@ def create_2d_human():
 
 
 def create_3d_human():
-    upper_arm_axes = [0.5, 0.5, 0.18]
-    lower_arm_axes = [0.4, 0.4, 0.14]
+    upper_arm_axes = [0.5, 0.18, 0.18]
+    lower_arm_axes = [0.4, 0.14, 0.14]
     head_dimension = [0.2, 0.25, 0.3]
 
     dimension = 3
@@ -597,7 +599,7 @@ def create_3d_human():
 
     new_human.set_root(
         Cuboid(
-            axes_length=np.array([0.4, 0.2, 0.7]),
+            axes_length=np.array([0.4, 0.25, 0.7]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
@@ -606,8 +608,8 @@ def create_3d_human():
     new_human[-1].set_reference_point(np.array([0, 0, -0.3]), in_global_frame=False)
 
     new_human.add_component(
-        Ellipse(
-            axes_length=np.array([0.12, 0.12, 0.12]),
+        Cuboid(
+            axes_length=np.array([0.12, 0.2, 0.12]),
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
         ),
@@ -629,29 +631,29 @@ def create_3d_human():
         parent_reference_position=np.array([0.0, 0, 0.05]),
     )
 
-    # new_human.add_component(
-    #     Ellipse(
-    #         axes_length=upper_arm_axes,
-    #         center_position=np.zeros(dimension),
-    #         distance_scaling=distance_scaling,
-    #     ),
-    #     name="upperarm1",
-    #     parent_name="body",
-    #     reference_position=[-0.2, 0],
-    #     parent_reference_position=[0.15, 0.3],
-    # )
+    new_human.add_component(
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        name="upperarm1",
+        parent_name="body",
+        reference_position=[-0.2, 0, 0],
+        parent_reference_position=[0.15, 0, 0.3],
+    )
 
-    # new_human.add_component(
-    #     Ellipse(
-    #         axes_length=lower_arm_axes,
-    #         center_position=np.zeros(dimension),
-    #         distance_scaling=distance_scaling,
-    #     ),
-    #     name="lowerarm1",
-    #     parent_name="upperarm1",
-    #     reference_position=[-0.18, 0],
-    #     parent_reference_position=[0.2, 0],
-    # )
+    new_human.add_component(
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        name="lowerarm1",
+        parent_name="upperarm1",
+        reference_position=[-0.18, 0, 0],
+        parent_reference_position=[0.2, 0, 0],
+    )
 
     # new_human.add_component(
     #     Ellipse(
