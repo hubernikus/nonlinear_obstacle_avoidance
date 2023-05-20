@@ -32,21 +32,25 @@ class Visualization3D:
     dimension = 3
     obstacle_color = hex_to_rgba_float("724545ff")
 
+    figsize = (800, 600)
+
     def __init__(self):
         self.engine = Engine()
         self.engine.start()
-        self.scene = self.engine.new_scene(
-            bgcolor=(255, 255, 255),
-            size=(800, 600),
-        )
+        # self.scene = self.engine.new_scene(
+        #     size=self.figsize,
+        #     bgcolor=(1, 1, 1),
+        #     fgcolor=(0.5, 0.5, 0.5),
+        # )
         # self.scene.scene.disable_render = False  # for speed
-        self.scene.background = (255, 255, 255)
+        # self.scene.background = (255, 255, 255)
         # self.scene.background = (1, 1, 1)
-        # self.scene.view(0, 45)
-        # mlab.view(90, 90)
 
         # self.obstacle_color = np.array(self.obstacle_color)
         # self.obstacle_color[-1] = 0.5
+        self.scene = mlab.figure(
+            size=self.figsize, bgcolor=(1, 1, 1), fgcolor=(0.5, 0.5, 0.5)
+        )
 
     def plot_obstacles(self, obstacles):
         for obs in obstacles:
@@ -93,10 +97,6 @@ class Visualization3D:
                 actor.enable_texture = True
 
             if isinstance(obs, Cuboid):
-                plot_ellipse_3d(
-                    scene=scene, center=obs.center_position, axes_length=obs.axes_length
-                )
-
                 visualizer = CubeVisualizer(obs)
                 visualizer.draw_cube()
 
@@ -287,9 +287,6 @@ def plot_axes(lensoffset=0.0):
 
 
 def set_view():
-    # To get the view type:
-    #
-
     mlab.view(
         -150.15633889829527,
         68.76031172885509,
@@ -298,6 +295,7 @@ def set_view():
         # distance=5.004231840226419,
         # focalpoint=(-0.32913308, 0.38534346, -0.14484502),
     )
+    mlab.background = (255, 255, 255)
 
 
 def main(savefig=False, n_grid=6):
@@ -305,10 +303,6 @@ def main(savefig=False, n_grid=6):
 
     visualizer = Visualization3D()
     visualizer.plot_obstacles(human_obstacle)
-
-    cube = human_obstacle[1]
-    visualizer = CubeVisualizer(cube)
-    visualizer.draw_cube()
 
     # plot_multi_obstacle_3d(, obstacle=human_obstacle)
     # plot_reference_points(human_obstacle._obstacle_list)
@@ -368,7 +362,6 @@ def main(savefig=False, n_grid=6):
         )
 
     set_view()
-
     if savefig:
         mlab.savefig(
             str(Path("figures") / ("human_avoidance_3d_avoidance" + figtype)),
@@ -411,4 +404,4 @@ def main(savefig=False, n_grid=6):
 if (__name__) == "__main__":
     figtype = ".jpeg"
     mlab.close(all=True)
-    main(savefig=True, n_grid=1)
+    main(savefig=True, n_grid=4)
