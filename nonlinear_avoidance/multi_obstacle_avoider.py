@@ -39,6 +39,7 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 
 NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
+# IterationKey = namedtuple("IterationKey", "obstacle end_component current_component")
 
 
 def compute_gamma_weights(
@@ -235,6 +236,7 @@ class MultiObstacleAvoider:
         )
 
         final_velocity = final_velocity + relative_velocity
+        # breakpoint()
         return final_velocity
 
     def get_tangent_direction(
@@ -292,8 +294,8 @@ class MultiObstacleAvoider:
                 gamma_weights=gamma_weights,
             )
 
-            # if np.any(gamma_weights <= 0.0):
-            #     breakpoint()
+            # print("gamma_values", gamma_values)
+            # print("gamma_weights", gamma_weights)
 
             # component_weights.append(
             #     gamma_weights[gamma_weights > 0]
@@ -322,6 +324,10 @@ class MultiObstacleAvoider:
             node_list=node_list, weights=weights
         )
 
+        # print("node list", node_list)
+        # print("weights", weights)
+
+        # breakpoint()
         return weighted_tangent
 
     def compute_gamma_and_weights(
@@ -376,9 +382,6 @@ class MultiObstacleAvoider:
                 position, comp_id, base_velocity, obstacle, obs_idx
             )
 
-        # if np.any(gamma_weights <= 0):
-        #     breakpoint()
-
         return node_list
 
     def _update_tangent_branch(
@@ -393,8 +396,6 @@ class MultiObstacleAvoider:
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
 
-        # print(f"Tangent Obst {obs_idx}.")
-        # print(f"Tangent Compon {comp_id}.")
         surface_points: list[Vector] = [position]
         parents_tree: list[int] = [comp_id]
 
@@ -460,12 +461,14 @@ class MultiObstacleAvoider:
             parent_id=NodeKey(obs_idx, -1, -1),
             direction=tangent,
         )
+        # print("New node", NodeKey(obs_idx, comp_id, parents_tree[-1]))
+        # print(f"tangent={tangent}")
+
         # Iterate over all but last one
         for ii in reversed(range(len(parents_tree) - 1)):
             # print(f"Add Node {ii}")
             rel_id = parents_tree[ii]
 
-            # Re-project tangent
             tangent = RotationalAvoider.get_projected_tangent_from_vectors(
                 tangent,
                 normal=normal_directions[ii],
@@ -480,7 +483,9 @@ class MultiObstacleAvoider:
                 direction=tangent,
             )
 
-            # print(f"node{ii} : tangent={tangent}")
+            # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
+            # print(f"tangent={tangent}")
+        # breakpoint()
 
 
 def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):

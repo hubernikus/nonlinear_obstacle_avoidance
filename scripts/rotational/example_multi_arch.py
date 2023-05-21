@@ -10,20 +10,20 @@ from vartools.dynamics import WavyRotatedDynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
-from nonlinear_avoidance.arch_obstacle import MultiObstacleContainer, BlockArchObstacle
+from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 from nonlinear_avoidance.visualization.plot_multi_obstacle import plot_multi_obstacles
 from nonlinear_avoidance.visualization.plot_qolo import integrate_with_qolo
 
 
-def visualize_double_arch(save_figure=False):
-    # x_lim = [-7, 7]
+def visualize_double_arch(save_figure=False, it_max=150, n_grid=80):
+    # x_ lim = [-7, 7]
     # y_lim = [-6, 6]
     x_lim = [-6.5, 6.5]
     y_lim = [-5.5, 5.5]
-    n_grid = 80
-    figsize = (4, 3.5)
 
+    figsize = (4, 3.5)
     margin_absolut = 0.5
 
     attractor = np.array([4.0, -3])
@@ -91,7 +91,10 @@ def visualize_double_arch(save_figure=False):
 
     start_position = np.array([-2.5, 3])
     integrate_with_qolo(
-        start_position=start_position, velocity_functor=initial_dynamics.evaluate, ax=ax
+        start_position=start_position,
+        velocity_functor=initial_dynamics.evaluate,
+        ax=ax,
+        it_max=it_max,
     )
 
     if save_figure:
@@ -114,7 +117,10 @@ def visualize_double_arch(save_figure=False):
     plot_multi_obstacles(ax=ax, container=container)
 
     integrate_with_qolo(
-        start_position=start_position, velocity_functor=avoider.evaluate, ax=ax
+        start_position=start_position,
+        velocity_functor=avoider.evaluate,
+        ax=ax,
+        it_max=it_max,
     )
 
     if save_figure:
@@ -129,4 +135,4 @@ def visualize_double_arch(save_figure=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    visualize_double_arch(save_figure=True)
+    visualize_double_arch(save_figure=False)

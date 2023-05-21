@@ -256,9 +256,106 @@ def test_multi_arch_obstacle(visualize=False):
     assert averaged_direction[1] > 0, "Expected to rotate down."
 
 
+def test_bi_arch_avoidance_nonlinear(visualize=False):
+    attractor = np.array([4.0, -3])
+    margin_absolut = 0.5
+
+    initial_dynamics = WavyRotatedDynamics(
+        pose=Pose(position=attractor, orientation=0),
+        maximum_velocity=1.0,
+        rotation_frequency=1,
+        rotation_power=1.2,
+        max_rotation=0.4 * math.pi,
+    )
+    container = MultiObstacleContainer()
+    container.append(
+        BlockArchObstacle(
+            wall_width=0.4,
+            axes_length=np.array([4.5, 6.5]),
+            pose=Pose(np.array([-1.5, -3.5]), orientation=90 * np.pi / 180.0),
+            margin_absolut=margin_absolut,
+        )
+    )
+
+    container.append(
+        BlockArchObstacle(
+            wall_width=0.4,
+            axes_length=np.array([4.5, 6.0]),
+            pose=Pose(np.array([1.5, 3.0]), orientation=-90 * np.pi / 180.0),
+            margin_absolut=margin_absolut,
+        )
+    )
+
+    avoider = MultiObstacleAvoider(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        # convergence_dynamics=rotation_projector,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        fig, ax = plt.subplots(figsize=(5, 4))
+        # plot_obstacle_dynamics(
+        #     obstacle_container=container,
+        #     dynamics=avoider.evaluate,
+        #     x_lim=x_lim,
+        #     y_lim=y_lim,
+        #     n_grid=n_grid,
+        #     ax=ax,
+        #     attractor_position=initial_dynamics.pose.position,
+        #     collision_check_functor=collision_checker,
+        #     do_quiver=False,
+        #     show_ticks=False,
+        # )
+        plot_multi_obstacles(
+            ax=ax,
+            container=container,
+            x_lim=[-6.5, 6.5],
+            y_lim=[-5.5, 5.5],
+        )
+
+        # Check all normal directions
+        position = np.array([0.8499904639878112, -0.03889134570119339])
+        ax.plot(position[0], position[1], "ok")
+
+        colors = ["red", "green", "blue"]
+        d_pos = np.array([0.1, 0.1])
+        for ii, obs in enumerate(container.get_obstacle_tree(0)._obstacle_list):
+            normal = obs.get_normal_direction(position, in_global_frame=True)
+            # print("Obs-Pose", obs.pose)
+            # print("ref_point", obs.get_reference_point(1))
+            # print("Axes", obs.axes_length)
+            # print("normal", normal)
+            # print()
+            pos_text = obs.center_position + d_pos
+            ax.text(pos_text[0], pos_text[1], f"obs={ii}", color=colors[ii])
+            ax.arrow(position[0], position[1], normal[0], normal[1], color=colors[ii])
+
+        start_position = np.array([-2.5, 3])
+        trajectory = integrate_with_qolo(
+            start_position=start_position,
+            velocity_functor=avoider.evaluate,
+            ax=ax,
+            it_max=200,
+        )
+
+    # Integration of Qolo
+    position = np.array([0.8499904639878112, -0.03889134570119339])
+    velocity = avoider.evaluate(position)
+    assert np.isclose(velocity[0], 0, atol=1e-3)
+    assert velocity[1] > 0
+
+    # Positions close to the boundary
+    position = np.array([0.85, -0.04])
+    velocity = avoider.evaluate(position)
+    assert np.isclose(velocity[0], 0)
+    assert velocity[1] > 0
+
+
 if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
     # test_2d_blocky_arch_rotated(visualize=True)
-    test_multi_arch_obstacle(visualize=True)
+    # test_multi_arch_obstacle(visualize=True)
+    test_bi_arch_avoidance_nonlinear()
 
     print("Tests done.")

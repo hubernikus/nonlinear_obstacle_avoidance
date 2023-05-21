@@ -71,6 +71,9 @@ class BlockArchObstacle:
             parent_ind=0,
         )
 
+    def get_pose(self) -> Pose:
+        return self.pose
+
     @property
     def n_components(self) -> int:
         return len(self._obstacle_list)
