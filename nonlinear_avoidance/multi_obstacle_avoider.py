@@ -239,6 +239,23 @@ class MultiObstacleAvoider:
         # breakpoint()
         return final_velocity
 
+    def get_save_magnitude(self):
+        # Get averaged normal
+        # TODO: We just recompute the normals -> this could be accelerated by storing them
+
+        averaged_normal = np.sum(
+            # normal_dirs * np.tile(weights, (dimension, 1)), axis=1
+            normal_orthogonal_matrix[:, 0, :] * np.tile(weights, (dimension, 1)),
+            axis=1,
+        )
+
+        rotated_velocity = self._magnitude_save_adaptation(
+            rotated_velocity=rotated_velocity,
+            initial_norm=np.linalg.norm(initial_velocity),
+            averaged_normal=averaged_normal,
+            gamma=np.min(gamma_array),
+        )
+
     def get_tangent_direction(
         self,
         position: Vector,
@@ -294,9 +311,6 @@ class MultiObstacleAvoider:
                 gamma_weights=gamma_weights,
             )
 
-            # print("gamma_values", gamma_values)
-            # print("gamma_weights", gamma_weights)
-
             # component_weights.append(
             #     gamma_weights[gamma_weights > 0]
             #     * (1 / np.maximum(gamma_values, 1.0)) ** self.gamma_power_scaling
@@ -319,15 +333,11 @@ class MultiObstacleAvoider:
 
         # Remaining weight to the initial velocity
         node_list.append(self._BASE_VEL_ID)
-        weights = np.hstack((weights, [1 - np.sum(weights)]))
+        self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
         weighted_tangent = self._tangent_tree.get_weighted_mean(
-            node_list=node_list, weights=weights
+            node_list=node_list, weights=self.final_weights
         )
 
-        # print("node list", node_list)
-        # print("weights", weights)
-
-        # breakpoint()
         return weighted_tangent
 
     def compute_gamma_and_weights(

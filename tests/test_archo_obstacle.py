@@ -1,6 +1,8 @@
 """
 Create 'Arch'-Obstacle which might be often used
 """
+import math
+
 from dataclasses import dataclass, field
 from typing import Optional, Iterator
 import numpy as np
@@ -10,9 +12,11 @@ import networkx as nx
 
 from vartools.states import Pose
 from vartools.dynamical_systems import LinearSystem
+from vartools.dynamics import WavyRotatedDynamics
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
@@ -22,6 +26,8 @@ from nonlinear_avoidance.nonlinear_rotation_avoider import (
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
+from nonlinear_avoidance.visualization.plot_multi_obstacle import plot_multi_obstacles
+from nonlinear_avoidance.visualization.plot_qolo import integrate_with_qolo
 
 from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
@@ -37,7 +43,7 @@ def test_2d_blocky_arch(visualize=False):
     multibstacle_avoider = MultiObstacleAvoider(obstacle=multi_block)
 
     velocity = np.array([-1.0, 0])
-    linearized_velociy = np.array([-1.0, 0])
+    linearized_velociy = velocity
 
     if visualize:
         import matplotlib.pyplot as plt
@@ -322,17 +328,12 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
         d_pos = np.array([0.1, 0.1])
         for ii, obs in enumerate(container.get_obstacle_tree(0)._obstacle_list):
             normal = obs.get_normal_direction(position, in_global_frame=True)
-            # print("Obs-Pose", obs.pose)
-            # print("ref_point", obs.get_reference_point(1))
-            # print("Axes", obs.axes_length)
-            # print("normal", normal)
-            # print()
             pos_text = obs.center_position + d_pos
             ax.text(pos_text[0], pos_text[1], f"obs={ii}", color=colors[ii])
             ax.arrow(position[0], position[1], normal[0], normal[1], color=colors[ii])
 
         start_position = np.array([-2.5, 3])
-        trajectory = integrate_with_qolo(
+        _ = integrate_with_qolo(
             start_position=start_position,
             velocity_functor=avoider.evaluate,
             ax=ax,
@@ -353,6 +354,8 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
 
 
 if (__name__) == "__main__":
+    import matplotlib.pyplot as plt
+
     # test_2d_blocky_arch(visualize=False)
     # test_2d_blocky_arch_rotated(visualize=True)
     # test_multi_arch_obstacle(visualize=True)

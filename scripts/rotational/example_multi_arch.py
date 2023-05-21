@@ -2,8 +2,10 @@ import math
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 from vartools.states import Pose
+from vartools.colors import hex_to_rgba_float
 from vartools.dynamics import QuadraticAxisConvergence, LinearSystem
 from vartools.dynamics import WavyRotatedDynamics
 
@@ -17,7 +19,7 @@ from nonlinear_avoidance.visualization.plot_multi_obstacle import plot_multi_obs
 from nonlinear_avoidance.visualization.plot_qolo import integrate_with_qolo
 
 
-def visualize_double_arch(save_figure=False, it_max=150, n_grid=80):
+def visualize_double_arch(save_figure=False, it_max=150, n_grid=10):
     # x_ lim = [-7, 7]
     # y_lim = [-6, 6]
     x_lim = [-6.5, 6.5]
@@ -72,6 +74,21 @@ def visualize_double_arch(save_figure=False, it_max=150, n_grid=80):
         "width": 0.007,
     }
 
+    # Plot contourf of color
+    end_color = hex_to_rgba_float("719bc5ff")
+    end_color = hex_to_rgba_float("7ea3caff")
+    colors = np.linspace([1.0, 1.0, 1.0], end_color[:3], 200)
+    my_cmap = ListedColormap(colors)
+
+    n_speed_resolution = 10
+    nx = ny = n_speed_resolution
+    x_vals, y_vals = np.meshgrid(
+        np.linspace(x_lim[0], x_lim[1], nx),
+        np.linspace(y_lim[0], y_lim[1], ny),
+    )
+    positions = np.vstack((x_vals.reshape(1, -1), y_vals.reshape(1, -1)))
+    speed_magnitude = np.zeros(positions.shape[1])
+
     collision_checker = lambda pos: (not container.is_collision_free(pos))
     fig, ax = plt.subplots(figsize=figsize)
     plot_obstacle_dynamics(
@@ -89,13 +106,33 @@ def visualize_double_arch(save_figure=False, it_max=150, n_grid=80):
     )
     # plot_multi_obstacles(ax=ax, container=container)
 
+    for pp in range(positions.shape[1]):
+        initial_velocity = initial_dynamics.evaluate(positions[:, pp])
+        speed_magnitude[pp] = np.linalg.norm(initial_velocity)
+        speed_magnitude[pp] = min(speed_magnitude[pp], 1.0)
+
+    contourf = ax.contourf(
+        positions[0, :].reshape(nx, ny),
+        positions[1, :].reshape(nx, ny),
+        speed_magnitude.reshape(nx, ny),
+        levels=np.linspace(0, 1.0001, 21),
+        # extend="",
+        zorder=-5,
+        # cmap="Blues",
+        cmap=my_cmap,
+        alpha=1.0,
+    )
+
     start_position = np.array([-2.5, 3])
     integrate_with_qolo(
         start_position=start_position,
         velocity_functor=initial_dynamics.evaluate,
         ax=ax,
         it_max=it_max,
+        show_qolo=False,
     )
+    # if True:
+    #     breakpoint()
 
     if save_figure:
         fig_name = "two_arch_avoidance_initial"
@@ -115,6 +152,24 @@ def visualize_double_arch(save_figure=False, it_max=150, n_grid=80):
         show_ticks=False,
     )
     plot_multi_obstacles(ax=ax, container=container)
+
+    for pp in range(positions.shape[1]):
+        initial_velocity = initial_dynamics.evaluate(positions[:, pp])
+        modulated_velocity = 
+        speed_magnitude[pp] = np.linalg.norm(initial_velocity)
+        speed_magnitude[pp] = min(speed_magnitude[pp], 1.0)
+
+    contourf = ax.contourf(
+        positions[0, :].reshape(nx, ny),
+        positions[1, :].reshape(nx, ny),
+        speed_magnitude.reshape(nx, ny),
+        levels=np.linspace(0, 1.0001, 21),
+        # extend="",
+        zorder=-5,
+        # cmap="Blues",
+        cmap=my_cmap,
+        alpha=1.0,
+    )
 
     integrate_with_qolo(
         start_position=start_position,

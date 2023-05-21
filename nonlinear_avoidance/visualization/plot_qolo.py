@@ -46,8 +46,8 @@ def integrate_with_qolo(
     ax=None,
     attractor_position=None,
     tol_conv: float = 0.05,
+    show_qolo: bool = True,
 ) -> np.ndarray:
-
     dimension = 2
     positions = np.zeros((dimension, it_max + 1))
     positions[:, 0] = start_position
@@ -69,6 +69,8 @@ def integrate_with_qolo(
         )
         # ax.plot(positions[0, :], positions[1, :], ".", linewidth=2.0)
         ax.plot(positions[0, 0], positions[1, 0], marker="o", color="k")
-        plot_qolo(ax=ax, position=positions[:, -1], direction=velocity)
+
+        if show_qolo:
+            plot_qolo(ax=ax, position=positions[:, -1], direction=velocity)
 
     return positions

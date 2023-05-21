@@ -14,6 +14,7 @@ from numpy import linalg as LA
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
+from vartools.states import Pose
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
@@ -82,6 +83,12 @@ class MultiEllipseObstacle(Obstacle):
     @property
     def root_idx(self) -> int:
         return self._root_idx
+
+    def get_pose(self) -> Pose:
+        if hasattr(self, "pose"):
+            return self.pose
+        else:
+            return Pose.create_trivial(self._obstacle_list[0].dimension)
 
     # def get_obstacle_list(self) -> ObstacleContainer:
     #     return self._obstacle_list
