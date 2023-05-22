@@ -665,7 +665,5 @@ if (__name__) == "__main__":
     # single_ellipse_nonlinear_triple_plot(save_figure=True, n_resolution=40)
     # rotated_ellipse_linear_triple_plot_quiver(save_figure=False, n_resolution=30)
 
-    visualize_starshape_repulsion(save_figure=False, n_speed_resolution=10)
+    visualize_starshape_repulsion(save_figure=False, n_speed_resolution=100)
     # visualize_starshape_repulsion(save_figure=True, n_speed_resolution=100)
-
-    pass

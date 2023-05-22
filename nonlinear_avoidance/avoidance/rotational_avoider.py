@@ -438,7 +438,7 @@ class RotationalAvoider(BaseAvoider):
                 axis=1,
             )
 
-            rotated_velocity = self._magnitude_save_adaptation(
+            rotated_velocity = self.compute_safe_magnitude(
                 rotated_velocity=rotated_velocity,
                 initial_norm=np.linalg.norm(initial_velocity),
                 averaged_normal=averaged_normal,
@@ -481,29 +481,37 @@ class RotationalAvoider(BaseAvoider):
         return modulated_velocity
 
     @staticmethod
-    def _magnitude_save_adaptation(
+    def compute_safe_magnitude(
         rotated_velocity: Vector,
         initial_norm: float,
         averaged_normal: Vector,
         gamma: float,
+        dot_scaling: float = 0.9,
     ) -> Vector:
-        if not (final_norm := np.linalg.norm(rotated_velocity)):
+        if not (rotated_norm := np.linalg.norm(rotated_velocity)):
             return rotated_velocity
 
         dot_product = np.dot(rotated_velocity, averaged_normal)
-
-        if dot_product < 0 or np.linalg.norm(averaged_normal) == 0:
-            scaling = 1
+        normal_norm = np.linalg.norm(averaged_normal)
+        if dot_product > 0 or normal_norm == 0:
+            scaling = 1.0
 
         elif gamma <= 1:
-            return np.zeros_like(rotated_velocity)
+            if dot_product < 0:
+                return np.zeros_like(rotated_velocity)
+            scaling = 1.0
 
         else:
-            scaling = dot_product ** (
-                1.0 / (gamma - 1) * np.linalg.norm(averaged_normal)
+            # Remember that at this stage, the dot product is negative
+            scaling = (dot_scaling * (1.0 + dot_product)) ** (
+                1.0 / (gamma - 1) * normal_norm
             )
 
-        return rotated_velocity / final_norm * initial_norm * scaling
+        if scaling > 1.0 or np.isnan(scaling):
+            # TODO: remove debug check
+            breakpoint()
+
+        return rotated_velocity / rotated_norm * initial_norm * scaling
 
     @staticmethod
     def _get_directional_deviation_weight(

@@ -220,41 +220,61 @@ class MultiObstacleAvoider:
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.obstacle_list
         )
-        velocity = self.initial_dynamics.evaluate(position)
+        initial_velocity = self.initial_dynamics.evaluate(position)
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
         # ensured to be smooth (!)
         if self.convergence_dynamics is None:
-            convergence_direction = velocity
+            convergence_direction = initial_velocity
         else:
             convergence_direction = None
 
         # velocity = velocity - relative_velocity
 
         final_velocity = self.get_tangent_direction(
-            position, velocity, convergence_direction
+            position, initial_velocity, convergence_direction
+        )
+        final_velocity = final_velocity + relative_velocity
+
+        averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
+        final_velocity = RotationalAvoider.compute_safe_magnitude(
+            rotated_velocity=final_velocity,
+            initial_norm=np.linalg.norm(initial_velocity),
+            averaged_normal=averaged_normal,
+            gamma=gamma,
         )
 
-        final_velocity = final_velocity + relative_velocity
-        # breakpoint()
         return final_velocity
 
-    def get_save_magnitude(self):
-        # Get averaged normal
-        # TODO: We just recompute the normals -> this could be accelerated by storing them
+    def compute_averaged_normal_and_gamma(
+        self, position: Vector, weight_power: float = 2.0
+    ) -> tuple[Vector, float]:
+        # TODO: this recomputation could be done directly during the algorithm
+        normal_vectors: list[np.ndarray] = []
+        gamma_values: list[float] = []
+        for tree in self.obstacle_list:
+            for obs in tree._obstacle_list:
+                # TODO: make this NOT private anymore (!)
+                gamma_values.append(obs.get_gamma(position, in_global_frame=True))
+
+                normal_vectors.append(
+                    obs.get_normal_direction(position, in_global_frame=True)
+                )
+
+        min_gamma = min(gamma_values)
+        if min_gamma <= 1:
+            weights = np.array(gamma_values) <= 1
+            weights = weights / np.sum(weights)
+        else:
+            weights = 1.0 / np.array(gamma_values) ** weight_power
+            weights = weights / np.sum(weights)
 
         averaged_normal = np.sum(
-            # normal_dirs * np.tile(weights, (dimension, 1)), axis=1
-            normal_orthogonal_matrix[:, 0, :] * np.tile(weights, (dimension, 1)),
+            np.array(normal_vectors).T * np.tile(weights, (position.shape[0], 1)),
             axis=1,
         )
 
-        rotated_velocity = self._magnitude_save_adaptation(
-            rotated_velocity=rotated_velocity,
-            initial_norm=np.linalg.norm(initial_velocity),
-            averaged_normal=averaged_normal,
-            gamma=np.min(gamma_array),
-        )
+        return averaged_normal, min_gamma
 
     def get_tangent_direction(
         self,
