@@ -13,6 +13,7 @@ from numpy import pi
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
+from vartools.colors import hex_to_rgba_float
 from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 from vartools.dynamical_systems import BifurcationSpiral
 from vartools.dynamical_systems import plot_dynamical_system_streamplot
@@ -546,8 +547,12 @@ def visualize_starshape_repulsion(save_figure=False, n_speed_resolution=10):
     # end = np.array([8, 54, 116]) / 256
     end = np.array([8, 80, 155]) / 256
 
-    colors = np.linspace([1.0, 1.0, 1.0], end, 200)
+    # colors = np.linspace([1.0, 1.0, 1.0], end, 200)
+    # my_cmap = ListedColormap(colors)
+    end_color = hex_to_rgba_float("7ea3caff")
+    colors = np.linspace([1.0, 1.0, 1.0], end_color[:3], 200)
     my_cmap = ListedColormap(colors)
+    vectorfield_color = "#000080"
 
     for ii, (angle_name, angle) in enumerate(zip(name_list, angle_list)):
         ax = axs[ii]
@@ -575,7 +580,7 @@ def visualize_starshape_repulsion(save_figure=False, n_speed_resolution=10):
             positions[1, :],
             velocities[0, :],
             velocities[1, :],
-            color="black",
+            color=vectorfield_color,
             scale=34,
             alpha=1.0,
             width=0.011,
@@ -630,7 +635,7 @@ def visualize_starshape_repulsion(save_figure=False, n_speed_resolution=10):
             initial_dynamics.attractor_position[1],
             marker="*",
             s=200,
-            color="black",
+            color=vectorfield_color,
             zorder=5,
         )
 
@@ -665,5 +670,5 @@ if (__name__) == "__main__":
     # single_ellipse_nonlinear_triple_plot(save_figure=True, n_resolution=40)
     # rotated_ellipse_linear_triple_plot_quiver(save_figure=False, n_resolution=30)
 
-    visualize_starshape_repulsion(save_figure=False, n_speed_resolution=100)
+    visualize_starshape_repulsion(save_figure=True, n_speed_resolution=100)
     # visualize_starshape_repulsion(save_figure=True, n_speed_resolution=100)

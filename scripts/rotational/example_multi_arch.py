@@ -102,7 +102,7 @@ def visualize_double_arch(save_figure=False, it_max=500):
     }
 
     # Plot contourf of color
-    end_color = hex_to_rgba_float("719bc5ff")
+    # end_color = hex_to_rgba_float("719bc5ff")
     end_color = hex_to_rgba_float("7ea3caff")
     colors = np.linspace([1.0, 1.0, 1.0], end_color[:3], 200)
     my_cmap = ListedColormap(colors)
