@@ -60,7 +60,7 @@ def rotate_direction(
 
     # Convert angle to the two basis-axis
     out_direction = math.cos(angle) * base[:, 0] + math.sin(angle) * base[:, 1]
-    out_direction *= math.sqrt(sum(dot_prods ** 2))
+    out_direction *= math.sqrt(sum(dot_prods**2))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_direction += direction - np.sum(dot_prods * base, axis=1)
@@ -85,7 +85,7 @@ def rotate_array(
     out_vectors = np.tile(base[:, 0], (n_dirs, 1)).T * np.tile(
         np.cos(angles), (dimension, 1)
     ) + np.tile(base[:, 1], (n_dirs, 1)).T * np.tile(np.sin(angles), (dimension, 1))
-    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods ** 2, axis=0)), (dimension, 1))
+    out_vectors *= np.tile(np.sqrt(np.sum(dot_prods**2, axis=0)), (dimension, 1))
 
     # Finally, add the orthogonal part (no effect in 2D, but important for higher dimensions)
     out_vectors += directions - (base @ dot_prods)
@@ -428,7 +428,6 @@ class VectorRotationTree:
         child_id: Optional[NodeType] = None,
         level: Optional[int] = None,
     ) -> None:
-
         if not (dir_norm := np.linalg.norm(direction)):
             raise ValueError("Zero direction cannot be interpreted.")
         direction = direction / dir_norm
@@ -487,7 +486,6 @@ class VectorRotationTree:
         parent_id: NodeType,
         common_parent: bool = True,
     ) -> None:
-
         # breakpoint()
         if common_parent:
             # Check if roots are really the same
@@ -620,7 +618,6 @@ class VectorRotationTree:
     def reduce_weighted_to_sequence(
         self, node_list: list[NodeType], weights: npt.ArrayLike
     ) -> VectorRotationSequence:
-
         sorted_list = self.get_nodes_ascending()
         self.update_partial_rotations(node_list, weights, sorted_list)
         return self.evaluate_graph_summing(sorted_list)
@@ -746,7 +743,6 @@ class VectorRotationTree:
                 # averaged_direction = shared_basis @ (local_mean_basis / new_angle)
                 averaged_direction = local_mean_basis / new_angle
             else:
-
                 # No rotation, hence it's the first vector
                 averaged_direction = shared_basis[:, 0]
 

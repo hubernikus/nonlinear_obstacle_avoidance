@@ -26,8 +26,12 @@ from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
+from nonlinear_avoidance.dynamics.sequenced_dynamics import evaluate_dynamics_sequence
 from nonlinear_avoidance.hierarchy_obstacle_protocol import HierarchyObstacle
-from nonlinear_avoidance.vector_rotation import VectorRotationTree
+from nonlinear_avoidance.vector_rotation import (
+    VectorRotationTree,
+    VectorRotationSequence,
+)
 from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     ObstacleConvergenceDynamics,
@@ -215,12 +219,22 @@ class MultiObstacleAvoider:
                 initial_dynamics, reference_dynamics
             )
 
+    def evaluate_sequence(self, position: Vector) -> Vector:
+        relative_velocity = compute_multiobstacle_relative_velocity(
+            position, self.obstacle_list
+        )
+        initial_sequence = evaluate_dynamics_sequence(
+            position, self.initial_dynamics.evaluate
+        )
+
+        raise NotImplementedError("TODO: finalize!")
+
     def evaluate(self, position: Vector) -> Vector:
-        # breakpoint()
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.obstacle_list
         )
         initial_velocity = self.initial_dynamics.evaluate(position)
+
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
         # ensured to be smooth (!)
@@ -237,14 +251,15 @@ class MultiObstacleAvoider:
         final_velocity = final_velocity + relative_velocity
 
         averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
-        final_velocity = RotationalAvoider.compute_safe_magnitude(
+        slowed_velocity = RotationalAvoider.compute_safe_magnitude(
             rotated_velocity=final_velocity,
             initial_norm=np.linalg.norm(initial_velocity),
             averaged_normal=averaged_normal,
             gamma=gamma,
         )
 
-        return final_velocity
+        # return final_velocity
+        return slowed_velocity
 
     def compute_averaged_normal_and_gamma(
         self, position: Vector, weight_power: float = 2.0
@@ -267,7 +282,8 @@ class MultiObstacleAvoider:
             weights = weights / np.sum(weights)
         else:
             weights = 1.0 / np.array(gamma_values) ** weight_power
-            weights = weights / np.sum(weights)
+            if np.sum(weights) > 1.0:
+                weights = weights / np.sum(weights)
 
         averaged_normal = np.sum(
             np.array(normal_vectors).T * np.tile(weights, (position.shape[0], 1)),
@@ -279,26 +295,27 @@ class MultiObstacleAvoider:
     def get_tangent_direction(
         self,
         position: Vector,
-        velocity: Vector,
-        # linearized_velocity: Vector,
+        initial_velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
-        # if linearized_velocity is None:
-        #     root_obs = self.obstacle.get_component(self.obstacle.root_id)
+        if not linalg.norm(initial_velocity):
+            return initial_velocity
 
-        #     base_velocity = self.get_linearized_velocity(
-        #         # obstacle_list[self._root_id].get_reference_point(in_global_frame=True)
-        #         root_obs.get_reference_point(in_global_frame=True)
-        #     )
-        # else:
-        if not linalg.norm(velocity):
-            return velocity
+        sequence = self.get_tangent_sequence(
+            position, initial_velocity, linearized_velocity
+        )
+        return sequence.get_end_vector()
 
-        # base_velocity = linearized_velocity
+    def get_tangent_sequence(
+        self,
+        position: Vector,
+        initial_velocity: Vector,
+        linearized_velocity: Optional[Vector],
+    ) -> VectorRotationSequence:
         self._tangent_tree = VectorRotationTree()
         self._tangent_tree.set_root(
             root_idx=self._BASE_VEL_ID,
-            direction=velocity,
+            direction=initial_velocity,
         )
 
         # The base node should be equal to the (initial velocity)
@@ -354,11 +371,14 @@ class MultiObstacleAvoider:
         # Remaining weight to the initial velocity
         node_list.append(self._BASE_VEL_ID)
         self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
-        weighted_tangent = self._tangent_tree.get_weighted_mean(
+
+        # print("weights", self.final_weights)
+        # print(node_list)
+
+        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=self.final_weights
         )
-
-        return weighted_tangent
+        return weighted_sequence
 
     def compute_gamma_and_weights(
         self, position, obstacle, base_velocity
@@ -425,7 +445,6 @@ class MultiObstacleAvoider:
         # TODO: predict at start the size (slight speed up)
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
-
         surface_points: list[Vector] = [position]
         parents_tree: list[int] = [comp_id]
 
@@ -512,10 +531,8 @@ class MultiObstacleAvoider:
                 parent_id=NodeKey(obs_idx, comp_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
-
             # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
             # print(f"tangent={tangent}")
-        # breakpoint()
 
 
 def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):

@@ -620,7 +620,6 @@ class AngularBackForth:
 
 @dataclass
 class ScalarBackForth:
-
     frequency: float = 0.1
     step: int = 0
 

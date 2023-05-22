@@ -56,6 +56,9 @@ class MultiObstacle:
 
             obs.pose = self._pose.transform_pose_from_relative(pose)
 
+    def is_collision_free(self, position, in_global_frame: bool = True) -> bool:
+        return self.get_gamma(position, in_global_frame) > 1.0
+
     def get_gamma(self, position, in_global_frame: bool = True) -> float:
         if not in_global_frame:
             position = self._pose.transform_pose_from_relative(position)

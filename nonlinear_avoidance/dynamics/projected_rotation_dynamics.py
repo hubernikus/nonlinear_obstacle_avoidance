@@ -511,7 +511,8 @@ class ProjectedRotationDynamics:
             return initial_sequence
 
         obstacle_sequence = evaluate_dynamics_sequence(
-            obstacle.global_reference_point, dynamics=self.initial_dynamics
+            obstacle.get_reference_point(in_global_frame=True),
+            dynamics=self.initial_dynamics,
         )
 
         obstacle_sequence.push_root_from_base_and_angle(

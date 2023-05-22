@@ -486,7 +486,7 @@ class RotationalAvoider(BaseAvoider):
         initial_norm: float,
         averaged_normal: Vector,
         gamma: float,
-        dot_scaling: float = 0.9,
+        dot_scaling: float = 0.8,
     ) -> Vector:
         if not (rotated_norm := np.linalg.norm(rotated_velocity)):
             return rotated_velocity
@@ -503,14 +503,15 @@ class RotationalAvoider(BaseAvoider):
 
         else:
             # Remember that at this stage, the dot product is negative
-            scaling = (dot_scaling * (1.0 + dot_product)) ** (
-                1.0 / (gamma - 1) * normal_norm
-            )
+            power_root = 3
+            power_factor = (1.0 / (gamma - 1) * normal_norm) ** (1.0 / power_root)
+            scaling = ((1.0 + dot_scaling * dot_product)) ** power_factor
 
         if scaling > 1.0 or np.isnan(scaling):
             # TODO: remove debug check
             breakpoint()
 
+        # breakpoint()
         return rotated_velocity / rotated_norm * initial_norm * scaling
 
     @staticmethod

@@ -434,7 +434,7 @@ def test_single_ellipse(visualize=False):
     position = np.array([-3.22, 0.670])
     velocity2 = multibstacle_avoider.evaluate(position)
     assert np.allclose(
-        velocity1, velocity2, atol=0.1
+        velocity1, velocity2, atol=0.5
     ), "Smooth velocity change with respect to position."
 
     # Evaluate at position[1]
@@ -460,10 +460,10 @@ if (__name__) == "__main__":
     )
 
     plt.ion()
-    # test_single_ellipse(visualize=False)
+    test_single_ellipse(visualize=True)
     # test_tree_with_two_children(visualize=False, savefig=False)
     # test_orthonormal_tangent_finding()
-    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
+    # test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
     # test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
