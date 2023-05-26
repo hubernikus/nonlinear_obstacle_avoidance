@@ -189,14 +189,17 @@ class CircularRotationDynamics(DynamicalSystem):
 
 
 class SimpleCircularDynamics(DynamicalSystem):
-    """Creates circular 2D or 3D dynamics."""
+    """Creates circular 2D or 3D dynamics.
+
+    If the dimension of the system is higher dimensional, the rotation is around the first two dimensions.
+    """
 
     def __init__(
         self,
         base_matrix: Optional[np.ndarray] = None,
         pose: Optional[ObjectPose] = None,
         # dimension: int = 2,
-        radius: float = 2.0,
+        radius: float = 1.0,
         **kwargs,
     ):
         if base_matrix is not None:
@@ -210,13 +213,14 @@ class SimpleCircularDynamics(DynamicalSystem):
 
         super().__init__(pose=pose, **kwargs)
 
-        self.k1 = 1.0
-        self.k2 = 1.0
-
-        self._E = np.array([[0, -1], [1, 0]])
+        self._E = np.array([[0.0, -1], [1, 0]])
         self.radius = radius
 
-    # def transform_position_to_relative(self, position: Vector) -> Vector:
+        self.k1 = 1.0 / self.radius
+        self.k2 = 1.0
+
+        # def transform_position_to_relative(self, position: Vector) -> Vector:
+
     #     # TODO: this should be the normal pose (?)
     #     return self.base_matrix.T @ (position - self.pose.position)
 
@@ -230,14 +234,20 @@ class SimpleCircularDynamics(DynamicalSystem):
     #     return self.base_matrix @ position
 
     def get_phi(self, position: Vector) -> float:
-        return np.sum(position[:2] ** 2) - self.radius**2
+        # return np.sum(position[:2] ** 2) - self.radius**2
+        difference = np.sum(position[:2] ** 2) - self.radius**2
+        return np.copysign(math.sqrt(abs(difference)), difference)
 
     def get_grad(self, position: Vector) -> np.ndarray:
         """Returns 2D gradient (in the circulation plane)"""
-        return 2 * position[:2]
+        # return 2 * position[:2]
+        return position[:2] / np.linalg.norm(position[:2])
 
     def evaluate(self, position):
         relative_position = self.pose.transform_position_to_relative(position)
+
+        if not np.linalg.norm(relative_position):
+            return np.zeros_like(position)
 
         grad = self.get_grad(relative_position)  # or n11
         phi = self.get_phi(relative_position)  # or e11
@@ -315,8 +325,8 @@ def _test_simple_dynamcis(visualize=False):
         import matplotlib.pyplot as plt
         from vartools.dynamical_systems import plot_dynamical_system
 
-        x_lim = [-4, 4]
-        y_lim = [-4, 4]
+        x_lim = [-2, 2]
+        y_lim = [-2, 2]
 
         figsize = (8, 6)
 
@@ -482,10 +492,35 @@ def _animation_of_circular_subdynamics(visualize=False):
         my_animation.run()
 
 
+def _test_small_circle(visualize=False):
+    initial_ds = SimpleCircularDynamics(dimension=2, radius=0.1)
+
+    if visualize:
+        import matplotlib.pyplot as plt
+        from vartools.dynamical_systems import plot_dynamical_system
+
+        x_lim = [-0.2, 0.2]
+        y_lim = [-0.2, 0.2]
+
+        figsize = (8, 6)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_dynamical_system(
+            dynamical_system=initial_ds,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_resolution=17,
+        )
+
+        breakpoint()
+
+
 if (__name__) == "__main__":
     # test_rotation_circle(visualize=True)
-    # _test_simple_dynamcis(visualize=True)
+    _test_simple_dynamcis(visualize=True)
     # test_3d_simple_dynamics(visualize=True)
 
     # _animation_of_circular_subdynamics(visualize=True)
+    _test_small_circle(visualize=True)
     print("Done tests")

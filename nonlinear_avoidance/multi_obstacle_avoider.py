@@ -150,7 +150,7 @@ def compute_multiobstacle_relative_velocity(
 #     def __hash__(self) -> int:
 #         return self._hash
 
-
+# Factories
 class MultiObstacleAvoider:
     """Obstacle Avoider which can take a 'multi-obstacle' as an input."""
 
