@@ -217,7 +217,7 @@ class SimpleCircularDynamics(DynamicalSystem):
         self.radius = radius
 
         self.k1 = 1.0 / self.radius
-        self.k2 = 1.0
+        self.k2 = 1.0 / self.radius
 
         # def transform_position_to_relative(self, position: Vector) -> Vector:
 
@@ -245,7 +245,6 @@ class SimpleCircularDynamics(DynamicalSystem):
 
     def evaluate(self, position):
         relative_position = self.pose.transform_position_to_relative(position)
-
         if not np.linalg.norm(relative_position):
             return np.zeros_like(position)
 
@@ -259,6 +258,7 @@ class SimpleCircularDynamics(DynamicalSystem):
 
         if not (dir_norm := LA.norm(direction)):
             return direction
+
         normalized_direction = direction / dir_norm
 
         return self.pose.transform_direction_from_relative(normalized_direction)
@@ -386,6 +386,8 @@ def test_3d_simple_dynamics(visualize=False):
 
             ax.plot(positions[0, :], positions[1, :], positions[2, :])
             ax.set_aspect("equal", "box")
+
+        breakpoint()
 
     # Random position
     position = np.array([4, 3, 3])
@@ -518,9 +520,9 @@ def _test_small_circle(visualize=False):
 
 if (__name__) == "__main__":
     # test_rotation_circle(visualize=True)
-    _test_simple_dynamcis(visualize=True)
-    # test_3d_simple_dynamics(visualize=True)
+    # _test_simple_dynamcis(visualize=True)
+    test_3d_simple_dynamics(visualize=True)
 
     # _animation_of_circular_subdynamics(visualize=True)
-    _test_small_circle(visualize=True)
+    # _test_small_circle(visualize=True)
     print("Done tests")
