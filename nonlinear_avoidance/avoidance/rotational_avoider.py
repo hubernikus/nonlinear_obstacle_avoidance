@@ -42,7 +42,6 @@ class RotationalAvoider(BaseAvoider):
 
     Attributes
     ----------
-
     """
 
     # TODO:
@@ -509,7 +508,8 @@ class RotationalAvoider(BaseAvoider):
 
         if scaling > 1.0 or np.isnan(scaling):
             # TODO: remove debug check
-            breakpoint()
+            raise ValueError()
+            # breakpoint()
 
         # breakpoint()
         return rotated_velocity / rotated_norm * initial_norm * scaling
@@ -786,6 +786,8 @@ class RotationalAvoider(BaseAvoider):
         if surface_angle is None:
             raise ValueError("No tangent found.")
 
+        # if np.any(np.isnan(get_vector_from_angle(surface_angle, base=base))):
+        #     breakpoint()
         return get_vector_from_angle(surface_angle, base=base)
 
     @staticmethod

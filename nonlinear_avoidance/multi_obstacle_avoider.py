@@ -150,7 +150,7 @@ def compute_multiobstacle_relative_velocity(
 #     def __hash__(self) -> int:
 #         return self._hash
 
-# Factories
+
 class MultiObstacleAvoider:
     """Obstacle Avoider which can take a 'multi-obstacle' as an input."""
 
@@ -219,6 +219,10 @@ class MultiObstacleAvoider:
                 initial_dynamics, reference_dynamics
             )
 
+    @property
+    def obstacle_container(self) -> list[HierarchyObstacle]:
+        return self.obstacle_list
+
     def evaluate_sequence(self, position: Vector) -> Vector:
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.obstacle_list
@@ -230,6 +234,10 @@ class MultiObstacleAvoider:
         raise NotImplementedError("TODO: finalize!")
 
     def evaluate(self, position: Vector) -> Vector:
+        print(position)
+        if np.any(np.isnan(position)):
+            breakpoint()
+
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.obstacle_list
         )
@@ -251,6 +259,7 @@ class MultiObstacleAvoider:
         final_velocity = final_velocity + relative_velocity
 
         averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
+
         slowed_velocity = RotationalAvoider.compute_safe_magnitude(
             rotated_velocity=final_velocity,
             initial_norm=np.linalg.norm(initial_velocity),
@@ -259,6 +268,9 @@ class MultiObstacleAvoider:
         )
 
         # return final_velocity
+        if np.any(np.isnan(position)) or np.any(np.isnan(slowed_velocity)):
+            breakpoint()
+
         return slowed_velocity
 
     def compute_averaged_normal_and_gamma(
@@ -327,10 +339,7 @@ class MultiObstacleAvoider:
         for obs_idx, obstacle in enumerate(self.obstacle_list):
             if linearized_velocity is None:
                 local_velocity = (
-                    self.convergence_dynamics.evaluate_convergence_around_obstacle(
-                        position,
-                        obstacle=obstacle.get_component(obstacle.root_idx),
-                    )
+                    self.convergence_dynamics.evaluate_convergence_around_obstacle(position, obstacle=obstacle.get_component(obstacle.root_idx),)
                 )
             else:
                 local_velocity = linearized_velocity
@@ -338,6 +347,9 @@ class MultiObstacleAvoider:
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
                 obstacle=obstacle, position=position, base_velocity=local_velocity
             )
+
+            if np.any(np.isnan(local_velocity)):
+                breakpoint()
 
             # obstacle, base_velocity, position, obs_idx: int, gamma_weights
             node_list += self.populate_tangent_tree(
@@ -352,8 +364,14 @@ class MultiObstacleAvoider:
             #     gamma_weights[gamma_weights > 0]
             #     * (1 / np.maximum(gamma_values, 1.0)) ** self.gamma_power_scaling
             # )
+
             # Make the weight sum is below 1
-            component_weights.append(gamma_weights[gamma_weights > 0])
+            ind_weights = gamma_weights > 0
+            if np.sum(ind_weights) > 0:
+                component_weights.append(gamma_weights[gamma_weights > 0])
+            else:
+                # At least one weight should be nonzero
+                component_weights.append(np.array([0.0]))
 
             if np.sum(component_weights[-1]) > 1.0:
                 # breakpoint()
@@ -372,12 +390,16 @@ class MultiObstacleAvoider:
         node_list.append(self._BASE_VEL_ID)
         self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
 
-        # print("weights", self.final_weights)
-        # print(node_list)
+        try:
+            weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
+                node_list=node_list, weights=self.final_weights
+            )
+        except:
+            breakpoint()
 
-        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
-            node_list=node_list, weights=self.final_weights
-        )
+        if np.any(np.isnan(weighted_sequence.get_end_vector())):
+            breakpoint()
+
         return weighted_sequence
 
     def compute_gamma_and_weights(
@@ -511,7 +533,10 @@ class MultiObstacleAvoider:
             direction=tangent,
         )
         # print("New node", NodeKey(obs_idx, comp_id, parents_tree[-1]))
-        # print(f"tangent={tangent}")
+        print(f"tangent={tangent}")
+        if np.any(np.isnan(tangent)):
+            # TODO: remove DEBUG check
+            breakpoint()
 
         # Iterate over all but last one
         for ii in reversed(range(len(parents_tree) - 1)):
@@ -532,7 +557,9 @@ class MultiObstacleAvoider:
                 direction=tangent,
             )
             # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
-            # print(f"tangent={tangent}")
+            print(f"tangent={tangent}")
+            if np.any(np.isnan(tangent)):
+                breakpoint()
 
 
 def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):

@@ -36,6 +36,31 @@ class MultiObstacle:
     def root_idx(self) -> int:
         return self._root_idx
 
+    @property
+    def pose(self) -> Pose:
+        """For compatibalitiy with Obstacle"""
+        return self._pose
+
+    @property
+    def linear_velocity(self) -> npt.ArrayLike:
+        if self.twist is None:
+            return np.zeros(self.dimension)
+        else:
+            return self.twist.linear_velocity
+
+    @linear_velocity.setter
+    def linear_velocity(self, value: npt.ArrayLike) -> None:
+        if self.twist is None:
+            self.twist = Twist(value)
+        else:
+            self.twist.linear = value
+
+    def __iter__(self):
+        return iter(self._obstacle_list)
+
+    def __getitem__(self, idx: int) -> Obstacle:
+        return self._obstacle_list[idx]
+
     def get_pose(self) -> Pose:
         """Returns a (copy) of the pose."""
         return copy.deepcopy(self._pose)

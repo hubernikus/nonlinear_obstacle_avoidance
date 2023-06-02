@@ -72,7 +72,10 @@ class ConvergenceDynamicsWithoutSingularity:
     def evaluate_convergence_around_obstacle(
         self, position: npt.ArrayLike, obstacle: Obstacle
     ) -> np.ndarray:
-        return self.initial_dynamics.evaluate(obstacle.global_reference_point)
+        velocity = self.initial_dynamics.evaluate(obstacle.global_reference_point)
+        if np.any(np.isnan(velocity)):
+            breakpoint()
+        return velocity
 
     def get_base_convergence(self, position: npt.ArrayLike) -> np.ndarray:
         return self.convergence_dynamics.evaluate(position)

@@ -931,7 +931,7 @@ if (__name__) == "__main__":
     # visualize_avoidance()
     # animation_epfl(save_animation=False)
     # animation_chaotic_epfl(save_animation=False)
-    # animation_dynamic_epfl(save_animation=True)
+    animation_dynamic_epfl(save_animation=True)
 
     # test_integration_normal_epfl(visualize=True)
     # _test_dynamic_multi_tree_evaluation_single_e(visualize=True)

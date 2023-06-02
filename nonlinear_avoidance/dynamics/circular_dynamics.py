@@ -11,6 +11,7 @@ from scipy.spatial.transform import Rotation
 
 from vartools.dynamical_systems import DynamicalSystem
 from vartools.states import ObjectPose
+from vartools.states import Pose
 
 from nonlinear_avoidance.vector_rotation import VectorRotationXd
 from nonlinear_avoidance.datatypes import Vector
@@ -241,7 +242,10 @@ class SimpleCircularDynamics(DynamicalSystem):
     def get_grad(self, position: Vector) -> np.ndarray:
         """Returns 2D gradient (in the circulation plane)"""
         # return 2 * position[:2]
-        return position[:2] / np.linalg.norm(position[:2])
+        if not (pos_norm := np.linalg.norm(position[:2])):
+            return np.zeros_like(position[:2])
+
+        return position[:2] / pos_norm
 
     def evaluate(self, position):
         relative_position = self.pose.transform_position_to_relative(position)
@@ -260,7 +264,6 @@ class SimpleCircularDynamics(DynamicalSystem):
             return direction
 
         normalized_direction = direction / dir_norm
-
         return self.pose.transform_direction_from_relative(normalized_direction)
 
 
@@ -518,10 +521,27 @@ def _test_small_circle(visualize=False):
         breakpoint()
 
 
+def test_three_dimensional_circular():
+    position = np.array([0.5, 0.0, -0.25])
+    radius = 0.1
+    dimension = 3
+    pose = Pose(position=np.array([0.5, 0.0, 0.2]))
+
+    initial_ds = SimpleCircularDynamics(
+        radius=radius,
+        pose=pose,
+    )
+
+    velocity = initial_ds.evaluate(position)
+    assert not np.isnan(velocity).any()
+
+
 if (__name__) == "__main__":
     # test_rotation_circle(visualize=True)
     # _test_simple_dynamcis(visualize=True)
-    test_3d_simple_dynamics(visualize=True)
+    # test_3d_simple_dynamics(visualize=True)
+
+    test_three_dimensional_circular()
 
     # _animation_of_circular_subdynamics(visualize=True)
     # _test_small_circle(visualize=True)
