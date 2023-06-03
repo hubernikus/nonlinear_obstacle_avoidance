@@ -212,7 +212,7 @@ class SimpleCircularDynamics(DynamicalSystem):
             else:
                 pose.orientation = Rotation.from_matrix(base_matrix)
 
-        super().__init__(pose=pose, **kwargs)
+        super().__init__(pose=pose, attractor_position=pose.position, **kwargs)
 
         self._E = np.array([[0.0, -1], [1, 0]])
         self.radius = radius

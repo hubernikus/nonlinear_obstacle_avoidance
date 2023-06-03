@@ -23,7 +23,9 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from nonlinear_avoidance.multi_body_human import create_3d_human
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
-from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
+from nonlinear_avoidance.dynamics.spiral_dynamics import SpiralingDynamics3D
+
+from scripts.three_dimensional.visualizer3d import CubeVisualizer
 
 Vector = np.ndarray
 
@@ -111,84 +113,6 @@ def plot_reference_points(obstacles):
         )
 
 
-@dataclass
-class CubeVisualizer:
-    n_grid = 2
-    obstacle: Obstacle
-    faces: list = field(default_factory=lambda: [])
-
-    obstacle_color: np.ndarray = hex_to_rgba("724545ff")
-
-    def __post_init__(self):
-        self.faces = self.compute_cube_faces(self.obstacle.axes_length)
-
-        # self.obstacle_color = np.array(self.obstacle_color)
-        # self.obstacle_color[-1] = 120
-
-    def compute_cube_faces(self, axes_length):
-        xmin, ymin, zmin = -axes_length * 0.5
-        xmax, ymax, zmax = axes_length * 0.5
-
-        nn = self.n_grid * 1j
-
-        faces = []
-        x, y = np.mgrid[xmin:xmax:nn, ymin:ymax:nn]
-        z = np.ones(y.shape) * zmin
-        faces.append((x, y, z))
-
-        x, y = np.mgrid[xmin:xmax:nn, ymin:ymax:nn]
-        z = np.ones(y.shape) * zmax
-        faces.append((x, y, z))
-
-        x, z = np.mgrid[xmin:xmax:nn, zmin:zmax:nn]
-        y = np.ones(z.shape) * ymin
-        faces.append((x, y, z))
-
-        x, z = np.mgrid[xmin:xmax:nn, zmin:zmax:nn]
-        y = np.ones(z.shape) * ymax
-        faces.append((x, y, z))
-
-        y, z = np.mgrid[ymin:ymax:nn, zmin:zmax:nn]
-        x = np.ones(z.shape) * xmin
-        faces.append((x, y, z))
-
-        y, z = np.mgrid[ymin:ymax:nn, zmin:zmax:nn]
-        x = np.ones(z.shape) * xmax
-        faces.append((x, y, z))
-
-        return faces
-
-    def transform_faces_from_relative(self, pose: Pose) -> list:
-        global_faces: list = []
-        for grid in self.faces:
-            xx, yy, zz = grid
-            pos = pose.transform_positions_from_relative(
-                np.vstack((xx.flatten(), yy.flatten(), zz.flatten()))
-            )
-            global_faces.append(
-                (
-                    pos[0, :].reshape(self.n_grid, self.n_grid),
-                    pos[1, :].reshape(self.n_grid, self.n_grid),
-                    pos[2, :].reshape(self.n_grid, self.n_grid),
-                )
-            )
-
-        return global_faces
-
-    def draw_cube(self) -> None:
-        global_faces = self.transform_faces_from_relative(self.obstacle.pose)
-
-        for grid in global_faces:
-            x, y, z = grid
-            mesh = mlab.mesh(x, y, z, opacity=1.0)
-            # The lut is a 255x4 array, with the columns representing RGBA
-            # (red, green, blue, alpha) coded with integers going from 0 to 255.
-            mesh.module_manager.scalar_lut_manager.lut.number_of_colors = 2
-            mesh.module_manager.scalar_lut_manager.lut.table = np.tile(
-                self.obstacle_color, (2, 1)
-            )
-
-
 def get_perpendicular_vector(initial: Vector, nominal: Vector) -> Vector:
     perp_vector = initial - (initial @ nominal) * nominal
 
@@ -196,56 +120,6 @@ def get_perpendicular_vector(initial: Vector, nominal: Vector) -> Vector:
         return np.zeros_like(initial)
 
     return perp_vector / perp_norm
-
-
-@dataclass
-class SpiralingDynamics3D:
-    """Dynamics consisting of 2D rotating and linear direction.
-
-    The dynamics are spiraling around the center in the y-z plane, while mainting"""
-
-    pose: Pose
-    direction: Vector
-    circular_dynamics: SimpleCircularDynamics = SimpleCircularDynamics(
-        pose=Pose.create_trivial(2)
-    )
-    speed: float = 1.0
-
-    @classmethod
-    def create_from_direction(
-        cls,
-        center: Vector,
-        direction: Vector,
-        radius: float = 1.0,
-        speed: float = 1.0,
-    ) -> Self:
-        direction = direction
-        basis = get_orthogonal_basis(direction)
-        rotation = Rotation.from_matrix(basis)
-
-        circular = SimpleCircularDynamics(pose=Pose.create_trivial(2), radius=radius)
-
-        # rotation = Rotation.from_matrix(basis.T)
-        return cls(Pose(center, rotation), direction, circular, speed)
-
-    def evaluate(self, position: Vector) -> Vector:
-        local_position = self.pose.transform_position_to_relative(position)
-        rotating_vel2d = self.circular_dynamics.evaluate(local_position[1:])
-
-        rotating_velocity = np.hstack((0.0, rotating_vel2d))
-        rotating_velocity = self.pose.transform_position_from_relative(
-            rotating_velocity
-        )
-
-        combined_velocity = rotating_velocity + self.direction
-        combined_velocity = combined_velocity / np.linalg.norm(combined_velocity)
-        combined_velocity = combined_velocity * self.speed
-        return combined_velocity
-
-    def evaluate_convergence_around_obstacle(
-        self, position: Vector, obstacle: Obstacle
-    ) -> Vector:
-        return self.direction
 
 
 def integrate_trajectory(

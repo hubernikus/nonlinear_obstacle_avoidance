@@ -3,6 +3,7 @@ Multiple Ellipse in One Obstacle
 
 for now limited to 2D (in order to find intersections easily).
 """
+from __future__ import annotations  # To be removed in future python versions
 
 import math
 import warnings
@@ -192,6 +193,24 @@ class MultiObstacleAvoider:
         self._tangent_tree: VectorRotationTree
 
     @classmethod
+    def create_with_convergence_dynamics(
+        cls,
+        obstacle_container: list[HierarchyObstacle],
+        initial_dynamics: DynamicalSystem,
+        reference_dynamics: Optional[DynamicalSystem] = None,
+        **kwargs,
+    ) -> Self:
+        convergence_dynamics = cls.create_local_convergence_dynamics(
+            initial_dynamics, reference_dynamics=reference_dynamics
+        )
+        return cls(
+            obstacle_container=obstacle_container,
+            initial_dynamics=initial_dynamics,
+            convergence_dynamics=convergence_dynamics,
+            **kwargs,
+        )
+
+    @staticmethod
     def create_local_convergence_dynamics(
         initial_dynamics: DynamicalSystem,
         reference_dynamics: Optional[DynamicalSystem] = None,
@@ -211,7 +230,7 @@ class MultiObstacleAvoider:
             )
         else:
             if reference_dynamics is None:
-                reference_velocity = np.zeros(self.initial_dynamics.dimension)
+                reference_velocity = np.zeros(initial_dynamics.dimension)
                 reference_velocity[0] = 1.0
                 reference_dynamics = ConstantValue(reference_velocity)
 
@@ -234,14 +253,15 @@ class MultiObstacleAvoider:
         raise NotImplementedError("TODO: finalize!")
 
     def evaluate(self, position: Vector) -> Vector:
-        print(position)
         if np.any(np.isnan(position)):
+            # TODO: remove debug breakpoint()
             breakpoint()
 
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.obstacle_list
         )
         initial_velocity = self.initial_dynamics.evaluate(position)
+        print("initial_velocity", initial_velocity)
 
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
@@ -339,7 +359,10 @@ class MultiObstacleAvoider:
         for obs_idx, obstacle in enumerate(self.obstacle_list):
             if linearized_velocity is None:
                 local_velocity = (
-                    self.convergence_dynamics.evaluate_convergence_around_obstacle(position, obstacle=obstacle.get_component(obstacle.root_idx),)
+                    self.convergence_dynamics.evaluate_convergence_around_obstacle(
+                        position,
+                        obstacle=obstacle.get_component(obstacle.root_idx),
+                    )
                 )
             else:
                 local_velocity = linearized_velocity
@@ -532,9 +555,9 @@ class MultiObstacleAvoider:
             parent_id=NodeKey(obs_idx, -1, -1),
             direction=tangent,
         )
-        # print("New node", NodeKey(obs_idx, comp_id, parents_tree[-1]))
-        print(f"tangent={tangent}")
+
         if np.any(np.isnan(tangent)):
+            # print(f"tangent={tangent}")
             # TODO: remove DEBUG check
             breakpoint()
 
@@ -556,9 +579,10 @@ class MultiObstacleAvoider:
                 parent_id=NodeKey(obs_idx, comp_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
-            # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
-            print(f"tangent={tangent}")
+
             if np.any(np.isnan(tangent)):
+                # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
+                # print(f"tangent={tangent}")
                 breakpoint()
 
 
