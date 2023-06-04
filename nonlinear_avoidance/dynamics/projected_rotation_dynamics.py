@@ -563,10 +563,10 @@ class ProjectedRotationDynamics:
             averaged_direction_transformed, rot_factor=(-1) * (1 - weight)
         )
 
-        print("weight", weight)
-        print("initial_velocity_transformed2", initial_velocity_transformed)
-        print("averaged_direction_transformed", averaged_direction_transformed)
-        print("averaged_direction", averaged_direction)
+        # print("weight", weight)
+        # print("initial_velocity_transformed2", initial_velocity_transformed)
+        # print("averaged_direction_transformed", averaged_direction_transformed)
+        # print("averaged_direction", averaged_direction)
 
         averaged_direction = averaged_direction * LA.norm(initial_velocity)
         return averaged_direction

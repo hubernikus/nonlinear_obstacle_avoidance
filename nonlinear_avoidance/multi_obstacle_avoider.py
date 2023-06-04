@@ -186,15 +186,25 @@ class MultiObstacleAvoider:
 
         # self.obstacle = obstacle
         if obstacle is None:
-            self.obstacle_list = obstacle_container
+            self.tree_list = obstacle_container
         else:
-            self.obstacle_list = [obstacle]
+            self.tree_list = [obstacle]
 
         # An ID number which does not co-inside with the obstacle
         self._BASE_VEL_ID = NodeKey(-1, -1, -1)
+        self._ROOT_ID = -100
+
         self.gamma_power_scaling = 0.5
 
         self._tangent_tree: VectorRotationTree
+
+    @property
+    def obstacle_list(self):
+        return self.tree_list
+
+    @obstacle_list.setter
+    def obstacle_list(self, value):
+        self.tree_list = value
 
     @classmethod
     def create_with_convergence_dynamics(
@@ -244,17 +254,36 @@ class MultiObstacleAvoider:
 
     @property
     def obstacle_container(self) -> list[HierarchyObstacle]:
-        return self.obstacle_list
+        return self.tree_list
 
     def evaluate_sequence(self, position: Vector) -> Vector:
+        if hasattr(self.initial_dynamics, "evaluate_magnitude"):
+            magnitude = self.initial_dynamics.evaluate_magnitude(position)
+        else:
+            initial_velocity = self.initial_dynamics.evaluate(position)
+            magnitude = np.linalg.norm(initial_velocity)
+
         relative_velocity = compute_multiobstacle_relative_velocity(
-            position, self.obstacle_list
+            position, self.tree_list
         )
         initial_sequence = evaluate_dynamics_sequence(
             position, self.initial_dynamics.evaluate
         )
 
-        raise NotImplementedError("TODO: finalize!")
+        final_sequence = self.evaluate_avoidance_from_sequence(
+            position, initial_sequence
+        )
+
+        final_velocity = final_sequence.get_end_vector() + relative_velocity
+
+        averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
+        slowed_velocity = RotationalAvoider.compute_safe_magnitude(
+            rotated_velocity=final_velocity,
+            initial_norm=magnitude,
+            averaged_normal=averaged_normal,
+            gamma=gamma,
+        )
+        return slowed_velocity
 
     def evaluate(self, position: Vector) -> Vector:
         if np.any(np.isnan(position)):
@@ -262,7 +291,7 @@ class MultiObstacleAvoider:
             breakpoint()
 
         relative_velocity = compute_multiobstacle_relative_velocity(
-            position, self.obstacle_list
+            position, self.tree_list
         )
         initial_velocity = self.initial_dynamics.evaluate(position)
 
@@ -276,7 +305,7 @@ class MultiObstacleAvoider:
 
         # velocity = velocity - relative_velocity
 
-        final_velocity = self.get_tangent_direction(
+        final_velocity = self.evaluate_avoidance_direction(
             position, initial_velocity, convergence_direction
         )
         final_velocity = final_velocity + relative_velocity
@@ -290,10 +319,9 @@ class MultiObstacleAvoider:
             gamma=gamma,
         )
 
-        # return final_velocity
         if np.any(np.isnan(position)) or np.any(np.isnan(slowed_velocity)):
             breakpoint()
-
+        # breakpoint()
         return slowed_velocity
 
     def compute_averaged_normal_and_gamma(
@@ -302,7 +330,7 @@ class MultiObstacleAvoider:
         # TODO: this recomputation could be done directly during the algorithm
         normal_vectors: list[np.ndarray] = []
         gamma_values: list[float] = []
-        for tree in self.obstacle_list:
+        for tree in self.tree_list:
             for obs in tree._obstacle_list:
                 # TODO: make this NOT private anymore (!)
                 gamma_values.append(obs.get_gamma(position, in_global_frame=True))
@@ -327,21 +355,97 @@ class MultiObstacleAvoider:
 
         return averaged_normal, min_gamma
 
-    def get_tangent_direction(
+    def get_tangent_direction(self, *args, **kwargs):
+        return self.evaluate_avoidance_direction(*args, **kwargs)
+
+    def evaluate_avoidance_direction(
         self,
         position: Vector,
         initial_velocity: Vector,
         linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
+        """Evaluates the preferred direction to go around the obstacle."""
         if not linalg.norm(initial_velocity):
             return initial_velocity
 
-        sequence = self.get_tangent_sequence(
-            position, initial_velocity, linearized_velocity
+        sequence = self.evaluate_avoidance_sequence(
+            position,
+            initial_velocity=initial_velocity,
+            linearized_velocity=initial_velocity,
         )
         return sequence.get_end_vector()
 
-    def get_tangent_sequence(
+    def evaluate_avoidance_from_sequence(self, position, initial_sequence):
+        """ """
+        self._tangent_tree = VectorRotationTree.from_sequence(
+            root_id=self._ROOT_ID, node_id=self._BASE_VEL_ID, sequence=initial_sequence
+        )
+
+        node_list: list[NodeType] = []
+        component_weights: list[list[np.ndarray]] = []
+        obstacle_gammas = np.zeros(len(self.tree_list))
+
+        for obs_idx, obstacle_tree in enumerate(self.tree_list):
+            projected_weight = self.convergence_dynamics.evaluate_projected_weight(
+                position, obstacle_tree.get_component(ii)
+            )
+
+            # TODO: even opposite it has to be considered (!)
+            if projected_weight <= 0:
+                continue
+
+            obstacle_convergence_sequence = (
+                self.obstacle_convergence.evaluate_convergence_sequence_around_obstacle(
+                    position,
+                    obstacle=self._rotation_avoider.obstacle_environment[ii],
+                    initial_sequence=initial_sequence,
+                )
+            )
+            direction_tree.add_sequence(
+                sequence=obstacle_convergence_sequence,
+                node_id=it_obs,
+                parent_id=root_id,
+            )
+
+            gamma_values, gamma_weights = self.compute_gamma_and_weights(
+                obstacle=obstacle,
+                position=position,
+                base_velocity=obstacle_convergence_sequence.get_end_vector(),
+            )
+
+            node_list += self.populate_tangent_tree(
+                obstacle=obstacle_tree,
+                base_velocity=local_velocity,
+                position=position,
+                obs_idx=obs_idx,
+                gamma_weights=gamma_weights,
+            )
+
+            ind_weights = gamma_weights > 0
+            if np.sum(ind_weights) > 0:
+                component_weights.append(gamma_weights[gamma_weights > 0])
+            else:
+                # At least one weight should be added
+                component_weights.append(np.array([0.0]))
+
+            obstacle_gammas[obs_idx] = np.min(gamma_values)
+
+        # Flatten weights over the obstacles
+        obstacle_weights = compute_weights(obstacle_gammas)
+        weights = np.concatenate(
+            [ww * cc for ww, cc in zip(obstacle_weights, component_weights)]
+        )
+
+        # Remaining weight to the initial velocity
+        node_list.append(self._BASE_VEL_ID)
+        self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
+
+        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
+            node_list=node_list, weights=self.final_weights
+        )
+        return weighted_sequence
+
+    def evaluate_avoidance_sequence(
         self,
         position: Vector,
         initial_velocity: Vector,
@@ -356,10 +460,10 @@ class MultiObstacleAvoider:
         # The base node should be equal to the (initial velocity)
         node_list: list[NodeType] = []
         component_weights: list[list[np.ndarray]] = []
-        obstacle_gammas = np.zeros(len(self.obstacle_list))
+        obstacle_gammas = np.zeros(len(self.tree_list))
 
         # for obs_idx, obstacle in enumerate([self.obstacle]):
-        for obs_idx, obstacle in enumerate(self.obstacle_list):
+        for obs_idx, obstacle in enumerate(self.tree_list):
             if linearized_velocity is None:
                 local_velocity = (
                     self.convergence_dynamics.evaluate_convergence_around_obstacle(

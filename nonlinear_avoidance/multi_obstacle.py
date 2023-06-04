@@ -61,6 +61,9 @@ class MultiObstacle:
     def __getitem__(self, idx: int) -> Obstacle:
         return self._obstacle_list[idx]
 
+    def __len__(self) -> int:
+        return len(self._obstacle_list)
+
     def get_pose(self) -> Pose:
         """Returns a (copy) of the pose."""
         return copy.deepcopy(self._pose)

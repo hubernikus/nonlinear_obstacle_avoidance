@@ -323,3 +323,7 @@ def test_normals_multi_arch(visualize=False, save_figure=False, n_grid=40):
     assert abs(normal[0]) > abs(normal[1]), "Closest wall higher influence."
     assert normal[0] > 0, "Point away from the wall"
     assert normal[1] > 0, "Pointing up"
+
+
+if (__name__) == "__main__":
+    test_single_rectangle_multiavoidance(visualize=True)

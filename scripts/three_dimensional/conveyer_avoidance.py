@@ -444,4 +444,3 @@ if (__name__) == "__main__":
     # test_circular_avoidance_cube(visualize=True, n_grid=1)
     # test_circualar_avoidance_cube(visualize=False, n_grid=1)
     test_visualize_2d(visualize=True)
-    # test_projected_3d()
