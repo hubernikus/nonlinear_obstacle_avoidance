@@ -118,7 +118,10 @@ class ProjectedRotationDynamics:
                 gamma = self.max_gamma
 
     def _get_deflation_weight(self, gamma: float) -> float:
-        return 1.0 / gamma
+        # TODO: this needs to be improved to ensure that the projected position
+        # is outside the obstacle
+        # return 1.0 / gamma
+        return 1.0
 
     def _get_position_after_deflating_obstacle(
         self,
@@ -201,10 +204,6 @@ class ProjectedRotationDynamics:
         """Returns the relative position folded with respect to the dynamics center.
         obstacle_center position is 'stable'
         """
-
-        # Copy just in case - but probably not needed
-        # relative_position = np.copy(relative_position)
-
         if in_obstacle_frame:
             # If it's in the obstacle-frame => needs to be inverted...
             vec_attractor_to_obstacle = (-1) * attractor_position
@@ -218,6 +217,7 @@ class ProjectedRotationDynamics:
             warnings.warn("Implement for position at center.")
             return position
             # raise NotImplementedError("Implement for position at center.")
+
         dir_attractor_to_obstacle = vec_attractor_to_obstacle / dist_attr_obs
 
         # Get values in the attractor frame of reference
@@ -253,16 +253,20 @@ class ProjectedRotationDynamics:
                     / LA.norm(transformed_position[1:])
                     * dotprod_factor
                 )
+        # print("dotfactor", dotprod_factor)
+        expanded_position = basis @ transformed_position
+        # TODO: should the scaling be applied to all dimensions?
+        # How would this change the effect for obstacles / far or close
+        expanded_position[0] = expanded_position[0] * dist_attr_obs
 
-        transformed_position = basis @ transformed_position
-        transformed_position = transformed_position * dist_attr_obs
+        # print("transformed_position", transformed_position)
+        # print("dotprod_factor", dotprod_factor)
+        # print("dot_prod", dot_prod)
+        # print("expanded_position", expanded_position)
 
         if not in_obstacle_frame:
-            transformed_position = (
-                transformed_position + self.obstacle.global_reference_point
-            )
-
-        return transformed_position
+            expanded_position = expanded_position + self.obstacle.global_reference_point
+        return expanded_position
 
     def _get_unfolded_position_opposite_kernel_point(
         self,
@@ -271,46 +275,47 @@ class ProjectedRotationDynamics:
         in_obstacle_frame: bool = True,
     ) -> Vector:
         """Returns UNfolded rleative position folded with respect to the dynamic center.
-
+        This function is used for debugging to check coherence of the method.
         Input and output are in the obstacle frame of reference."""
         if in_obstacle_frame:
-            dir_attractor_to_obstacle = (-1) * attractor_position
+            vec_attractor_to_obstacle = (-1) * attractor_position
         else:
-            dir_attractor_to_obstacle = (
+            vec_attractor_to_obstacle = (
                 self.obstacle.global_reference_point - attractor_position
             )
 
-        if not (dist_attr_obs := LA.norm(dir_attractor_to_obstacle)):
+        if not (dist_attr_obs := LA.norm(vec_attractor_to_obstacle)):
             # No unfolding possible - TODO: make the 'switch' smoother
             return transformed_position
 
-        dir_attractor_to_obstacle = dir_attractor_to_obstacle / dist_attr_obs
+        dir_attractor_to_obstacle = vec_attractor_to_obstacle / dist_attr_obs
 
         # Dot product is sufficient, as we only need first element.
         # Rotation is performed with VectorRotationXd
         # vec_attractor_to_position = transformed_position - attractor_position
         if in_obstacle_frame:
-            dir_obstacle_to_position = transformed_position
+            vec_obstacle_to_position = transformed_position
         else:
-            dir_obstacle_to_position = (
+            vec_obstacle_to_position = (
                 transformed_position - self.obstacle.global_reference_point
             )
 
         # The normalization with with attractor distance scales the 'radial' direction
-        dir_obstacle_to_position = dir_obstacle_to_position / dist_attr_obs
+        vec_obstacle_to_position[0] = vec_obstacle_to_position[0] / dist_attr_obs
 
-        if not (pos_norm := LA.norm(dir_obstacle_to_position)):
+        if not (pos_norm := LA.norm(vec_obstacle_to_position)):
             # At the center of the obstacle -> attractor dynamcis
             return transformed_position
 
-        dir_obstacle_to_position = dir_obstacle_to_position / pos_norm
+        dir_obstacle_to_position = vec_obstacle_to_position / pos_norm
 
         # radius = np.dot(dir_attractor_to_obstacle, dir_attractor_to_position)
         radius = np.dot(dir_attractor_to_obstacle, dir_obstacle_to_position) * pos_norm
 
-        # Ensure that the square root stays positive close to singularities
-        dot_prod = math.sqrt(max(pos_norm**2 - radius**2, 0))
-        dot_prod = dot_prod**self.dotprod_projection_power
+        # Ensure that the square root stays positive close to limits
+        # dotprod_factor = pos_norm * math.sqrt(max(1 - radius**2, 0))
+        dotprod_factor = math.sqrt(max(pos_norm**2 - radius**2, 0))
+        dot_prod = dotprod_factor**self.dotprod_projection_power
         dot_prod = 2.0 / (dot_prod + 1) - 1
 
         if dot_prod < 1:
@@ -345,7 +350,7 @@ class ProjectedRotationDynamics:
     def get_projected_position_and_rotation(
         self, position: Vector
     ) -> tuple[Vector, VectorRotationXd]:
-        pass
+        raise NotImplementedError()
 
     def get_projected_position(self, position: Vector) -> Vector:
         """Projected point in 'linearized' environment
@@ -474,8 +479,7 @@ class ProjectedRotationDynamics:
         self, position: np.ndarray, obstacle: Obstacle, weight_power: float = 1.0 / 2.0
     ) -> float:
         # Obstacle velocity will not change when being transformed, as it's the static point
-
-        self.obstacle = obstacle  # Just to be sure
+        self.obstacle = obstacle  # Just to be sure that its the same...
 
         projected_position = self.get_projected_position(position)
         proj_gamma = obstacle.get_gamma(projected_position, in_global_frame=True)
@@ -485,6 +489,7 @@ class ProjectedRotationDynamics:
             return 1.0
 
         weight = (1.0 / (proj_gamma * gamma)) ** weight_power
+
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(
@@ -495,13 +500,6 @@ class ProjectedRotationDynamics:
     ) -> VectorRotationSequence:
         self.obstacle = obstacle
 
-        # initial_sequence = self.initial_dynamics.evaluate_dynamics_sequence(position)
-        # obstacle_sequence = self.initial_dynamics.evaluate_dynamics_sequence(
-        #     obstacle.global_reference_point
-        # )
-        # initial_sequence = evaluate_dynamics_sequence(
-        #     position, dynamics=self.initial_dynamics
-        # )
         # Evaluate weighted position
         rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
             position, obstacle
@@ -518,19 +516,6 @@ class ProjectedRotationDynamics:
         obstacle_sequence.push_root_from_base_and_angle(
             rotation_pos_to_transform.base, rotation_pos_to_transform.rotation_angle
         )
-
-        # # Create tree and reduce to single-sequence
-        # convergence_tree = VectorRotationTree.from_sequence(
-        #     root_id=0, node_id=1, sequence=initial_sequence
-        # )
-        # convergence_tree.add_sequence(
-        #     parent_id=0, node_id=2, sequence=obstacle_sequence
-        # )
-
-        # weight = self.evaluate_projected_weight(position, obstacle)
-        # convergence_sequence = convergence_tree.reduce_weighted_to_sequence(
-        #     [1, 2], [(1 - weight), weight]
-        # )
 
         return obstacle_sequence
 
@@ -562,6 +547,8 @@ class ProjectedRotationDynamics:
         )
         weight = self.evaluate_projected_weight(position, obstacle)
 
+        # print("initial_velocity_transformed1", initial_velocity_transformed)
+
         # TODO: use VectorRotationXd for this...
         averaged_direction_transformed = get_directional_weighted_sum(
             null_direction=initial_velocity_transformed,
@@ -575,6 +562,11 @@ class ProjectedRotationDynamics:
         averaged_direction = rotation_pos_to_transform.rotate(
             averaged_direction_transformed, rot_factor=(-1) * (1 - weight)
         )
+
+        print("weight", weight)
+        print("initial_velocity_transformed2", initial_velocity_transformed)
+        print("averaged_direction_transformed", averaged_direction_transformed)
+        print("averaged_direction", averaged_direction)
 
         averaged_direction = averaged_direction * LA.norm(initial_velocity)
         return averaged_direction

@@ -43,6 +43,12 @@ class MultiObstacleContainer:
     def __iter__(self) -> Iterator[int]:
         return iter(self._obstacle_list)
 
+    # def __getitem__(self, key: int) -> HierarchyObstacle:
+    #     return self._obstacle_list[key]
+
+    def get_tree(self, key: int) -> HierarchyObstacle:
+        return self._obstacle_list[key]
+
     def __len__(self) -> int:
         return len(self._obstacle_list)
 

@@ -81,10 +81,6 @@ def compute_multiobstacle_relative_velocity(
     environment: MultiObstacleContainer,
     cutoff_gamma: float = 10,
 ) -> np.ndarray:
-    if position.shape[0] > 2:
-        warnings.warn("No dynamic evaluation for higher dynensions.")
-        return np.zeros_like(position)
-
     # Weights
     n_obstacles = len(environment)
     gammas = np.zeros(n_obstacles)
@@ -107,10 +103,18 @@ def compute_multiobstacle_relative_velocity(
             relative_velocity = relative_velocity + obs.twist.linear * weights[ii]
 
             if obs.twist.angular:
-                angular_velocity = np.cross(
-                    np.array([0, 0, obs.twist.angular]),
-                    np.hstack((position - pose.position, 0)),
-                )
+                if position.shape[0] == 2:
+                    angular_velocity = np.cross(
+                        np.array([0, 0, obs.twist.angular]),
+                        np.hstack((position - pose.position, 0)),
+                    )
+                elif position.shape[0] == 3:
+                    angular_velocity = np.cross(
+                        obs.twist.angular, (position - pose.position)
+                    )
+                else:
+                    warnings.warn("No dynamic evaluation for higher dynensions.")
+
                 relative_velocity = (
                     relative_velocity
                     + weights[ii] * influence_weight[ii] * angular_velocity[:2]
@@ -261,7 +265,6 @@ class MultiObstacleAvoider:
             position, self.obstacle_list
         )
         initial_velocity = self.initial_dynamics.evaluate(position)
-        print("initial_velocity", initial_velocity)
 
         # So far the convergence direction is only about the root-obstacle
         # in the future, this needs to be extended such that the rotation is_updating
@@ -374,6 +377,7 @@ class MultiObstacleAvoider:
             if np.any(np.isnan(local_velocity)):
                 breakpoint()
 
+            # print("local_velocity", local_velocity)
             # obstacle, base_velocity, position, obs_idx: int, gamma_weights
             node_list += self.populate_tangent_tree(
                 obstacle=obstacle,
@@ -548,6 +552,10 @@ class MultiObstacleAvoider:
             reference=reference_directions[-1],
             convergence_radius=np.pi * 0.5,
         )
+        # print("baseVe", np.round(base_velocity, 3))
+        # print("normal", np.round(normal_directions[-1], 3))
+        # print("refere", np.round(reference_directions[-1], 3))
+        # print("tangen", np.round(tangent, 3))
 
         # Should this not be the normal parent ?
         self._tangent_tree.add_node(
@@ -557,7 +565,6 @@ class MultiObstacleAvoider:
         )
 
         if np.any(np.isnan(tangent)):
-            # print(f"tangent={tangent}")
             # TODO: remove DEBUG check
             breakpoint()
 
@@ -582,7 +589,7 @@ class MultiObstacleAvoider:
 
             if np.any(np.isnan(tangent)):
                 # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
-                # print(f"tangent={tangent}")
+                print(f"tangent={tangent}")
                 breakpoint()
 
 

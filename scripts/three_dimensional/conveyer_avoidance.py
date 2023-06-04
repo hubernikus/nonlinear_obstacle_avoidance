@@ -18,10 +18,15 @@ from vartools.colors import hex_to_rgba, hex_to_rgba_float
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
+from dynamic_obstacle_avoidance.visualization import plot_obstacles
+
 from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.dynamics import SimpleCircularDynamics
+from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
+    ProjectedRotationDynamics,
+)
 
 from scripts.three_dimensional.visualizer3d import CubeVisualizer
 
@@ -159,7 +164,7 @@ class Visualization3D:
                 visualizer.draw_cube()
 
 
-def test_circualar_avoidance_cube(visualize=False, n_grid=1):
+def test_circular_avoidance_cube(visualize=False, n_grid=1):
     container = create_conveyer_obstacles(margin_absolut=0, distance_scaling=1)
     dynamics = create_circular_conveyer_dynamics()
 
@@ -206,8 +211,9 @@ def test_circualar_avoidance_cube(visualize=False, n_grid=1):
                 velocity = avoider.evaluate(positions[:, ii])
 
                 # print("vel-mag", np.linalg.norm(velocity))
-                print("pos", positions[:, ii])
-                print("vel", velocity)
+                np.set_printoptions(precision=17)
+                print("pos", repr(positions[:, ii]))
+                print("vel", repr(velocity))
 
                 if np.linalg.norm(velocity) < 1e-3:
                     breakpoint()
@@ -223,16 +229,209 @@ def test_circualar_avoidance_cube(visualize=False, n_grid=1):
                 tube_radius=0.01,
             )
 
+
+def test_visualize_2d(visualize=False):
+    margin_absolut = 0
+    distance_scaling = 1
+
+    container = MultiObstacleContainer()
+    pose_tree = Pose(np.array([0.5, -0.2, 0.30]))
+    box1 = MultiObstacle(pose_tree)
+    pos_bos1 = np.array([0.0, 0, -0.06])
+    box1.set_root(
+        Cuboid(
+            center_position=pos_bos1,
+            axes_length=np.array([0.16, 0.16, 0.16]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        )
+    )
+    container.append(box1)
+    for obs in container:
+        obs.update_pose(obs.pose)
+
+    dynamics = create_circular_conveyer_dynamics()
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
     # Similar position - similar velocity?
-    position1 = [0.49545138, 0.05724965, 0.3041467]
+    # np.array([0.49273197, 0.10257815, 0.3286206 ])
+    position1 = np.array([0.4927319722994656, 0.1025781493785348, 0.3286206033804766])
+    position2 = np.array([0.4740972468314115, 0.10186791791714953, 0.32371117213567324])
+
+    # Check convergence projector
+    conv_vel1 = avoider.convergence_dynamics.evaluate_convergence_around_obstacle(
+        position1, avoider.obstacle_container.get_tree(0).get_component(0)
+    )
+    # rot_pos_trafo1 = (
+    #     avoider.convergence_dynamics._evaluate_rotation_position_to_transform(
+    #         position1, avoider.obstacle_container.get_tree(0).get_component(0)
+    #     )
+    # )
+    conv_vel2 = avoider.convergence_dynamics.evaluate_convergence_around_obstacle(
+        position2, avoider.obstacle_container.get_tree(0).get_component(0)
+    )
+    # rot_pos_trafo2 = (
+    #     avoider.convergence_dynamics._evaluate_rotation_position_to_transform(
+    #         position2, avoider.obstacle_container.get_tree(0).get_component(0)
+    #     )
+    # )
+    # breakpoint()
+
     velocity1 = avoider.evaluate(np.array(position1))
+    velocity2 = avoider.evaluate(np.array(position2))
+
+    if visualize:
+        fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        indexes = [[0, 2], [1, 2]]
+        obstacle3d = container.get_tree(0).get_component(0)
+        for ii, ind in enumerate(indexes):
+            obstacle_proj = Cuboid(
+                center_position=obstacle3d.center_position[ind],
+                axes_length=obstacle3d.axes_length[ind],
+                margin_absolut=obstacle3d.margin_absolut,
+                distance_scaling=obstacle3d.distance_scaling,
+            )
+            plot_obstacles(
+                ax=axs[ii],
+                obstacle_container=[obstacle_proj],
+            )
+
+        axs[0].set_xlabel("X")
+        axs[0].set_ylabel("Z")
+        axs[0].set_xlim([0, 1])
+        axs[0].set_ylim([0, 1])
+
+        axs[1].set_xlabel("Y")
+        axs[1].set_ylabel("Z")
+        axs[1].set_xlim([-0.5, 0.5])
+        axs[1].set_ylim([0, 1])
+
+        # Plot points
+        scal = 0.1
+        arrow_width = 0.002
+        base_dynamics1 = dynamics.evaluate(position1)
+        base_dynamics2 = dynamics.evaluate(position2)
+        center_dynamics = dynamics.evaluate(obstacle3d.center_position)
+        for ii, ind in enumerate(indexes):
+            attractor = dynamics.pose.position
+            axs[ii].plot(
+                dynamics.pose.position[ind[0]], dynamics.pose.position[ind[1]], "k*"
+            )
+            axs[ii].plot(
+                obstacle3d.global_reference_point[ind[0]],
+                obstacle3d.global_reference_point[ind[1]],
+                "k+",
+            )
+            axs[ii].plot(position1[ind[0]], position1[ind[1]], "ok")
+            axs[ii].arrow(
+                position1[ind[0]],
+                position1[ind[1]],
+                base_dynamics1[ind[0]] * scal,
+                base_dynamics1[ind[1]] * scal,
+                width=arrow_width,
+                color="blue",
+                label="Dynamics (initial)",
+            )
+
+            axs[ii].arrow(
+                position1[ind[0]],
+                position1[ind[1]],
+                conv_vel1[ind[0]] * scal,
+                conv_vel1[ind[1]] * scal,
+                width=arrow_width,
+                color="red",
+                label="Convergence Dynamcis",
+            )
+
+            axs[ii].arrow(
+                position1[ind[0]],
+                position1[ind[1]],
+                velocity1[ind[0]] * scal,
+                velocity1[ind[1]] * scal,
+                width=arrow_width,
+                color="green",
+                label="Avoidance Dynamcis",
+            )
+
+            axs[ii].arrow(
+                obstacle3d.center_position[ind[0]],
+                obstacle3d.center_position[ind[1]],
+                center_dynamics[ind[0]] * scal,
+                center_dynamics[ind[1]] * scal,
+                width=arrow_width,
+                color="blue",
+                label="Center Dynamcis",
+            )
+
+            # vec1 = rot_pos_trafo1.get_first_vector()
+            # axs[ii].arrow(
+            #     attractor[ind[0]],
+            #     attractor[ind[1]],
+            #     vec1[ind[0]] * scal,
+            #     vec1[ind[1]] * scal,
+            #     width=arrow_width,
+            #     color="yellow",
+            #     label="rot1",
+            # )
+            # vec2 = rot_pos_trafo1.get_second_vector()
+            # axs[ii].arrow(
+            #     attractor[ind[0]],
+            #     attractor[ind[1]],
+            #     vec2[ind[0]] * scal,
+            #     vec2[ind[1]] * scal,
+            #     width=arrow_width,
+            #     color="orange",
+            #     label="rot2",
+            # )
+
+        for ii, ind in enumerate(indexes):
+            axs[ii].legend()
+
+        for ii, ind in enumerate(indexes):
+            # Second position
+            axs[ii].plot(position2[ind[0]], position2[ind[1]], "o", color="gray")
+            axs[ii].arrow(
+                position2[ind[0]],
+                position2[ind[1]],
+                base_dynamics2[ind[0]] * scal,
+                base_dynamics2[ind[1]] * scal,
+                width=arrow_width,
+                color="blue",
+                label="Base Dyns",
+            )
+
+            axs[ii].arrow(
+                position2[ind[0]],
+                position2[ind[1]],
+                conv_vel2[ind[0]] * scal,
+                conv_vel2[ind[1]] * scal,
+                width=arrow_width,
+                color="red",
+                label="Conv Vel",
+            )
+
+            axs[ii].arrow(
+                position2[ind[0]],
+                position2[ind[1]],
+                velocity2[ind[0]] * scal,
+                velocity2[ind[1]] * scal,
+                width=arrow_width,
+                color="green",
+                label="Avoidance Dynamcis",
+            )
+
+    # breakpoint()
+
+    print(conv_vel1)
     print(velocity1)
 
     print()
     print("pos 2")
-    position2 = [0.49103304, 0.05732273, 0.32365242]
-    velocity2 = avoider.evaluate(np.array(position2))
-    print(velocity2)
 
     breakpoint()
     assert np.allclose(velocity1, velocity2, atol=0.1)
@@ -242,5 +441,7 @@ if (__name__) == "__main__":
     figtype = ".jpeg"
     mlab.close(all=True)
 
-    # test_circualar_avoidance_cube(visualize=True, n_grid=1)
-    test_circualar_avoidance_cube(visualize=False, n_grid=1)
+    # test_circular_avoidance_cube(visualize=True, n_grid=1)
+    # test_circualar_avoidance_cube(visualize=False, n_grid=1)
+    test_visualize_2d(visualize=True)
+    # test_projected_3d()

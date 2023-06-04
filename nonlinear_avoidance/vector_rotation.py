@@ -154,6 +154,9 @@ class VectorRotationXd:
             warnings.warn("base has not been defined")
             return None
 
+    def get_first_vector(self) -> Vector:
+        return self.base[:, 0]
+
     def get_second_vector(self) -> Vector:
         """Returns the second vector responsible for the rotation"""
         return rotate_direction(
