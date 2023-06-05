@@ -787,7 +787,7 @@ class RotationalAvoider(BaseAvoider):
             raise ValueError("No tangent found.")
 
         # if np.any(np.isnan(get_vector_from_angle(surface_angle, base=base))):
-        #     breakpoint()
+        # breakpoint()
         return get_vector_from_angle(surface_angle, base=base)
 
     @staticmethod

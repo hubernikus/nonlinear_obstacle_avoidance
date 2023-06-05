@@ -371,7 +371,7 @@ class MultiObstacleAvoider:
         sequence = self.evaluate_avoidance_sequence(
             position,
             initial_velocity=initial_velocity,
-            linearized_velocity=initial_velocity,
+            linearized_velocity=linearized_velocity,
         )
         return sequence.get_end_vector()
 

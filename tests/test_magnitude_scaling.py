@@ -149,6 +149,10 @@ def test_single_rectangle_multiavoidance(visualize=False, save_figure=False, n_g
         )
         plot_multi_obstacles(ax=ax, container=container)
 
+    position = np.array([0.37, -2.63])
+    rotated_velocity1 = avoider.evaluate(position)
+    assert rotated_velocity1[0] > 0, "Avoidance towards the right"
+
     position = np.array([1.0, -4.25])
     rotated_velocity1 = avoider.evaluate(position)
     assert rotated_velocity1[0] > 0, "Avoidance towards the right"
@@ -326,4 +330,5 @@ def test_normals_multi_arch(visualize=False, save_figure=False, n_grid=40):
 
 
 if (__name__) == "__main__":
-    test_single_rectangle_multiavoidance(visualize=True)
+    # test_single_rectangle_multiavoidance(visualize=True)
+    test_normals_multi_arch(visualize=True)
