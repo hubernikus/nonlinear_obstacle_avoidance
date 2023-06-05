@@ -85,6 +85,81 @@ def test_straight_system(visualize=False):
     assert velocity[1] > 0, "Avoiding towards the top"
 
 
+def test_straight_system_with_tree(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    obstacle_tree.add_component(
+        Cuboid(
+            center_position=np.array([-2.0, 1.0]),
+            axes_length=np.array([4.0, 1.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        ),
+        reference_position=np.zeros(2),
+        parent_ind=0,
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-5, 3]
+        y_lim = [-4, 4]
+        # x_lim = [-5, -4]
+        # y_lim = [-2.5, -1.5]
+
+        n_resolution = 40
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacles(
+            ax=ax, obstacle_container=obstacle_tree, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-4.8, -1.8])
+    velocity1 = avoider.evaluate_sequence(position)
+    position = np.array([-4.8, -1.795])
+    velocity2 = avoider.evaluate_sequence(position)
+    assert np.allclose(velocity1, velocity2, atol=1e-1)
+
+    # position = np.array([-2.01, -4.785])
+    position = np.array([-4.3469387755, 3.0204081632])
+    velocity1 = avoider.evaluate(position)
+    position = np.array([-4.33, 3.0])
+    velocity2 = avoider.evaluate(position)
+    assert np.allclose(velocity1, velocity2, atol=1e-1)
+
+    position = np.array([-4.76, -2.01])
+    velocity1 = avoider.evaluate_sequence(position)
+    position = np.array([-4.75, -2.01])
+    velocity2 = avoider.evaluate_sequence(position)
+    assert np.allclose(velocity1, velocity2, atol=1e-1)
+
+
 def test_convergence_direction(visualize=False):
     margin_absolut = 0
     distance_scaling = 5
@@ -162,16 +237,15 @@ def test_convergence_direction(visualize=False):
         )
 
     position = np.array([0.065, 0.46])
-    velocity2 = avoider.evaluate(position)
-
-    position = np.array([0.06, 0.46])
     velocity1 = avoider.evaluate(position)
-
-    # assert np.allclose(velocity1, velocity2, atol=1e-1), "Expected to be close"
+    position = np.array([0.06, 0.46])
+    velocity2 = avoider.evaluate(position)
+    assert np.allclose(velocity1, velocity2, atol=1e-1), "Expected to be close"
 
 
 if (__name__) == "__main__":
     figtype = ".pdf"
 
-    test_straight_system(visualize=True)
+    # test_straight_system(visualize=True)
+    test_straight_system_with_tree(visualize=True)
     # test_convergence_direction(visualize=True)

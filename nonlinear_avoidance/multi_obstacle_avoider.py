@@ -14,16 +14,12 @@ from typing import Optional, Protocol, Hashable
 
 import numpy as np
 import numpy.typing as npt
-from numpy import linalg
 
-from vartools.math import get_intersection_with_circle, CircleIntersectionType
-from vartools.linalg import get_orthogonal_basis
-from vartools.dynamical_systems import DynamicalSystem, LinearSystem
+from vartools.dynamical_systems import DynamicalSystem
 
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
-from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
-from dynamic_obstacle_avoidance.containers import ObstacleContainer
+from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
@@ -366,7 +362,7 @@ class MultiObstacleAvoider:
         linearized_velocity: Optional[Vector] = None,
     ) -> Vector:
         """Evaluates the preferred direction to go around the obstacle."""
-        if not linalg.norm(initial_velocity):
+        if not np.linalg.norm(initial_velocity):
             return initial_velocity
 
         sequence = self.evaluate_avoidance_sequence(
@@ -377,7 +373,7 @@ class MultiObstacleAvoider:
         return sequence.get_end_vector()
 
     def evaluate_avoidance_from_sequence(self, position, initial_sequence):
-        """ """
+        """Keep track of the rotation sequence when evaluating the full avoidance."""
         self._tangent_tree = VectorRotationTree.from_sequence(
             root_id=self._ROOT_ID, node_id=self._BASE_VEL_ID, sequence=initial_sequence
         )
@@ -395,11 +391,11 @@ class MultiObstacleAvoider:
                 )
             )
 
-            it_node = (self._ROOT_ID, ii_tree)
+            it_node = (self._BASE_VEL_ID, ii_tree)
             self._tangent_tree.add_sequence(
                 sequence=obstacle_convergence_sequence,
                 node_id=it_node,
-                parent_id=self._ROOT_ID,
+                parent_id=self._BASE_VEL_ID,
             )
 
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
@@ -408,7 +404,7 @@ class MultiObstacleAvoider:
                 base_velocity=obstacle_convergence_sequence.get_end_vector(),
             )
 
-            node_list += self.populate_tangent_tree(
+            new_nodes, occlusion_weights = self.populate_tangent_tree(
                 obstacle=obstacle_tree,
                 base_velocity=obstacle_convergence_sequence.get_end_vector(),
                 position=position,
@@ -416,12 +412,19 @@ class MultiObstacleAvoider:
                 gamma_weights=gamma_weights,
                 start_id=it_node,
             )
+            node_list += new_nodes
 
-            ind_weights = gamma_weights > 0
-            if np.sum(ind_weights) > 0:
-                component_weights.append(gamma_weights[gamma_weights > 0])
+            # Renormalize component weight
+            # gamma_weight_total = np.sum(gamma_weights)
+            final_weights = gamma_weights[gamma_weights > 0]
+            if np.sum(final_weights) > 0:
+                final_weights = final_weights * occlusion_weights
+                component_weights.append(final_weights)
             else:
                 # At least one weight should be added
+                # TODO: there will be a miss-match between obstacles-nodes
+                # and weights ?!
+                breakpoint()
                 component_weights.append(np.array([0.0]))
 
             obstacle_gammas[ii_tree] = np.min(gamma_values)
@@ -429,16 +432,19 @@ class MultiObstacleAvoider:
         # Flatten weights over the obstacles
         obstacle_weights = compute_weights(obstacle_gammas)
         weights = np.concatenate(
-            [ww * cc for ww, cc in zip(obstacle_weights, component_weights)]
+            [wo * wc for wo, wc in zip(obstacle_weights, component_weights)]
         )
 
         # Remaining weight to the initial velocity
         node_list.append(self._BASE_VEL_ID)
         self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
 
-        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
-            node_list=node_list, weights=self.final_weights
-        )
+        try:
+            weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
+                node_list=node_list, weights=self.final_weights
+            )
+        except:
+            breakpoint()
         return weighted_sequence
 
     def evaluate_avoidance_sequence(
@@ -477,13 +483,14 @@ class MultiObstacleAvoider:
                 breakpoint()
 
             # obstacle, base_velocity, position, obs_idx: int, gamma_weights
-            node_list += self.populate_tangent_tree(
+            new_nodes, _ = self.populate_tangent_tree(
                 obstacle=obstacle,
                 base_velocity=local_velocity,
                 position=position,
                 obs_idx=obs_idx,
                 gamma_weights=gamma_weights,
             )
+            node_list += new_nodes
             # component_weights.append(
             #     gamma_weights[gamma_weights > 0]
             #     * (1 / np.maximum(gamma_values, 1.0)) ** self.gamma_power_scaling
@@ -569,6 +576,7 @@ class MultiObstacleAvoider:
         gamma_weights,
         start_id: Optional[Hashable] = None,
     ) -> list[NodeType]:
+        """Returns the node-list and the (normalized) occlusion weights."""
         # Evaluate rotation weight, to ensure smoothness in space (!)
         if start_id is None:
             start_id = self._BASE_VEL_ID
@@ -580,16 +588,42 @@ class MultiObstacleAvoider:
             direction=base_velocity,
         )
 
+        occlusion_weights = []
         for comp_id in range(obstacle.n_components):
             if gamma_weights[comp_id] <= 0:
                 continue
 
             node_list.append((obs_idx, comp_id, comp_id))
-            self._update_tangent_branch(
+            weight = self._update_tangent_branch(
                 position, comp_id, base_velocity, obstacle, obs_idx
             )
+            occlusion_weights.append(weight)
 
-        return node_list
+        occlusion_weights = self.evaluate_occlusion_array(occlusion_weights)
+        return node_list, occlusion_weights
+
+    @staticmethod
+    def evaluate_occlusion_array(occlusion_weights):
+        # Evaluate occlusion weights
+        occlusion_weights = np.array(occlusion_weights)
+        ind_pos = occlusion_weights > 0
+        if any(ind_pos):
+            final_weights = np.zeros_like(occlusion_weights)
+            final_weights[ind_pos] = occlusion_weights[ind_pos] / np.sum(
+                occlusion_weights[ind_pos]
+            )
+            return final_weights
+
+        arg_max = np.argsort(occlusion_weights)
+        final_weights = np.zeros_like(occlusion_weights)
+        final_weights[-1] = 1.0
+        for ii in range(final_weights.shape[0] - 1, 0):
+            # Take the closest ones and divide (!)
+            if occlusion_weights[ii] < occlusion_weights[-1]:
+                break
+            final_weights[ii] = 1.0
+
+        return final_weights / np.sum(final_weights)
 
     def _update_tangent_branch(
         self,
@@ -598,23 +632,43 @@ class MultiObstacleAvoider:
         base_velocity: np.ndarray,
         obstacle,
         obs_idx: NodeType,
-    ) -> None:
+        level_max: int = 100,
+    ) -> float:
+        """Updates the tangent of the specified obstacle and returns the 'interection' weight.
+
+        Returns negative value if its fully occluded."""
         # TODO: predict at start the size (slight speed up)
         # normal_directions: list[Vector] = []
         # reference_directions: list[Vector] = []
-        surface_points: list[Vector] = [position]
-        parents_tree: list[int] = [comp_id]
-
         obs = obstacle.get_component(comp_id)
-        normal_directions = [obs.get_normal_direction(position, in_global_frame=True)]
+
+        # surface_points: list[Vector] = [position]
+        parents_tree: list[int] = [comp_id]
         reference_directions = [
             obs.get_reference_direction(position, in_global_frame=True)
         ]
+        intersection = obs.get_intersection_with_surface(
+            position, reference_directions[-1], in_global_frame=True
+        )
+        distance_to_surf = np.linalg.norm(position - intersection)
+        surface_points: list[Vector] = [intersection]
 
-        while parents_tree[-1] != obstacle.root_idx:
+        normal_directions = [
+            self.get_normal_at_distance(obs, surface_points[-1], distance_to_surf)
+        ]
+
+        occlusion_gamma = obs.get_gamma(intersection, in_global_frame=True)
+        if occlusion_gamma < 1:
+            return occlusion_gamma - 1
+
+        for ii in range(level_max):
+            if parents_tree[-1] == obstacle.root_idx:
+                break
             obs = obstacle.get_component(parents_tree[-1])
-
             new_id = obstacle.get_parent_idx(parents_tree[-1])
+            parents_tree.append(new_id)
+            obs_parent: Obstacle = obstacle.get_component(new_id)
+
             if new_id is None:
                 # TODO: We should not reach this?! -> remove(?)
                 breakpoint()
@@ -624,33 +678,38 @@ class MultiObstacleAvoider:
                 # TODO: remove this debug check
                 raise Exception()
 
-            parents_tree.append(new_id)
+            # Go from reference point outwards to avoid numerical errors
+            ref_point = obs.get_reference_point(in_global_frame=True)
+            ref_dir = surface_points[-1] - ref_point
 
-            obs_parent = obstacle.get_component(new_id)
-            ref_dir = obs.get_reference_point(in_global_frame=True) - surface_points[-1]
+            # if obs_parent.get_gamma(surface_points[-1], in_global_frame=True) < 1:
+            #     ref_dir = (-1) * ref_dir
 
-            # intersection = get_intersection_with_ellipse(
-            #     surface_points[-1], ref_dir, obs_parent, in_global_frame=True
-            # )
             intersection = obs_parent.get_intersection_with_surface(
-                surface_points[-1], ref_dir, in_global_frame=True
+                ref_point, ref_dir, in_global_frame=True
             )
-
             if intersection is None:
                 # TODO: This should probably never happen -> remove?
                 # but for now easier to debug / catch (other) errors early
                 breakpoint()
                 raise Exception()
-
             surface_points.append(intersection)
 
             normal_directions.append(
-                obs_parent.get_normal_direction(intersection, in_global_frame=True)
+                self.get_normal_at_distance(
+                    obs_parent, surface_points[-1], distance_to_surf
+                )
             )
-
             reference_directions.append(
                 obs_parent.get_reference_direction(intersection, in_global_frame=True)
             )
+
+        # np.set_printoptions(precision=6)
+        # print("comp_id", comp_id)
+        # print("baseVe", np.round(base_velocity, 3))
+        # print("surf-points \n", np.array(surface_points))
+        # print("normals \n", np.array(normal_directions))
+        # print("reference_directions \n", np.array(reference_directions))
 
         # Reversely traverse the parent tree - to project tangents
         # First node is connecting to the center-velocity
@@ -661,18 +720,14 @@ class MultiObstacleAvoider:
             convergence_radius=np.pi * 0.5,
         )
 
-        # print("baseVe", np.round(base_velocity, 3))
-        # print("normal", np.round(normal_directions[-1], 3))
-        # print("refere", np.round(reference_directions[-1], 3))
-        # print("tangent", np.round(tangent, 3))
-        # breakpoint()
-
         # Should this not be the normal parent ?
         self._tangent_tree.add_node(
             node_id=NodeKey(obs_idx, comp_id, parents_tree[-1]),
             parent_id=NodeKey(obs_idx, -1, -1),
             direction=tangent,
         )
+        # print(f"tangent={tangent}")
+        # breakpoint()
 
         if np.any(np.isnan(tangent)):
             # TODO: remove DEBUG check
@@ -680,7 +735,6 @@ class MultiObstacleAvoider:
 
         # Iterate over all but last one
         for ii in reversed(range(len(parents_tree) - 1)):
-            # print(f"Add Node {ii}")
             rel_id = parents_tree[ii]
 
             tangent = RotationalAvoider.get_projected_tangent_from_vectors(
@@ -696,11 +750,33 @@ class MultiObstacleAvoider:
                 parent_id=NodeKey(obs_idx, comp_id, parents_tree[ii + 1]),
                 direction=tangent,
             )
+            # print(f"tangent={tangent}")
 
             if np.any(np.isnan(tangent)):
                 # print("New node", NodeKey(obs_idx, comp_id, parents_tree[ii]))
                 print(f"tangent={tangent}")
                 breakpoint()
+
+        return self.compute_occlusion_weight(occlusion_gamma)
+
+    @staticmethod
+    def compute_occlusion_weight(gamma: float, power_factor: float = 1.0 / 4) -> float:
+        return ((gamma - 1) / gamma) ** power_factor
+
+    def get_normal_at_distance(
+        self, obs: Obstacle, surface_point: np.ndarray, distance: float
+    ):
+        """Returns the normal direction.
+        For non-smooth surface polygon, the normal is evaluated at distance"""
+        if not isinstance(obs, Cuboid):
+            return obs.get_normal_direction(surface_point, in_global_frame=True)
+
+        direction = surface_point - obs.center_position
+        if not (dir_norm := np.linalg.norm(direction)):
+            raise ValueError("Position is at the surface of the obstacle.")
+
+        position = surface_point + direction / dir_norm * distance
+        return obs.get_normal_direction(position, in_global_frame=True)
 
 
 def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
