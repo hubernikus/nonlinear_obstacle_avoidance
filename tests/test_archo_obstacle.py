@@ -359,6 +359,6 @@ if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=False)
     # test_2d_blocky_arch_rotated(visualize=True)
     # test_multi_arch_obstacle(visualize=True)
-    test_bi_arch_avoidance_nonlinear(visualize=True)
+    test_bi_arch_avoidance_nonlinear(visualize=False)
 
     print("Tests done.")

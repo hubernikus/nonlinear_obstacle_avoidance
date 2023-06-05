@@ -253,16 +253,10 @@ class ProjectedRotationDynamics:
                     / LA.norm(transformed_position[1:])
                     * dotprod_factor
                 )
-        # print("dotfactor", dotprod_factor)
         expanded_position = basis @ transformed_position
         # TODO: should the scaling be applied to all dimensions?
         # How would this change the effect for obstacles / far or close
         expanded_position[0] = expanded_position[0] * dist_attr_obs
-
-        # print("transformed_position", transformed_position)
-        # print("dotprod_factor", dotprod_factor)
-        # print("dot_prod", dot_prod)
-        # print("expanded_position", expanded_position)
 
         if not in_obstacle_frame:
             expanded_position = expanded_position + self.obstacle.global_reference_point
@@ -567,6 +561,7 @@ class ProjectedRotationDynamics:
         # print("initial_velocity_transformed2", initial_velocity_transformed)
         # print("averaged_direction_transformed", averaged_direction_transformed)
         # print("averaged_direction", averaged_direction)
+        # breakpoint()
 
         averaged_direction = averaged_direction * LA.norm(initial_velocity)
         return averaged_direction

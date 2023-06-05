@@ -237,11 +237,14 @@ class MultiObstacleAvoider:
             else:
                 reference_functor = reference_dynamics.evaluate
 
+            if initial_dynamics.attractor_position is None:
+                breakpoint()
             return ProjectedRotationDynamics(
                 attractor_position=initial_dynamics.attractor_position,
                 initial_dynamics=initial_dynamics,
                 reference_velocity=reference_functor,
             )
+
         else:
             if reference_dynamics is None:
                 reference_velocity = np.zeros(initial_dynamics.dimension)
@@ -259,6 +262,7 @@ class MultiObstacleAvoider:
     def evaluate_sequence(self, position: Vector) -> Vector:
         if hasattr(self.initial_dynamics, "evaluate_magnitude"):
             magnitude = self.initial_dynamics.evaluate_magnitude(position)
+
         else:
             initial_velocity = self.initial_dynamics.evaluate(position)
             magnitude = np.linalg.norm(initial_velocity)
@@ -266,14 +270,11 @@ class MultiObstacleAvoider:
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.tree_list
         )
-        initial_sequence = evaluate_dynamics_sequence(
-            position, self.initial_dynamics.evaluate
-        )
+        initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
 
         final_sequence = self.evaluate_avoidance_from_sequence(
             position, initial_sequence
         )
-
         final_velocity = final_sequence.get_end_vector() + relative_velocity
 
         averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
@@ -385,40 +386,35 @@ class MultiObstacleAvoider:
         component_weights: list[list[np.ndarray]] = []
         obstacle_gammas = np.zeros(len(self.tree_list))
 
-        for obs_idx, obstacle_tree in enumerate(self.tree_list):
-            projected_weight = self.convergence_dynamics.evaluate_projected_weight(
-                position, obstacle_tree.get_component(ii)
-            )
-
-            # TODO: even opposite it has to be considered (!)
-            if projected_weight <= 0:
-                continue
-
+        for ii_tree, obstacle_tree in enumerate(self.tree_list):
             obstacle_convergence_sequence = (
-                self.obstacle_convergence.evaluate_convergence_sequence_around_obstacle(
+                self.convergence_dynamics.evaluate_convergence_sequence_around_obstacle(
                     position,
-                    obstacle=self._rotation_avoider.obstacle_environment[ii],
+                    obstacle=obstacle_tree.get_root(),
                     initial_sequence=initial_sequence,
                 )
             )
-            direction_tree.add_sequence(
+
+            it_node = (self._ROOT_ID, ii_tree)
+            self._tangent_tree.add_sequence(
                 sequence=obstacle_convergence_sequence,
-                node_id=it_obs,
-                parent_id=root_id,
+                node_id=it_node,
+                parent_id=self._ROOT_ID,
             )
 
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
-                obstacle=obstacle,
+                obstacle=obstacle_tree,
                 position=position,
                 base_velocity=obstacle_convergence_sequence.get_end_vector(),
             )
 
             node_list += self.populate_tangent_tree(
                 obstacle=obstacle_tree,
-                base_velocity=local_velocity,
+                base_velocity=obstacle_convergence_sequence.get_end_vector(),
                 position=position,
-                obs_idx=obs_idx,
+                obs_idx=ii_tree,
                 gamma_weights=gamma_weights,
+                start_id=it_node,
             )
 
             ind_weights = gamma_weights > 0
@@ -428,7 +424,7 @@ class MultiObstacleAvoider:
                 # At least one weight should be added
                 component_weights.append(np.array([0.0]))
 
-            obstacle_gammas[obs_idx] = np.min(gamma_values)
+            obstacle_gammas[ii_tree] = np.min(gamma_values)
 
         # Flatten weights over the obstacles
         obstacle_weights = compute_weights(obstacle_gammas)
@@ -477,11 +473,9 @@ class MultiObstacleAvoider:
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
                 obstacle=obstacle, position=position, base_velocity=local_velocity
             )
-
             if np.any(np.isnan(local_velocity)):
                 breakpoint()
 
-            # print("local_velocity", local_velocity)
             # obstacle, base_velocity, position, obs_idx: int, gamma_weights
             node_list += self.populate_tangent_tree(
                 obstacle=obstacle,
@@ -490,7 +484,6 @@ class MultiObstacleAvoider:
                 obs_idx=obs_idx,
                 gamma_weights=gamma_weights,
             )
-
             # component_weights.append(
             #     gamma_weights[gamma_weights > 0]
             #     * (1 / np.maximum(gamma_values, 1.0)) ** self.gamma_power_scaling
@@ -563,16 +556,27 @@ class MultiObstacleAvoider:
             return np.zeros_like(gamma_weights), np.zeros_like(gamma_weights)
 
         gamma_weights = gamma_weights / gamma_sum * rotation_weight
+        if np.any(np.isnan(gamma_weights)):
+            breakpoint()
         return gamma_values, gamma_weights
 
     def populate_tangent_tree(
-        self, obstacle, base_velocity, position, obs_idx: int, gamma_weights
+        self,
+        obstacle,
+        base_velocity,
+        position,
+        obs_idx: int,
+        gamma_weights,
+        start_id: Optional[Hashable] = None,
     ) -> list[NodeType]:
         # Evaluate rotation weight, to ensure smoothness in space (!)
+        if start_id is None:
+            start_id = self._BASE_VEL_ID
+
         node_list = []
         self._tangent_tree.add_node(
             node_id=NodeKey(obs_idx, -1, -1),
-            parent_id=self._BASE_VEL_ID,
+            parent_id=start_id,
             direction=base_velocity,
         )
 
@@ -656,10 +660,12 @@ class MultiObstacleAvoider:
             reference=reference_directions[-1],
             convergence_radius=np.pi * 0.5,
         )
+
         # print("baseVe", np.round(base_velocity, 3))
         # print("normal", np.round(normal_directions[-1], 3))
         # print("refere", np.round(reference_directions[-1], 3))
-        # print("tangen", np.round(tangent, 3))
+        # print("tangent", np.round(tangent, 3))
+        # breakpoint()
 
         # Should this not be the normal parent ?
         self._tangent_tree.add_node(

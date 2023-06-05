@@ -242,25 +242,14 @@ class RotationalAvoider(BaseAvoider):
             # rather than the initial dynamics
             node_list.append(conv_id)
             node_weights.append(sum(importance_weights) - sum(node_weights))
-            # print("Fallback weight of:", node_weights[-1])
 
         # Add initial weight
         node_list.append(initial_id)
         node_weights.append(1 - sum(node_weights))
 
-        # print("Final Sequence")
         averaged_sequence = rotated_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=node_weights
         )
-        # print("Init Angles", initial_sequence.rotation_angles)
-        # print("End init", initial_sequence.get_end_vector())
-
-        # print("Angles", convergence_sequence.rotation_angles)
-        # print("End conv", convergence_sequence.get_end_vector())
-
-        # print("cont_weight", cont_weight)
-        # print("impo_weights", importance_weights)
-        # print("node_weights", node_weights)
 
         return averaged_sequence
 
@@ -787,7 +776,6 @@ class RotationalAvoider(BaseAvoider):
             raise ValueError("No tangent found.")
 
         # if np.any(np.isnan(get_vector_from_angle(surface_angle, base=base))):
-        # breakpoint()
         return get_vector_from_angle(surface_angle, base=base)
 
     @staticmethod

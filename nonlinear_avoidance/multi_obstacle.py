@@ -105,6 +105,9 @@ class MultiObstacle:
     def get_component(self, idx_obs: int) -> Obstacle:
         return self._obstacle_list[idx_obs]
 
+    def get_root(self) -> Obstacle:
+        return self._obstacle_list[self._root_idx]
+
     def set_root(self, obstacle: Obstacle) -> None:
         self._local_poses.append(obstacle.pose)
         obstacle.pose = self._pose.transform_pose_from_relative(self._local_poses[-1])

@@ -626,7 +626,7 @@ class VectorRotationTree:
         return self.evaluate_graph_summing(sorted_list)
 
     def update_partial_rotations(
-        self, node_list: list[NodeType], weights: list[float], sorted_list
+        self, node_list: list[NodeType], weights: npt.ArrayLike, sorted_list
     ) -> None:
         if not math.isclose((weight_sum := np.sum(weights)), 1.0, rel_tol=1e-3):
             warnings.warn(f"Sum of weights {weight_sum} is not equal to one.")
@@ -792,7 +792,6 @@ class VectorRotationTree:
                 ).reshape(self.dimension, -1, 2)
 
                 vector_sequence.append_from_base_and_angle(new_base, new_angle)
-                # print("base", new_base[:, 0])
 
             else:
                 # Zero transformation angle, hence just reshape
@@ -804,17 +803,9 @@ class VectorRotationTree:
         vector_sequence.append_from_base_and_angle(
             np.vstack((shared_first_basis, averaged_direction)).T, new_angle
         )
-        # print("base", shared_first_basis)
 
-        # final_rotation = VectorRotationXd(
-        #     base=np.vstack((shared_first_basis, averaged_direction)).T,
-        #     rotation_angle=new_angle,
-        # )
-        # final_rotation = final_rotation.rotate(shared_first_basis)
-        # final_rotation_replicate = vector_sequence.get_end_vector()
-
-        # if not np.allclose(final_rotation, final_rotation_replicate):
-        #     breakpoint()
+        if np.any(np.isnan(vector_sequence.basis_array)):
+            breakpoint()  # TODO: remove debug
 
         return vector_sequence
 
