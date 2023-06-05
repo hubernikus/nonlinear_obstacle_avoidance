@@ -119,8 +119,8 @@ def test_straight_system_with_tree(visualize=False):
     if visualize:
         x_lim = [-5, 3]
         y_lim = [-4, 4]
-        # x_lim = [-5, -4]
-        # y_lim = [-2.5, -1.5]
+        # x_lim = [-4.9, -4.8]
+        # y_lim = [-1.0, -0.9]
 
         n_resolution = 40
         figsize = (6, 5)
@@ -140,6 +140,18 @@ def test_straight_system_with_tree(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
+    position = np.array([-4.884615384615385, -0.9871794871794872])
+    velocity1 = avoider.evaluate_sequence(position)
+    position = np.array([-4.888, -0.922])
+    velocity2 = avoider.evaluate_sequence(position)
+    breakpoint()
+    assert np.allclose(velocity1, velocity2, atol=1e-1)
+
+    position = np.array([-2.3, -1.55])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[0] / velocity[1]) > 1e2, "Expected far too the right"
+    assert velocity[0] > 0.0
+
     position = np.array([-4.8, -1.8])
     velocity1 = avoider.evaluate_sequence(position)
     position = np.array([-4.8, -1.795])
@@ -157,6 +169,7 @@ def test_straight_system_with_tree(visualize=False):
     velocity1 = avoider.evaluate_sequence(position)
     position = np.array([-4.75, -2.01])
     velocity2 = avoider.evaluate_sequence(position)
+    breakpoint()
     assert np.allclose(velocity1, velocity2, atol=1e-1)
 
 
@@ -247,5 +260,6 @@ if (__name__) == "__main__":
     figtype = ".pdf"
 
     # test_straight_system(visualize=True)
+    # test_straight_system_with_tree(visualize=False)
     test_straight_system_with_tree(visualize=True)
     # test_convergence_direction(visualize=True)

@@ -280,6 +280,12 @@ class MultiObstacleAvoider:
             averaged_normal=averaged_normal,
             gamma=gamma,
         )
+
+        # if slowed_velocity[1] < 2:
+        #     breakpoint()
+
+        # print("position", position)
+        # print("slowed_velocity", slowed_velocity)
         return slowed_velocity
 
     def evaluate(self, position: Vector) -> Vector:
@@ -414,11 +420,16 @@ class MultiObstacleAvoider:
             )
             node_list += new_nodes
 
-            # Renormalize component weight
+            obstacle_gammas[ii_tree] = np.min(gamma_values)
+
             # gamma_weight_total = np.sum(gamma_weights)
             final_weights = gamma_weights[gamma_weights > 0]
             if np.sum(final_weights) > 0:
+                # Normalize component weight
                 final_weights = final_weights * occlusion_weights
+                if not np.sum(final_weights):
+                    breakpoint()
+                final_weights = final_weights / np.sum(final_weights)
                 component_weights.append(final_weights)
             else:
                 # At least one weight should be added
@@ -427,10 +438,9 @@ class MultiObstacleAvoider:
                 breakpoint()
                 component_weights.append(np.array([0.0]))
 
-            obstacle_gammas[ii_tree] = np.min(gamma_values)
-
         # Flatten weights over the obstacles
-        obstacle_weights = compute_weights(obstacle_gammas)
+        # obstacle_weights = compute_weights(obstacle_gammas)
+        obstacle_weights = self.compute_weights_from_distances(obstacle_gammas)
         weights = np.concatenate(
             [wo * wc for wo, wc in zip(obstacle_weights, component_weights)]
         )
@@ -438,7 +448,6 @@ class MultiObstacleAvoider:
         # Remaining weight to the initial velocity
         node_list.append(self._BASE_VEL_ID)
         self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
-
         try:
             weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
                 node_list=node_list, weights=self.final_weights
@@ -446,6 +455,19 @@ class MultiObstacleAvoider:
         except:
             breakpoint()
         return weighted_sequence
+
+    @staticmethod
+    def compute_weights_from_distances(
+        distances: np.ndarray, distance_min: float = 1.0
+    ) -> np.ndarray:
+        ind_low = distances < distance_min
+        if np.sum(ind_low):
+            return ind_low / np.sum(ind_low)
+
+        weights = 1.0 / (distances - distance_min)
+        if (weights_sum := np.sum(weights)) > 1.0:
+            weights = weights / weights_sum
+        return weights
 
     def evaluate_avoidance_sequence(
         self,
@@ -599,8 +621,9 @@ class MultiObstacleAvoider:
             )
             occlusion_weights.append(weight)
 
-        occlusion_weights = self.evaluate_occlusion_array(occlusion_weights)
-        return node_list, occlusion_weights
+        # final_weights = self.evaluate_occlusion_array(occlusion_weights)
+        final_weights = occlusion_weights / np.sum(occlusion_weights)
+        return node_list, final_weights
 
     @staticmethod
     def evaluate_occlusion_array(occlusion_weights):
@@ -622,7 +645,6 @@ class MultiObstacleAvoider:
             if occlusion_weights[ii] < occlusion_weights[-1]:
                 break
             final_weights[ii] = 1.0
-
         return final_weights / np.sum(final_weights)
 
     def _update_tangent_branch(
@@ -656,10 +678,6 @@ class MultiObstacleAvoider:
         normal_directions = [
             self.get_normal_at_distance(obs, surface_points[-1], distance_to_surf)
         ]
-
-        occlusion_gamma = obs.get_gamma(intersection, in_global_frame=True)
-        if occlusion_gamma < 1:
-            return occlusion_gamma - 1
 
         for ii in range(level_max):
             if parents_tree[-1] == obstacle.root_idx:
@@ -757,10 +775,19 @@ class MultiObstacleAvoider:
                 print(f"tangent={tangent}")
                 breakpoint()
 
+        # Compute occlusion gamma
+        if comp_id == obstacle.root_idx:
+            return 1.0
+
+        new_id = obstacle.get_parent_idx(comp_id)
+        obs_parent = obstacle.get_component(new_id)
+        occlusion_gamma = obs_parent.get_gamma(surface_points[0], in_global_frame=True)
         return self.compute_occlusion_weight(occlusion_gamma)
 
     @staticmethod
     def compute_occlusion_weight(gamma: float, power_factor: float = 1.0 / 4) -> float:
+        if gamma <= 1:
+            return 0.0
         return ((gamma - 1) / gamma) ** power_factor
 
     def get_normal_at_distance(
