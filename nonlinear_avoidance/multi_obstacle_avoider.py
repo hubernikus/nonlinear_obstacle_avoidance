@@ -845,12 +845,11 @@ class MultiObstacleAvoider:
         velocity = base_velocity
         parent_id = NodeKey(obs_idx, -1, -1)
         for ii in reversed(range(1, len(parents_tree))):
-            # Should this not be the normal parent ?
             rotation = VectorRotationXd.from_directions(
-                -1 * reference_directions[ii], -1 * reference_directions[ii - 1]
+                reference_directions[ii], reference_directions[ii - 1]
             )
             velocity = rotation.rotate(velocity)
-            print("velocity", velocity)
+            # print("velocity", velocity)
 
             node_id = NodeKey(obs_idx, comp_id, parents_tree[ii])
             self._tangent_tree.add_node(

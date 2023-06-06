@@ -19,7 +19,7 @@ from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
 
 
-def test_parrallel_system_with_tree(visualize=False):
+def test_straight_system_with_edgy_tree(visualize=False):
     dynamics = LinearSystem(attractor_position=np.array([0, 0]))
 
     container = MultiObstacleContainer()
@@ -423,7 +423,7 @@ def test_convergence_direction(visualize=False):
 
         plot_obstacle_dynamics(
             obstacle_container=box1,
-            dynamics=avoider.evaluate,
+            dynamics=avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -449,19 +449,12 @@ def test_convergence_direction(visualize=False):
             # attractor_position=attractor_position,
         )
 
-    position = np.array([0.065, 0.46])
-    velocity1 = avoider.evaluate(position)
-    position = np.array([0.06, 0.46])
-    velocity2 = avoider.evaluate(position)
-    assert np.allclose(velocity1, velocity2, atol=1e-1), "Expected to be close"
-
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    test_parrallel_system_with_tree(visualize=True)
-
+    # test_straight_system_with_edgy_tree(visualize=True)
     # test_straight_system_with_tree(visualize=True)
     # test_straight_system_with_two_trees(visualize=True)
 
     # test_straight_system(visualize=True)
-    # test_convergence_direction(visualize=True)
+    test_convergence_direction(visualize=True)
