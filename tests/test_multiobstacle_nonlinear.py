@@ -11,10 +11,12 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
+from nonlinear_avoidance.dynamics import SimpleCircularDynamics
 from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
-from nonlinear_avoidance.dynamics import SimpleCircularDynamics
+
+from nonlinear_avoidance.multi_obstacle_avoider import plot_multi_obstacle
 
 
 def test_straight_system(visualize=False):
@@ -178,6 +180,70 @@ def test_straight_system_with_tree(visualize=False):
     assert np.allclose(velocity1, velocity2, atol=1e-1)
 
 
+def test_straight_system_with_two_trees(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree1 = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree1.set_root(
+        Cuboid(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    obstacle_tree1.add_component(
+        Cuboid(
+            center_position=np.array([-2.0, 1.0]),
+            axes_length=np.array([4.0, 1.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        ),
+        reference_position=np.zeros(2),
+        parent_ind=0,
+    )
+    container.append(obstacle_tree1)
+
+    obstacle_tree2 = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree2.set_root(
+        Cuboid(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+
+    container.append(obstacle_tree1)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-5, 3]
+        y_lim = [-4, 4]
+
+        n_resolution = 40
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle(multi_obstacle=container, ax=ax, x_lim=x_lim, y_lim=y_lim)
+
+        plot_obstacle_dynamics(
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+
 def test_convergence_direction(visualize=False):
     margin_absolut = 0
     distance_scaling = 5
@@ -264,8 +330,8 @@ def test_convergence_direction(visualize=False):
 if (__name__) == "__main__":
     figtype = ".pdf"
 
-    test_straight_system_with_tree(visualize=True)
     # test_straight_system_with_tree(visualize=True)
+    test_straight_system_with_two_trees(visualize=True)
 
     # test_straight_system(visualize=True)
     # test_convergence_direction(visualize=True)

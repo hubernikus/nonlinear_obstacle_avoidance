@@ -20,6 +20,7 @@ from vartools.dynamical_systems import DynamicalSystem
 from dynamic_obstacle_avoidance.utils import compute_weights
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 from nonlinear_avoidance.datatypes import Vector
 from nonlinear_avoidance.avoidance import RotationalAvoider
@@ -40,6 +41,14 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 NodeType = Hashable
 NodeKey = namedtuple("NodeKey", "obstacle component relative_level")
 # IterationKey = namedtuple("IterationKey", "obstacle end_component current_component")
+
+
+def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
+    plot_obstacles(
+        obstacle_container=multi_obstacle._obstacle_list,
+        ax=ax,
+        **kwargs,
+    )
 
 
 def compute_gamma_weights(
@@ -841,14 +850,6 @@ class MultiObstacleAvoider:
 
         position = surface_point + direction / dir_norm * distance
         return obs.get_normal_direction(position, in_global_frame=True)
-
-
-def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
-    plot_obstacles(
-        obstacle_container=multi_obstacle._obstacle_list,
-        ax=ax,
-        **kwargs,
-    )
 
 
 def test_hashable_node_key():
