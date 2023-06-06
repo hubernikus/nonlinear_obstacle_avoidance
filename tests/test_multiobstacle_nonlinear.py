@@ -119,8 +119,6 @@ def test_straight_system_with_tree(visualize=False):
     if visualize:
         x_lim = [-5, 3]
         y_lim = [-4, 4]
-        # x_lim = [-4.9, -4.8]
-        # y_lim = [-1.0, -0.9]
 
         n_resolution = 40
         figsize = (6, 5)
@@ -140,16 +138,24 @@ def test_straight_system_with_tree(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
-    position = np.array([-4.884615384615385, -0.9871794871794872])
+    position = np.array([-0.28, 1.52])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[1] / velocity[0]) < 1e-3, "Parallel to border"
+
+    position = np.array([0.4, 3.10])
     velocity1 = avoider.evaluate_sequence(position)
-    position = np.array([-4.888, -0.922])
+    position = np.array([0.4, 3.13])
     velocity2 = avoider.evaluate_sequence(position)
-    breakpoint()
     assert np.allclose(velocity1, velocity2, atol=1e-1)
+
+    position = np.array([-3.05, -0.67])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[1] / velocity[0]) > 1e2, "Expected to be parallel to wall."
+    assert velocity[1] < 0.0
 
     position = np.array([-2.3, -1.55])
     velocity = avoider.evaluate_sequence(position)
-    assert abs(velocity[0] / velocity[1]) > 1e2, "Expected far too the right"
+    assert abs(velocity[0] / velocity[1]) > 1e2, "Expected to be parallel to wall."
     assert velocity[0] > 0.0
 
     position = np.array([-4.8, -1.8])
@@ -169,7 +175,6 @@ def test_straight_system_with_tree(visualize=False):
     velocity1 = avoider.evaluate_sequence(position)
     position = np.array([-4.75, -2.01])
     velocity2 = avoider.evaluate_sequence(position)
-    breakpoint()
     assert np.allclose(velocity1, velocity2, atol=1e-1)
 
 
@@ -259,7 +264,8 @@ def test_convergence_direction(visualize=False):
 if (__name__) == "__main__":
     figtype = ".pdf"
 
-    # test_straight_system(visualize=True)
-    # test_straight_system_with_tree(visualize=False)
     test_straight_system_with_tree(visualize=True)
+    # test_straight_system_with_tree(visualize=True)
+
+    # test_straight_system(visualize=True)
     # test_convergence_direction(visualize=True)
