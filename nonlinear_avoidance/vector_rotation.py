@@ -529,7 +529,7 @@ class VectorRotationTree:
             succ["orientation"] = None
 
     def evaluate_all_orientations(
-        self, sorted_list: list[NodeType] = None, pi_margin: float = np.pi * 0.75
+        self, sorted_list: list[NodeType] = None, pi_margin: float = np.pi * 0.95
     ) -> None:
         """Updates all orientations of the '_graph' class.
         -> store the new direction in the graph as 'part_direction'
@@ -782,6 +782,7 @@ class VectorRotationTree:
                 continue
 
             if new_angle:
+                # Only append if nonzero angle, i.e., actual rotation
                 new_base = np.vstack((shared_first_basis, averaged_direction)).T
                 # Transform to the new basis-direction
                 all_basis = rotate_array(

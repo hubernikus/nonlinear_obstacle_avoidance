@@ -6,6 +6,8 @@ Create the rotation space which is so much needed.
 # Github: hubernikus
 # Created: 2022-07-07
 
+import math
+
 import numpy as np
 from numpy import linalg as LA
 
@@ -14,6 +16,8 @@ import matplotlib.pyplot as plt
 from nonlinear_avoidance.vector_rotation import VectorRotationXd
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.vector_rotation import VectorRotationSequence
+
+from nonlinear_avoidance.vector_rotation import rotate_direction
 
 
 def test_cross_rotation_2d(visualize=False, savefig=False):
@@ -422,9 +426,66 @@ def test_perpendicular_sequence():
     assert np.isclose(sequence.rotation_angles[0], 0)
 
 
+def test_graph_reduction():
+    new_tree = VectorRotationTree()
+
+    vec_nominal = np.array([-1.0, 0])
+
+    new_tree.set_root(0, vec_nominal)
+    new_tree.add_node(node_id=1, parent_id=0, direction=vec_nominal)
+    new_tree.add_node(node_id=2, parent_id=1, direction=vec_nominal)
+    new_tree.add_node(node_id=3, parent_id=2, direction=vec_nominal)
+
+    # First branch
+    new_tree.add_node(node_id=4, parent_id=3, direction=vec_nominal)
+
+    # Second branch
+    vec1 = np.array([-0.941709, -0.336428])
+    new_tree.add_node(node_id=(5, 0), parent_id=3, direction=vec1)
+    vec2 = np.array([1.0, 0.0])
+    new_tree.add_node(node_id=(5, 1), parent_id=(5, 0), direction=vec2)
+
+    angles1 = math.acos(vec_nominal @ vec1)
+    angles2 = math.acos(vec1 @ vec2)
+
+    node_list = [4, (5, 1), 1]
+    weights = [0.00, 1.0, 0.0]
+
+    sequence = new_tree.reduce_weighted_to_sequence(node_list, weights)
+    assert math.isclose(angles1, sequence.rotation_angles[0], abs_tol=1e-6)
+    assert math.isclose(angles2, sequence.rotation_angles[1], abs_tol=1e-6)
+
+    averaged_direction = sequence.get_end_vector()
+    assert (
+        abs(averaged_direction[1] / averaged_direction[0]) < 1e-1
+    ), "Strongly align with last vector"
+
+
+def test_rotate_direction():
+    base = np.array([[-1, 0.0], [0, -1.0]])
+    rotation_angle = math.pi * 0.5
+
+    rotation = VectorRotationXd(base, rotation_angle)
+    final_vector = rotate_direction(base[:, 0], base, rotation_angle)
+    assert np.allclose(final_vector, [0, -1])
+
+
+def test_create_overrotation():
+    vec1 = np.array([-0.941709, -0.336428])
+    vec2 = np.array([1.0, 0.0])
+
+    vector_rotation = VectorRotationXd.from_directions(vec1, vec2)
+    assert vector_rotation.rotation_angle > math.pi * 0.5
+    assert np.allclose(vec2, vector_rotation.rotate(vec1))
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
+
+    test_create_overrotation()
+    test_rotate_direction()
+    test_graph_reduction()
 
     test_perpendicular_sequence()
 
