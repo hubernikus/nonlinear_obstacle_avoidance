@@ -82,6 +82,18 @@ class BlockArchObstacle:
     def root_idx(self) -> int:
         return self._root_idx
 
+    def __len__(self) -> int:
+        return len(self._obstacle_list)
+
+    def __iter__(self):
+        return iter(self._obstacle_list)
+
+    def __getitem__(self, idx: int) -> Obstacle:
+        return self._obstacle_list[idx]
+
+    def get_root(self) -> Obstacle:
+        return self._obstacle_list[self._root_idx]
+
     def is_collision_free(self, position: np.ndarray) -> bool:
         for obstacle in self._obstacle_list:
             if obstacle.get_gamma(position, in_global_frame=True) <= 1:
@@ -97,6 +109,27 @@ class BlockArchObstacle:
             obs.get_gamma(position, in_global_frame=True) for obs in self._obstacle_list
         ]
         return np.min(gammas)
+
+    def get_gamma_except_components(
+        self,
+        position: np.ndarray,
+        excluded_components: list[int],
+        in_global_frame: bool = True,
+    ) -> float:
+        if not in_global_frame:
+            position = self._pose.transform_pose_from_relative(position)
+
+        gammas = []
+        for ii, obs in enumerate(self._obstacle_list):
+            if ii in excluded_components:
+                continue
+
+            gammas.append(obs.get_gamma(position, in_global_frame=True))
+
+        if not len(gammas):
+            raise ValueError("No components left to evaluate gamma.")
+
+        return min(gammas)
 
     def get_parent_idx(self, idx_obs: int) -> Optional[int]:
         if idx_obs == self.root_idx:

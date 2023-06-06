@@ -16,7 +16,134 @@ from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 
-from nonlinear_avoidance.multi_obstacle_avoider import plot_multi_obstacle
+from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
+
+
+def test_parrallel_system_with_tree(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    obstacle_tree.add_component(
+        Cuboid(
+            center_position=np.array([-2.0, 1.0]),
+            axes_length=np.array([4.0, 1.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        ),
+        reference_position=np.zeros(2),
+        parent_ind=0,
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-5, 3]
+        y_lim = [-4, 4]
+
+        n_resolution = 20
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacles(
+            ax=ax, obstacle_container=obstacle_tree, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-4.1, 1])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[0] / velocity[1]) < 1e-3, "Parallel to surface."
+
+    position = np.array([-2.5, -1.55])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[1] / velocity[0]) < 1e-3, "Parallel to surface."
+
+    position = np.array([-4.2, 1.5])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[0] / velocity[1]) < 1e-3, "Parallel to surface."
+
+
+def test_parent_occlusion_weights(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    obstacle_tree.add_component(
+        Cuboid(
+            center_position=np.array([-2.0, 1.0]),
+            axes_length=np.array([4.0, 1.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        ),
+        reference_position=np.zeros(2),
+        parent_ind=0,
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-5, 3]
+        y_lim = [-4, 4]
+
+        n_resolution = 20
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacles(
+            ax=ax, obstacle_container=obstacle_tree, x_lim=x_lim, y_lim=y_lim
+        )
+
+    # Test parent-occlusion weights
+    position = np.array([0, -1])
+    weights = avoider.compute_parent_occlusion_weight(position, obstacle_tree)
+    assert 0 < weights[1] < 1, "Second obstacle not zero weight."
+
+    position = np.array([1, 1])
+    weights = avoider.compute_parent_occlusion_weight(position, obstacle_tree)
+    assert np.allclose(weights, [1, 1]), "Second obstacle not zero weight."
+
+    position = np.array([-2, 2])
+    weights = avoider.compute_parent_occlusion_weight(position, obstacle_tree)
+    assert np.allclose(weights, [1, 1]), "Second obstacle not zero weight."
+
+    position = np.array([-2, -3])
+    weights = avoider.compute_parent_occlusion_weight(position, obstacle_tree)
+    assert np.allclose(weights, [1, 0]), "Second obstacle not zero weight."
 
 
 def test_straight_system(visualize=False):
@@ -48,8 +175,8 @@ def test_straight_system(visualize=False):
         figsize = (6, 5)
 
         fig, ax = plt.subplots(figsize=figsize)
-        plot_obstacles(
-            ax=ax, obstacle_container=obstacle_tree, x_lim=x_lim, y_lim=y_lim
+        plot_multi_obstacle_container(
+            ax=ax, obstacle_container=container, x_lim=x_lim, y_lim=y_lim
         )
 
         plot_obstacle_dynamics(
@@ -231,7 +358,9 @@ def test_straight_system_with_two_trees(visualize=False):
         figsize = (6, 5)
 
         fig, ax = plt.subplots(figsize=figsize)
-        plot_multi_obstacle(multi_obstacle=container, ax=ax, x_lim=x_lim, y_lim=y_lim)
+        plot_multi_obstacle_container(
+            container=container, ax=ax, x_lim=x_lim, y_lim=y_lim
+        )
 
         plot_obstacle_dynamics(
             obstacle_container=container,
@@ -329,9 +458,10 @@ def test_convergence_direction(visualize=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
+    test_parrallel_system_with_tree(visualize=True)
 
     # test_straight_system_with_tree(visualize=True)
-    test_straight_system_with_two_trees(visualize=True)
+    # test_straight_system_with_two_trees(visualize=True)
 
     # test_straight_system(visualize=True)
     # test_convergence_direction(visualize=True)

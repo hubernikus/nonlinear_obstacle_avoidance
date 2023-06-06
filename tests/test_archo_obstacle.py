@@ -11,8 +11,10 @@ import numpy.typing as npt
 import networkx as nx
 
 from vartools.states import Pose
-from vartools.dynamical_systems import LinearSystem
+from vartools.dynamics import Dynamics
 from vartools.dynamics import WavyRotatedDynamics
+from vartools.dynamical_systems import LinearSystem
+
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
@@ -31,6 +33,26 @@ from nonlinear_avoidance.visualization.plot_qolo import integrate_with_qolo
 
 from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
+from nonlinear_avoidance.vector_rotation import VectorRotationSequence
+
+
+class ConstantValueWithSequence(Dynamics):
+    """Returns constant velocity based on the DynamicalSystem parent-class"""
+
+    def __init__(self, velocity):
+        self.constant_velocity = velocity
+
+    def evaluate(self, *args, **kwargs):
+        """Random input arguments, but always ouptuts same vector-field"""
+        return self.constant_velocity
+
+    def evaluate_dynamics_sequence(self, position: np.ndarray):
+        velocity = self.evaluate(position)
+
+        rotation = VectorRotationSequence.create_from_vector_array(
+            np.vstack((velocity, velocity)).T
+        )
+        return rotation
 
 
 def test_2d_blocky_arch(visualize=False):
@@ -39,10 +61,17 @@ def test_2d_blocky_arch(visualize=False):
         axes_length=np.array([3.0, 5]),
         pose=Pose(np.array([0.0, 0]), orientation=0.0),
     )
-
-    multibstacle_avoider = MultiObstacleAvoider(obstacle=multi_block)
+    container = MultiObstacleContainer()
+    container.append(multi_block)
 
     velocity = np.array([-1.0, 0])
+    dynamics = ConstantValueWithSequence(velocity)
+    multibstacle_avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        reference_dynamics=dynamics,
+    )
+
     linearized_velociy = velocity
 
     if visualize:
@@ -52,9 +81,9 @@ def test_2d_blocky_arch(visualize=False):
 
         fig, ax = plt.subplots(figsize=(6, 5))
 
-        x_lim = [-5, 5.0]
+        x_lim = [-3, 6.0]
         y_lim = [-5, 5.0]
-        n_grid = 20
+        n_grid = 30
 
         plot_obstacles(
             obstacle_container=multi_block._obstacle_list,
@@ -74,9 +103,7 @@ def test_2d_blocky_arch(visualize=False):
                 multi_block.get_gamma(x, in_global_frame=True) <= 1
             ),
             # obstacle_container=triple_ellipses._obstacle_list,
-            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
-                x, velocity, linearized_velociy
-            ),
+            dynamics=multibstacle_avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -87,13 +114,14 @@ def test_2d_blocky_arch(visualize=False):
             # vectorfield_color=vf_color,
         )
 
-    # Test positions [which has been prone to a rounding error]
+    position = np.array([1.0, -2.0])
+    velocity = multibstacle_avoider.evaluate_sequence(position)
+    assert abs(velocity[1] / velocity[0]) < 1e-1, "Position almost parallel to wall"
+
     position = np.array([4, 1.6])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
-    assert averaged_direction[0] < 0, "Velocity is not going left."
-    assert averaged_direction[1] > 0, "Avoiding upwards expected."
+    velocity = multibstacle_avoider.evaluate_sequence(position)
+    assert velocity[0] < 0, "Velocity is not going left."
+    assert velocity[1] > 0, "Avoiding upwards expected."
 
 
 def test_2d_blocky_arch_rotated(visualize=False):
@@ -340,6 +368,8 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
             it_max=200,
         )
 
+    #
+
     # Integration of Qolo
     position = np.array([0.8499904639878112, -0.03889134570119339])
     velocity = avoider.evaluate(position)
@@ -356,9 +386,11 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
 if (__name__) == "__main__":
     import matplotlib.pyplot as plt
 
-    # test_2d_blocky_arch(visualize=False)
+    # test_2d_blocky_arch(visualize=True)
+    test_2d_blocky_arch(visualize=True)
+
     # test_2d_blocky_arch_rotated(visualize=True)
     # test_multi_arch_obstacle(visualize=True)
-    test_bi_arch_avoidance_nonlinear(visualize=False)
+    # test_bi_arch_avoidance_nonlinear(visualize=False)
 
     print("Tests done.")

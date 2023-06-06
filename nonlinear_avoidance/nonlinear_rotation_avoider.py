@@ -45,6 +45,8 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
+from nonlinear_avoidance.datatypes import Vector
+
 
 def get_convergence_weight(gamma: float) -> float:
     if math.isclose(gamma, 0):
@@ -76,6 +78,19 @@ class ConvergenceDynamicsWithoutSingularity:
         if np.any(np.isnan(velocity)):
             breakpoint()
         return velocity
+
+    def evaluate_convergence_sequence_around_obstacle(
+        self,
+        position: Vector,
+        obstacle: Obstacle,
+        initial_sequence: VectorRotationSequence,
+    ) -> VectorRotationSequence:
+        self.obstacle = obstacle
+        obstacle_sequence = evaluate_dynamics_sequence(
+            obstacle.get_reference_point(in_global_frame=True),
+            dynamics=self.initial_dynamics,
+        )
+        return obstacle_sequence
 
     def get_base_convergence(self, position: npt.ArrayLike) -> np.ndarray:
         return self.convergence_dynamics.evaluate(position)

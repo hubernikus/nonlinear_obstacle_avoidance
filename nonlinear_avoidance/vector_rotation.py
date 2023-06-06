@@ -436,7 +436,7 @@ class VectorRotationTree:
         direction = direction / dir_norm
 
         if node_id in self.graph.nodes():
-            raise ValueError("Adding existing node.")
+            raise ValueError(f"Node with id: {node_id} already exists.")
 
         if parent_id is not None:
             self._graph.add_edge(
@@ -805,8 +805,8 @@ class VectorRotationTree:
             np.vstack((shared_first_basis, averaged_direction)).T, new_angle
         )
 
-        if np.any(np.isnan(vector_sequence.basis_array)):
-            breakpoint()  # TODO: remove debug
+        # if np.any(np.isnan(vector_sequence.basis_array)):
+        #     breakpoint()  # TODO: remove debug
 
         return vector_sequence
 

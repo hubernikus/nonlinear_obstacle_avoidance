@@ -9,7 +9,18 @@ from dataclasses import dataclass, field
 from typing import Iterator
 import numpy as np
 
+from dynamic_obstacle_avoidance.visualization import plot_obstacles
+
 from nonlinear_avoidance.hierarchy_obstacle_protocol import HierarchyObstacle
+
+
+def plot_multi_obstacle_container(container, ax=None, **kwargs):
+    for obstacle_tree in container:
+        plot_obstacles(
+            obstacle_container=obstacle_tree,
+            ax=ax,
+            **kwargs,
+        )
 
 
 @dataclass(slots=True)
