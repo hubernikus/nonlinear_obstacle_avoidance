@@ -891,9 +891,9 @@ class RotationalAvoider(BaseAvoider):
         normal_vector: np.ndarray,
         reference_vector: np.ndarray,
         convergence_vector: np.ndarray,
-        convergence_radius: float,
         gamma_value: float,
-        smooth_continuation_power: float,
+        convergence_radius: float = math.pi * 0.5,
+        smooth_continuation_power: float = 1,
         radius_base: float = math.pi * 0.5,
     ) -> float:
         # TODO: the angle calculation could be done one level up (?)

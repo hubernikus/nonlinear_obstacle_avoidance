@@ -185,7 +185,11 @@ class BlockArchObstacle:
 
 
 def create_arch_obstacle(
-    wall_width: float, axes_length: np.ndarray, pose: Pose, margin_absolut: float = 0.0
+    wall_width: float,
+    axes_length: np.ndarray,
+    pose: Pose,
+    margin_absolut: float = 0.0,
+    distance_scaling: float = 1.0,
 ) -> BlockArchObstacle:
     multi_block = MultiObstacle(pose, margin_absolut)
 
@@ -194,6 +198,7 @@ def create_arch_obstacle(
             axes_length=np.array([wall_width, axes_length[1]]),
             pose=Pose(np.zeros(multi_block.dimension), orientation=0.0),
             margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
         ),
     )
 
@@ -203,6 +208,7 @@ def create_arch_obstacle(
             axes_length=np.array([axes_length[0], wall_width]),
             pose=Pose(delta_pos, orientation=0.0),
             margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
         ),
         reference_position=np.array([-delta_pos[0], 0.0]),
         parent_ind=0,
@@ -213,6 +219,7 @@ def create_arch_obstacle(
             axes_length=np.array([axes_length[0], wall_width]),
             pose=Pose(np.array([delta_pos[0], -delta_pos[1]]), orientation=0.0),
             margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
         ),
         reference_position=np.array([-delta_pos[0], 0.0]),
         parent_ind=0,

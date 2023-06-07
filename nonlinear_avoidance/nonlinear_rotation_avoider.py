@@ -42,6 +42,7 @@ from nonlinear_avoidance.dynamics.sequenced_dynamics import evaluate_dynamics_se
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
+from nonlinear_avoidance.vector_rotation import VectorRotationXd
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
@@ -78,6 +79,23 @@ class ConvergenceDynamicsWithoutSingularity:
         if np.any(np.isnan(velocity)):
             breakpoint()
         return velocity
+
+    def evaluate_rotation_position_to_transform(
+        self, position: np.ndarray, obstacle: Obstacle
+    ) -> VectorRotationXd:
+        # No transform if there is no singularty (!)
+        velocity = self.initial_dynamics.evaluate(position)
+        return VectorRotationXd.from_directions(velocity, velocity)
+
+    def evaluate_projected_weight(
+        self, position: np.ndarray, obstacle: Obstacle
+    ) -> float:
+        gamma = obstacle.get_gamma(position, in_global_frame=True)
+        if gamma >= 1:
+            weight = 1.0 / gamma
+        else:
+            weight = 1
+        return weight
 
     def evaluate_convergence_sequence_around_obstacle(
         self,
