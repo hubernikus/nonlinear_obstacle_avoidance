@@ -203,6 +203,8 @@ def create_arch_obstacle(
     )
 
     delta_pos = (axes_length - wall_width) * 0.5
+    ref_dist = 0.5 * axes_length[0] - 0.1 * wall_width
+
     multi_block.add_component(
         Cuboid(
             axes_length=np.array([axes_length[0], wall_width]),
@@ -210,7 +212,7 @@ def create_arch_obstacle(
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         ),
-        reference_position=np.array([-delta_pos[0], 0.0]),
+        reference_position=np.array([-ref_dist, 0.0]),
         parent_ind=0,
     )
 
@@ -221,7 +223,7 @@ def create_arch_obstacle(
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         ),
-        reference_position=np.array([-delta_pos[0], 0.0]),
+        reference_position=np.array([-ref_dist, 0.0]),
         parent_ind=0,
     )
     return multi_block

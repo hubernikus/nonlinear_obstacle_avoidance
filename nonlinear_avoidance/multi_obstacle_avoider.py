@@ -537,7 +537,7 @@ class MultiObstacleAvoider:
     @staticmethod
     def vector_rotation_reduction(
         sequence1: VectorRotationSequence,
-        trafo_seq1_to_seq2: VectorRotationXd,
+        trafo_seq1_to_seq2: Optional[VectorRotationXd],
         sequence2: VectorRotationSequence,
         weight2: float,
         weight_factor: bool = 4,
@@ -545,7 +545,7 @@ class MultiObstacleAvoider:
         # Start effect drop off later
         weight2 = min(1, weight2 * weight_factor)
 
-        if weight2 <= 0:
+        if weight2 <= 0 or trafo_seq1_to_seq2 is None:
             return sequence1
 
         # Assumptions that weight1
@@ -762,8 +762,8 @@ class MultiObstacleAvoider:
                 # At least one weight should be nonzero
                 component_weights.append(np.array([0.0]))
 
-            if np.sum(component_weights[-1]) > 1.0:
-                # breakpoint()
+            if np.sum(component_weights[-1]) > 1 + 1e-6:
+                breakpoint()
                 # TODO: remove when never called (for debugging only...)
                 raise ValueError("Unexpected weights...")
 

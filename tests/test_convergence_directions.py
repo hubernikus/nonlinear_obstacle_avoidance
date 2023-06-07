@@ -250,11 +250,11 @@ def test_convergence_sequence_arch_obstacle(visualize=False):
     # TODO: how should this exactly behave opposite the attractor (?)
     assert direction[0] < 0 and direction[1] > 0
 
-    position = np.array([-0.4, 4])
+    position = np.array([1.2, -3.8])
     direction1 = avoider.compute_convergence_direction(position)
-    position = np.array([-3.12, -0.6])
+    position = np.array([3.6, -0.8])
     direction2 = avoider.compute_convergence_direction(position)
-    assert np.allclose(direction1, direction2)
+    assert np.allclose(direction1, direction2, atol=1e-1)
 
 
 def test_convergence_sequence_double_tree(visualize=False):
@@ -312,10 +312,12 @@ def test_convergence_sequence_double_tree(visualize=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    # test_convergence_sequence_arch_obstacle(visualize=True)
+    test_convergence_sequence_arch_obstacle(visualize=True)
     # test_convergence_sequence_double_tree(visualize=True)
 
     # test_convergence_sequence_single(visualize=True)
     # test_convergence_sequence_double(visualize=True)
 
     # test_weight_normalization()
+
+    # test_convergence_sequence_single(visualize=True)

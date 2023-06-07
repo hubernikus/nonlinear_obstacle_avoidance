@@ -9,6 +9,7 @@ from numpy import typing as npt
 
 from vartools.states import Pose, Twist
 from dynamic_obstacle_avoidance.obstacles import Obstacle
+from nonlinear_avoidance.geometry import get_intersection_of_obstacles
 
 
 @dataclass
@@ -142,11 +143,20 @@ class MultiObstacle:
     def add_component(
         self,
         obstacle: Obstacle,
-        reference_position: npt.ArrayLike,
         parent_ind: int,
+        reference_position: Optional[npt.ArrayLike] = None,
     ) -> None:
         """Create and add an obstacle container in the local frame of reference."""
-        reference_position = np.array(reference_position)
+        if reference_position is None:
+            global_reference = get_intersection_of_obstacles(
+                obstacle, self.get_component(parent_ind)
+            )
+            reference_position = obstacle.pose.transform_position_to_relative(
+                global_reference
+            )
+        else:
+            reference_position = np.array(reference_position)
+
         obstacle.set_reference_point(reference_position, in_global_frame=False)
 
         new_id = len(self._obstacle_list)

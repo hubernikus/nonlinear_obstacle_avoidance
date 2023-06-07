@@ -36,25 +36,7 @@ from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
 from nonlinear_avoidance.arch_obstacle import create_arch_obstacle
 from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
-
-
-class ConstantValueWithSequence(Dynamics):
-    """Returns constant velocity based on the DynamicalSystem parent-class"""
-
-    def __init__(self, velocity):
-        self.constant_velocity = velocity
-
-    def evaluate(self, *args, **kwargs):
-        """Random input arguments, but always ouptuts same vector-field"""
-        return self.constant_velocity
-
-    def evaluate_dynamics_sequence(self, position: np.ndarray):
-        velocity = self.evaluate(position)
-
-        rotation = VectorRotationSequence.create_from_vector_array(
-            np.vstack((velocity, velocity)).T
-        )
-        return rotation
+from nonlinear_avoidance.dynamics.constant_value import ConstantValueWithSequence
 
 
 def test_2d_blocky_arch(visualize=False):
@@ -208,37 +190,38 @@ def test_2d_blocky_arch_rotated(visualize=False):
 
 
 def test_multi_arch_obstacle(visualize=False):
-    breakpoint()
     # TO FIX (!)
-    distance_scaling = 0.5
+    # distance_scaling = 0.5
+    distance_scaling = 2.0
+
+    # dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+    dynamics = LinearSystem(
+        attractor_position=np.array([-4, 4.0]),
+        # maximum_velocity=1.0
+    )
 
     container = MultiObstacleContainer()
     container.append(
         create_arch_obstacle(
-            wall_width=0.4,
-            axes_length=np.array([3.0, 5]),
-            # pose=Pose(np.array([-1.0, -2.5]), orientation=90 * np.pi / 180.0),
-            pose=Pose.create_trivial(2),
-            distance_scaling=distance_scaling,
+            wall_width=0.7,
+            axes_length=np.array([3, 5.0]),
+            pose=Pose(np.array([-1.0, -2.0]), orientation=90 * np.pi / 180.0),
         )
     )
 
-    # container.append(
-    #     create_arch_obstacle(
-    #         wall_width=0.4,
-    #         axes_length=np.array([3.0, 5]),
-    #         pose=Pose(np.array([1.0, 2.0]), orientation=-90 * np.pi / 180.0),
-    #         distance_scaling=distance_scaling,
-    #     )
-    # )
-
-    dynamics = LinearSystem(
-        attractor_position=np.array([-4, 4.0]), maximum_velocity=1.0
-    )
     avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
         obstacle_container=container,
         initial_dynamics=dynamics,
         create_convergence_dynamics=True,
+    )
+
+    container.append(
+        create_arch_obstacle(
+            wall_width=0.7,
+            axes_length=np.array([3.0, 5]),
+            pose=Pose(np.array([1.0, 2.0]), orientation=-90 * np.pi / 180.0),
+            distance_scaling=distance_scaling,
+        )
     )
 
     if visualize:
@@ -269,7 +252,7 @@ def test_multi_arch_obstacle(visualize=False):
             # vectorfield_color=vf_color,
         )
 
-    position = np.array([-0.19, -0.35])
+    position = np.array([-0.7, 0.0])
     averaged_direction = avoider.evaluate(position)
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] < 0, "Expected to rotate down."
@@ -374,9 +357,9 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
 if (__name__) == "__main__":
     import matplotlib.pyplot as plt
 
-    # test_2d_blocky_arch(visualize=True)
+    test_2d_blocky_arch(visualize=True)
     # test_2d_blocky_arch_rotated(visualize=True)
-    test_multi_arch_obstacle(visualize=True)
+    # test_multi_arch_obstacle(visualize=True)
     # test_bi_arch_avoidance_nonlinear(visualize=False)
     # test_multi_arch_obstacle(visualize=True)
 

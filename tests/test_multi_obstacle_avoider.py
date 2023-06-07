@@ -12,6 +12,7 @@ from numpy import linalg
 
 from vartools.math import get_intersection_with_circle, CircleIntersectionType
 from vartools.linalg import get_orthogonal_basis
+from vartools.states import Pose
 from vartools.dynamical_systems import DynamicalSystem, LinearSystem
 
 from dynamic_obstacle_avoidance.utils import compute_weights
@@ -20,10 +21,14 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 
 from nonlinear_avoidance.multi_ellipse_obstacle import MultiEllipseObstacle
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_container import MultiObstacleContainer
 from nonlinear_avoidance.avoidance import RotationalAvoider
 from nonlinear_avoidance.vector_rotation import VectorRotationTree
 from nonlinear_avoidance.nonlinear_rotation_avoider import ObstacleConvergenceDynamics
+from nonlinear_avoidance.dynamics.constant_value import ConstantValueWithSequence
+
 from nonlinear_avoidance.datatypes import Vector
 
 
@@ -132,9 +137,13 @@ def test_triple_ellipse_environment(visualize=False, savefig=False):
 
 
 def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
-    triple_ellipses = MultiEllipseObstacle()
+    velocity = np.array([1.0, 0.0])
+    dynamics = ConstantValueWithSequence(velocity)
 
-    triple_ellipses.append(
+    container = MultiObstacleContainer()
+
+    triple_ellipses = MultiObstacle(Pose.create_trivial(2))
+    triple_ellipses.set_root(
         Ellipse(
             center_position=np.array([3.4, 4.0]),
             axes_length=np.array([9.0, 3.0]),
@@ -142,40 +151,33 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
         )
     )
 
-    triple_ellipses.append(
+    triple_ellipses.add_component(
         Ellipse(
             center_position=np.array([0, 0]),
             axes_length=np.array([8, 3.0]),
             orientation=0,
-        )
+        ),
+        parent_ind=0,
     )
 
-    triple_ellipses.append(
+    triple_ellipses.add_component(
         Ellipse(
             center_position=np.array([0, 7.8]),
             axes_length=np.array([8, 3.0]),
             orientation=0 * math.pi / 180.0,
-        )
+        ),
+        parent_ind=0,
+    )
+    container.append(triple_ellipses)
+
+    # avoider = MultiObstacleAvoider(obstacle=triple_ellipses)
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        reference_dynamics=dynamics,
     )
 
-    triple_ellipses.set_root(obs_id=0)
-    triple_ellipses.set_parent(obs_id=1, parent_id=0)
-    triple_ellipses.set_parent(obs_id=2, parent_id=0)
-
-    multibstacle_avoider = MultiObstacleAvoider(obstacle=triple_ellipses)
-
-    velocity = np.array([1.0, 0.0])
-    linearized_velociy = np.array([1.0, 0.0])
-
     if visualize:
-        # figsize=(7, 8)
-        # x_lim = [-6, 6]
-        # y_lim = [-3.8, 11]
-
-        # figsize = (5, 6)
-        # x_lim = [-7, 7]
-        # y_lim = [-5, 12.5]
-
         figsize = (10, 5)
         x_lim = [-12, 12]
         y_lim = [-5, 12.5]
@@ -191,9 +193,6 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
             y_lim=y_lim,
             draw_reference=True,
             noTicks=True,
-            # reference_point_number=True,
-            # show_obstacle_number=True,
-            # ** kwargs,
         )
 
         if savefig:
@@ -204,14 +203,8 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
             )
 
         plot_obstacle_dynamics(
-            obstacle_container=[],
-            collision_check_functor=lambda x: (
-                triple_ellipses.get_gamma(x, in_global_frame=True) <= 1
-            ),
-            # obstacle_container=triple_ellipses._obstacle_list,
-            dynamics=lambda x: multibstacle_avoider.get_tangent_direction(
-                x, velocity, linearized_velociy
-            ),
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -219,7 +212,6 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
             # do_quiver=False,
             n_grid=n_grid,
             show_ticks=False,
-            # vectorfield_color=vf_color,
         )
 
         if savefig:
@@ -230,21 +222,15 @@ def test_tripple_ellipse_in_the_face(visualize=False, savefig=False):
             )
 
     position = np.array([-5.0, 0.5])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([6.0, 6.0])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] > 0 and averaged_direction[1] < 0
 
     position = np.array([-5.0, 9.0])
-    averaged_direction = multibstacle_avoider.get_tangent_direction(
-        position, velocity, linearized_velociy
-    )
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] > 0 and averaged_direction[1] > 0
 
 
@@ -460,10 +446,10 @@ if (__name__) == "__main__":
     )
 
     plt.ion()
-    test_single_ellipse(visualize=True)
+    # test_single_ellipse(visualize=True)
     # test_tree_with_two_children(visualize=False, savefig=False)
     # test_orthonormal_tangent_finding()
-    # test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
+    test_tripple_ellipse_in_the_face(visualize=True, savefig=False)
     # test_triple_ellipse_environment(visualize=False)
 
     print("Tests done.")
