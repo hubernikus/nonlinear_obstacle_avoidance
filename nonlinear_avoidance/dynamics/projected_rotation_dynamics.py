@@ -382,6 +382,10 @@ class ProjectedRotationDynamics:
             deflated_position, deflated_attractor, in_obstacle_frame=True
         )
 
+        if np.linalg.norm(folded_position) > 1e10:
+            # Return directly to avoid numerical errors
+            return folded_position
+
         inflated_position = self._get_position_after_inflating_obstacle(
             folded_position, in_obstacle_frame=True, deflation_weight=weight
         )
@@ -442,21 +446,102 @@ class ProjectedRotationDynamics:
         else:
             return dist_attr
 
-    def _evaluate_rotation_position_to_transform(
+    def evaluate_rotation_position_to_transform(
         self, position: np.ndarray, obstacle: Obstacle
     ) -> Optional[VectorRotationXd]:
+        """Returns VectorRotationXd needed to go from position to the obstacle-reference.
+        The base vectors are pointing towards the attractor for compatibalitiy with straight-stable dynamics.
+        """
         dir_attr_to_pos = self.attractor_position - position
         if not (dir_norm := LA.norm(dir_attr_to_pos)):
             # We're at the attractor -> zero-velocity
             return None
         dir_attr_to_pos = dir_attr_to_pos / dir_norm
 
-        # dir_obs_to_pos = self.attractor_position - obstacle.global_reference_point
-        # if not (dir_norm := LA.norm(dir_obs_to_pos)):
-        #     raise NotImplementedError("Position is at center-of the obstacle.")
-        # dir_obs_to_pos = dir_obs_to_pos / dir_norm
-
         dir_attr_to_obs = self.attractor_position - obstacle.global_reference_point
+        if not (obs_norm := LA.norm(dir_attr_to_obs)):
+            raise NotImplementedError("Obstacle is at attractor.")
+        dir_attr_to_obs = dir_attr_to_obs / obs_norm
+
+        if np.dot(dir_attr_to_pos, dir_attr_to_obs) <= -1:
+            return None
+
+        rotation_pos_to_transform = VectorRotationXd.from_directions(
+            dir_attr_to_pos, dir_attr_to_obs
+        )
+        return rotation_pos_to_transform
+
+    def compute_obstacle_convergence_sequence(
+        self,
+        position: np.ndarray,
+        root_obs: Obstacle,
+        initial_sequence: VectorRotationSequence,
+    ) -> VectorRotationSequence:
+        """Returns the sequence at the obstacle position and the relative rotation towards it."""
+
+        weight = self.evaluate_projected_weight(position, root_obs)
+        # Start this weight reduction later
+        # weight = max(1, weight * 2)
+
+        if weight <= 0:
+            relative_rotation = None
+            return initial_sequence
+
+        # Trafo is expected to be not None, as we have: weight > 0
+        trafo_pos_to_attr = self.evaluate_rotation_position_to_transform(position)
+
+        convergence_sequence = evaluate_dynamics_sequence(
+            root_obs.get_reference_point(in_global_frame=True),
+            self.initial_dynamics,
+        )
+        if convergence_sequence is None:
+            raise NotImplementedError("Obstacle at center.")
+
+        # Get an average between convergence / initial direction
+        root_id = 0
+        init_id = 1
+        self.conv_tree = VectorRotationTree.from_sequence(
+            root_id=root_id,
+            node_id=init_id,
+            sequence=initial_sequence,
+        )
+        obs_id = 2
+        self.conv_tree.add_node(
+            orientation=trafo_pos_to_attr,
+            node_id=obs_id,
+            parent_id=root_id,
+        )
+        conv_id = 3
+        self.conv_tree.add_sequence(
+            sequence=convergence_sequence, node_id=conv_id, parent_id=obs_id
+        )
+
+        weighted_sequene = self.conv_tree.reduce_weighted_to_sequence(
+            node_list=[conv_id, init_id], weights=[weight, (1 - weight)]
+        )
+        return weighted_sequene
+
+    def evaluate_rotation_shrunkposition_to_transform(
+        self, position: np.ndarray, obstacle: Obstacle
+    ) -> Optional[VectorRotationXd]:
+        """Returns VectorRotationXd needed to go from position to the obstacle-reference.
+        The base vectors are pointing towards the attractor for compatibalitiy with straight-stable dynamics.
+        """
+        shrinking_weight = 1.0
+        shrunk_position = self._get_position_after_deflating_obstacle(
+            position, in_obstacle_frame=False, weight=shrinking_weight
+        )
+        shrunk_attractor = self._get_position_after_deflating_obstacle(
+            self.attractor_position, in_obstacle_frame=False, weight=shrinking_weight
+        )
+
+        dir_attr_to_pos = shrunk_attractor - shrunk_position
+        if not (dir_norm := LA.norm(dir_attr_to_pos)):
+            # We're at the attractor -> zero-velocity
+            return None
+        dir_attr_to_pos = dir_attr_to_pos / dir_norm
+
+        dir_attr_to_obs = shrunk_attractor - obstacle.global_reference_point
         if not (obs_norm := LA.norm(dir_attr_to_obs)):
             raise NotImplementedError("Obstacle is at attractor.")
         dir_attr_to_obs = dir_attr_to_obs / obs_norm
@@ -483,7 +568,6 @@ class ProjectedRotationDynamics:
             return 1.0
 
         weight = (1.0 / (proj_gamma * gamma)) ** weight_power
-
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(
@@ -495,7 +579,7 @@ class ProjectedRotationDynamics:
         self.obstacle = obstacle
 
         # Evaluate weighted position
-        rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
+        rotation_pos_to_transform = self.evaluate_rotation_position_to_transform(
             position, obstacle
         )
         if rotation_pos_to_transform is None:
@@ -506,11 +590,9 @@ class ProjectedRotationDynamics:
             obstacle.get_reference_point(in_global_frame=True),
             dynamics=self.initial_dynamics,
         )
-
         obstacle_sequence.push_root_from_base_and_angle(
             rotation_pos_to_transform.base, rotation_pos_to_transform.rotation_angle
         )
-
         return obstacle_sequence
 
     def evaluate_convergence_around_obstacle(
@@ -529,7 +611,7 @@ class ProjectedRotationDynamics:
 
         # base_convergence_direction = self.get_base_convergence(position)
         # The transform for the obstacle-velocity is zero
-        rotation_pos_to_transform = self._evaluate_rotation_position_to_transform(
+        rotation_pos_to_transform = self.evaluate_rotation_position_to_transform(
             position, obstacle
         )
         if rotation_pos_to_transform is None:

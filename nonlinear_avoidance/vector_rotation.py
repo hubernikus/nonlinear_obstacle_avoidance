@@ -154,6 +154,12 @@ class VectorRotationXd:
             warnings.warn("base has not been defined")
             return None
 
+    def inv(self):
+        """Returns the inverse of the proposed rotation."""
+        new_instance = copy.deepcopy(self)
+        new_instance.rotation_angle = (-1) * new_instance.rotation_angle
+        return new_instance
+
     def get_first_vector(self) -> Vector:
         return self.base[:, 0]
 
@@ -420,6 +426,7 @@ class VectorRotationTree:
     def add_node_orientation(
         self, node_id: NodeType, orientation: VectorRotationXd, parent_id: NodeType
     ) -> None:
+        # TODO: check consistency (!)
         direction = orientation.rotate(orientation.base[:, 0])
         self.add_node(node_id=node_id, direction=direction, parent_id=parent_id)
 

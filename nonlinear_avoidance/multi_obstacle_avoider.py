@@ -55,33 +55,54 @@ def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
     )
 
 
+def normalize_weights(weights: npt.ArrayLike) -> float:
+    """Makes sure weights with value of 1 get preferencial treatment.
+    Changes the weights if larger > 1
+    Returns the total weight if below 1.0"""
+    if (weight_sum := sum(weights)) < 1:
+        return weight_sum
+
+    if np.any(ind_max := np.array(weights) >= 1.0):
+        new_weights = np.zeros_like(weights)
+        new_weights[ind_max] = 1
+        # Assign to list
+        weights[:] = new_weights
+        return 1.0
+
+    # if zero -> remains zero / otherwise scaling
+    new_weights = np.array(weights)
+    new_weights = 1.0 / (1 - new_weights) - 1
+    new_weights = new_weights / np.sum(new_weights)
+    # Assign to list
+    weights[:] = new_weights
+    return 1.0
+
+
 def compute_gamma_weights(
-    distMeas: npt.ArrayLike,
-    distMeas_lowerLimit: float = 1,
-    weightPow: float = 1,
+    distances: npt.ArrayLike,
+    min_distance: float = 1.0,
+    power_factor: int | float = 1,
 ) -> np.ndarray:
     """Compute weights based on a distance measure (with no upper limit)"""
-    distMeas = np.array(distMeas)
-    n_points = distMeas.shape[0]
+    distances = np.array(distances)
+    n_points = distances.shape[0]
 
-    critical_points = distMeas <= distMeas_lowerLimit
-
+    critical_points = distances <= min_distance
     if np.sum(critical_points):  # at least one
-        if np.sum(critical_points) == 1:
-            w = critical_points * 1.0
-            return w
-        else:
+        if np.sum(critical_points) >= 2:
             # TODO: continuous weighting function
             warnings.warn("Implement continuity of weighting function.")
-            w = critical_points * 1.0 / np.sum(critical_points)
-            return w
+            return critical_points * 1.0 / np.sum(critical_points)
 
-    distMeas = distMeas - distMeas_lowerLimit
-    w = (1 / distMeas) ** weightPow
-    if np.sum(w) <= 1:
-        return w
+        return critical_points * 1.0
 
-    return w / np.sum(w)  # Normalization
+    distances = distances - min_distance
+    weights = (1.0 / distances) ** power_factor
+
+    if np.sum(weights) <= 1:
+        return weights
+    else:
+        return weights / np.sum(weights)
 
 
 def compute_multiobstacle_relative_velocity(
@@ -250,8 +271,18 @@ class MultiObstacleAvoider:
         )
         initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
 
-        final_sequence = self.evaluate_avoidance_from_sequence(
+        # if True:  # DEBUG
+        #     return initial_sequence.get_end_vector()
+
+        if initial_sequence is None:
+            return np.zeros(self.initial_dynamics.dimension)
+
+        convergence_sequence = self.compute_convergence_sequence(
             position, initial_sequence
+        )
+
+        final_sequence = self.evaluate_avoidance_from_sequence(
+            position, convergence_sequence
         )
         final_velocity = final_sequence.get_end_vector() + relative_velocity
 
@@ -357,6 +388,212 @@ class MultiObstacleAvoider:
         )
         return sequence.get_end_vector()
 
+    def compute_convergence_direction(self, position):
+        init_seq = evaluate_dynamics_sequence(position, self.initial_dynamics)
+        final_seq = self.compute_convergence_sequence(position, init_seq)
+        return final_seq.get_end_vector()
+
+    def compute_convergence_sequence(
+        self, position: np.ndarray, initial_sequence: VectorRotationSequence
+    ) -> VectorRotationSequence:
+        """Computes and averages the convergence sequence."""
+        # TODO: make sure that the attractor is still attracting (?!)
+        # How does the convergence direction evolve for highly bend objects (?!)
+
+        # gammas = np.zeros(len(self.tree_list) + 1)
+        # for ii, obstacle_tree in enumerate(self.tree_list):
+        #     gammas[ii] = obstacle_tree.get_gamma(position, in_global_frame=True)
+
+        # gammas[-1] = 1 + np.linalg.norm(
+        #     position - self.initial_dynamics.attractor_position
+        # )
+        # weights = compute_gamma_weights(gammas)
+        # if (weight_sum := np.sum(weights)) > 1:
+        #     weights[-1] = weights[-1] + weight_sum
+
+        # Create sequence and populate it
+        root_id = -10
+        init_id = -1
+        self.conv_tree = VectorRotationTree.from_sequence(
+            root_id=root_id,
+            node_id=init_id,
+            sequence=initial_sequence,
+        )
+
+        node_list = []
+        weight_list = []
+        for ii_tree, obstacle_tree in enumerate(self.tree_list):
+            root = obstacle_tree.get_root()
+            node_id = (ii_tree, obstacle_tree.root_idx)
+            # weight = self.add_convergence_directions(
+            #     position, root, position, node_id, root_id
+            # )
+
+            weight = self.convergence_dynamics.evaluate_projected_weight(position, root)
+            trafo_pos_to_attr = (
+                self.convergence_dynamics.evaluate_rotation_position_to_transform(
+                    position, root
+                )
+            )
+            convergence_sequence = evaluate_dynamics_sequence(
+                root.get_reference_point(in_global_frame=True),
+                self.initial_dynamics,
+            )
+            continuous_sequence = self.vector_rotation_reduction(
+                initial_sequence, trafo_pos_to_attr, convergence_sequence, weight
+            )
+
+            self.conv_tree.add_sequence(
+                sequence=continuous_sequence,
+                node_id=node_id,
+                parent_id=init_id,
+            )
+            # Need to add all nodes, otherwise they could be missing later
+            node_list.append(node_id)
+            weight_list.append(weight)
+
+            for ii_com, component in enumerate(obstacle_tree):
+                # TODO: higher order obstacles (>2) would need constant tracking of the
+                # root-traversing, BUT this could lead to elevated computation cost (?)
+                if ii_com == obstacle_tree.root_idx:
+                    continue
+
+                node_id = (ii_tree, ii_com)
+                # weight = self.add_convergence_directions(
+                #     position,
+                #     component,
+                #     component.global_reference_point,
+                #     node_id,
+                #     parent_id,
+                # )
+                weight = self.convergence_dynamics.evaluate_projected_weight(
+                    position, component
+                )
+                if weight >= 1:
+                    weight_list[-1] = 1
+                else:
+                    weight_list[-1] = weight_list[-1] ** ((1 - weight))
+
+                if True:
+                    # TODO improve the convergence direction evaluation
+                    continue
+
+                # ind_parent = obstacle_tree.get_parent_idx(ii_com)
+                ii_parent = obstacle_tree.root_idx
+
+                # Also rotate the direction
+                # node_id = (ii_tree, ii_com)
+                # parent_id = self.get_reference_node(
+                #     (ii_tree, )
+                # )
+
+                trafo_parent_to_component = (
+                    self.convergence_dynamics.evaluate_rotation_position_to_transform(
+                        root.global_reference_point, component
+                    )
+                )
+                # Back and forth rotation to not lose track
+                self.conv_tree.add_node_orientation(
+                    orientation=trafo_parent_to_component,
+                    node_id=(node_id, 0),
+                    parent_id=(ii_tree, ii_parent),
+                )
+                self.conv_tree.add_node_orientation(
+                    orientation=trafo_parent_to_component.inv(),
+                    node_id=(node_id, 1),
+                    parent_id=(node_id, 0),
+                )
+                self.conv_tree.add_sequence(
+                    sequence=convergence_sequence,
+                    node_id=node_id,
+                    parent_id=(node_id, 1),
+                )
+
+                # Need to add all nodes, otherwise they could be missing later
+                node_list.append(node_id)
+                weight_list.append(weight)
+
+        # Ensure convergence around attractor
+        node_list.append(init_id)
+        dist_norm = np.linalg.norm(position - self.initial_dynamics.attractor_position)
+        weight_list.append(1.0 / (1 + dist_norm))
+
+        # Normalize weight [add to initial if small]
+        tot_weight = normalize_weights(weight_list)
+        weight_list[-1] = weight_list[-1] + (1 - tot_weight)
+
+        weighted_sequence = self.conv_tree.reduce_weighted_to_sequence(
+            node_list=node_list, weights=weight_list
+        )
+        return weighted_sequence
+
+    @staticmethod
+    def vector_rotation_reduction(
+        sequence1: VectorRotationSequence,
+        trafo_seq1_to_seq2: VectorRotationXd,
+        sequence2: VectorRotationSequence,
+        weight2: float,
+        weight_factor: bool = 4,
+    ) -> VectorRotationSequence:
+        # Start effect drop off later
+        weight2 = min(1, weight2 * weight_factor)
+
+        if weight2 <= 0:
+            return sequence1
+
+        # Assumptions that weight1
+        tmp_tree = VectorRotationTree.from_sequence(
+            node_id=1, sequence=sequence1, root_id=0
+        )
+        tmp_tree.add_node_orientation(
+            orientation=trafo_seq1_to_seq2, node_id=-1, parent_id=1
+        )
+        tmp_tree.add_sequence(node_id=2, sequence=sequence2, parent_id=-1)
+        return tmp_tree.reduce_weighted_to_sequence([1, 2], [(1 - weight2), weight2])
+
+    def add_convergence_directions(
+        self, position, component, parent_position, node_id, parent_id: NodeType
+    ) -> Optional[float]:
+        weight = self.convergence_dynamics.evaluate_projected_weight(
+            position, component
+        )
+        # Start this weight reduction later
+        # weight = max(1, weight * 2)
+        if math.isclose(weight, 0, abs_tol=1e-3):
+            return None
+
+        trafo_pos_to_attr = (
+            self.convergence_dynamics.evaluate_rotation_position_to_transform(
+                parent_position, component
+            )
+        )
+        # print(component)
+        convergence_sequence = evaluate_dynamics_sequence(
+            component.get_reference_point(in_global_frame=True),
+            self.initial_dynamics,
+        )
+        # print("convergence_sequence", convergence_sequence.get_end_vector())
+
+        if convergence_sequence is None:
+            raise NotImplementedError("Obstacle at center.")
+
+        self.conv_tree.add_node_orientation(
+            orientation=trafo_pos_to_attr,
+            node_id=self.get_reference_node(node_id),
+            parent_id=parent_id,
+        )
+        self.conv_tree.add_sequence(
+            sequence=convergence_sequence,
+            node_id=node_id,
+            parent_id=self.get_reference_node(node_id),
+        )
+        # print(convergence_sequence.get_end_vector())
+        return weight
+
+    @staticmethod
+    def get_reference_node(node_id):
+        return (node_id, 0)
+
     def evaluate_avoidance_from_sequence(self, position, initial_sequence):
         """Keep track of the rotation sequence when evaluating the full avoidance.
         This is advantageous when trying to follow highly nonlinear dynamics and large obstacle-trees.
@@ -370,27 +607,11 @@ class MultiObstacleAvoider:
         obstacle_gammas = np.zeros(len(self.tree_list))
 
         for ii_tree, obstacle_tree in enumerate(self.tree_list):
-            obstacle_convergence_sequence = (
-                self.convergence_dynamics.evaluate_convergence_sequence_around_obstacle(
-                    position,
-                    obstacle=obstacle_tree.get_root(),
-                    initial_sequence=initial_sequence,
-                )
-            )
-
-            it_node = (self._BASE_VEL_ID, ii_tree)
-            self._tangent_tree.add_sequence(
-                sequence=obstacle_convergence_sequence,
-                node_id=it_node,
-                parent_id=self._BASE_VEL_ID,
-            )
-
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
                 obstacle=obstacle_tree,
                 position=position,
                 base_velocity=obstacle_convergence_sequence.get_end_vector(),
             )
-            # occlusion_weights = self.compute_occlusion_weights(position, obstacle_tree)
             occlusion_weights = self.compute_parent_occlusion_weight(
                 position, obstacle_tree
             )
@@ -398,11 +619,11 @@ class MultiObstacleAvoider:
 
             new_nodes = self.simple_population_tangent_tree(
                 obstacle=obstacle_tree,
-                base_velocity=obstacle_convergence_sequence.get_end_vector(),
+                base_velocity=initial_sequence.get_end_vector(),
                 position=position,
                 obs_idx=ii_tree,
                 obstacle_weights=obstacle_weights,
-                start_id=it_node,
+                start_id=self._BASE_VEL_ID,
             )
             node_list += new_nodes
             obstacle_gammas[ii_tree] = np.min(gamma_values)
@@ -432,6 +653,7 @@ class MultiObstacleAvoider:
         weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=self.final_weights
         )
+        # breakpoint()
 
         # print("gamma_weights", gamma_weights)
         # print("occlusion_weights", occlusion_weights)
@@ -849,7 +1071,7 @@ class MultiObstacleAvoider:
                 reference_directions[ii], reference_directions[ii - 1]
             )
             velocity = rotation.rotate(velocity)
-            # print("velocity", velocity)
+            print("velocity", velocity)
 
             node_id = NodeKey(obs_idx, comp_id, parents_tree[ii])
             self._tangent_tree.add_node(
@@ -873,11 +1095,11 @@ class MultiObstacleAvoider:
             direction=tangent,
         )
         # np.set_printoptions(precision=6)
-        # print("comp_id", comp_id)
-        # print("baseVe", base_velocity)
+        print("comp_id", comp_id)
+        print("baseVe", base_velocity)
         # print("normals \n", np.array(normal_directions))
         # print("reference_directions \n", np.array(reference_directions))
-        # print("tangent", tangent)
+        print("tangent", tangent)
 
     def _update_tangent_branch(
         self,

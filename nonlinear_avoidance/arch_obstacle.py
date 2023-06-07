@@ -16,6 +16,7 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 # from nonlinear_avoidance.multi_obstacle_avoider import HierarchyObstacle
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     SingularityConvergenceDynamics,
 )
@@ -25,6 +26,7 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 
 
 class BlockArchObstacle:
+    # TODO: remove - as a parallel factory has been created
     def __init__(
         self,
         wall_width: float,
@@ -183,11 +185,36 @@ class BlockArchObstacle:
 
 
 def create_arch_obstacle(
-    wall_width: float, axes_length: np.ndarray, pose: Pose
+    wall_width: float, axes_length: np.ndarray, pose: Pose, margin_absolut: float = 0.0
 ) -> BlockArchObstacle:
-    multi_block = BlockArchObstacle(
-        wall_width=wall_width,
-        axes_length=axes_length,
-        pose=pose,
+    multi_block = MultiObstacle(pose, margin_absolut)
+
+    multi_block.set_root(
+        Cuboid(
+            axes_length=np.array([wall_width, axes_length[1]]),
+            pose=Pose(np.zeros(multi_block.dimension), orientation=0.0),
+            margin_absolut=margin_absolut,
+        ),
+    )
+
+    delta_pos = (axes_length - wall_width) * 0.5
+    multi_block.add_component(
+        Cuboid(
+            axes_length=np.array([axes_length[0], wall_width]),
+            pose=Pose(delta_pos, orientation=0.0),
+            margin_absolut=margin_absolut,
+        ),
+        reference_position=np.array([-delta_pos[0], 0.0]),
+        parent_ind=0,
+    )
+
+    multi_block.add_component(
+        Cuboid(
+            axes_length=np.array([axes_length[0], wall_width]),
+            pose=Pose(np.array([delta_pos[0], -delta_pos[1]]), orientation=0.0),
+            margin_absolut=margin_absolut,
+        ),
+        reference_position=np.array([-delta_pos[0], 0.0]),
+        parent_ind=0,
     )
     return multi_block

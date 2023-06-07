@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 
 from vartools.dynamics import Dynamics
@@ -6,7 +8,7 @@ from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
 def evaluate_dynamics_sequence(
     position: np.ndarray, dynamics: Dynamics
-) -> VectorRotationSequence:
+) -> Optional[VectorRotationSequence]:
     """Evaluate dynamical system as a sequence of 'rotations'."""
     if hasattr(dynamics, "evaluate_dynamics_sequence"):
         return dynamics.evaluate_dynamics_sequence(position)
@@ -16,7 +18,7 @@ def evaluate_dynamics_sequence(
     final = dynamics.evaluate(position)
 
     if not np.linalg.norm(base):
-        raise ValueError("Evaluation at the attractor.")
+        return None
 
     rotation = VectorRotationSequence.create_from_vector_array(
         np.vstack((base, final)).T

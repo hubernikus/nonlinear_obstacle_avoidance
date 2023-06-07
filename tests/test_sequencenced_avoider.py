@@ -662,6 +662,6 @@ if (__name__) == "__main__":
 
     # test_sequenced_linear_intersecting_circles(visualize=True)
     # test_sequenced_avoidance_dynamics_reference(visualize=True)
-    # test_sequenced_avoidance_dynamics_multiple(visualize=False)
+    test_sequenced_avoidance_dynamics_multiple(visualize=False)
 
-    test_single_sequence_avoidance_with_margin(visualize=True)
+    # test_single_sequence_avoidance_with_margin(visualize=True)
