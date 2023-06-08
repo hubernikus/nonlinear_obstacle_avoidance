@@ -284,6 +284,7 @@ class MultiObstacleAvoider:
         final_sequence = self.evaluate_avoidance_from_sequence(
             position, convergence_sequence
         )
+        # Move velocity to relative (moving) frame
         final_velocity = final_sequence.get_end_vector() + relative_velocity
 
         averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
@@ -293,12 +294,14 @@ class MultiObstacleAvoider:
             averaged_normal=averaged_normal,
             gamma=gamma,
         )
-
-        # if slowed_velocity[1] < 2:
-        #     breakpoint()
         return slowed_velocity
 
     def evaluate(self, position: Vector) -> Vector:
+        if True:
+            raise NotImplementedError(
+                "This function is currently outdated and does not work well."
+            )
+
         if np.any(np.isnan(position)):
             # TODO: remove debug breakpoint()
             breakpoint()
