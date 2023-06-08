@@ -117,10 +117,11 @@ class VectorRotationXd:
         vec_rot = vec_rot / LA.norm(vec_rot)
 
         dot_prod = np.dot(vec_init, vec_rot)
-        if dot_prod == (-1):
+        if math.isclose(dot_prod, -1):
             warnings.warn("Antiparallel vectors")
 
-        if abs(dot_prod) < 1:
+        if abs(dot_prod) < 1 - 1e-6:
+            # Margin added to avoid numerical errors
             vec_perp = vec_rot - vec_init * dot_prod
             vec_perp = vec_perp / LA.norm(vec_perp)
 
@@ -261,7 +262,7 @@ class VectorRotationSequence:
             raise ValueError("Antiparallel vectors.")
 
         # Evaluate basis and angles
-        ind_nonzero = dot_prod < 1.0
+        ind_nonzero = dot_prod < (1.0 - 1e-6)
         vecs_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
         vecs_perp[:, ind_nonzero] = vecs_perp[:, ind_nonzero] / LA.norm(
             vecs_perp[:, ind_nonzero], axis=0
@@ -376,9 +377,12 @@ class VectorRotationTree:
     (negative numbers are used for the vectors)
     """
 
+    # Major refactoring for speed up needed, following things should be addressed
     # TODO: what happens if an obstacle is at angle 'pi'?
     # TODO: allow evaluating adding / removing 'sub-trees' / 'sub-sequences'
     # TODO: Allow obtaining reduced-graphs
+    # TODO: reduce reliance on dicitionaries (?!)
+    # TODO: reduce graph usage, it could be done with a simple linked list faster (?)
 
     # as it might happend at  zero-level
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
@@ -467,6 +471,9 @@ class VectorRotationTree:
             weight=0,
             orientation=None,
         )
+
+        if np.any(np.isnan(direction)):
+            raise ValueError("Faulty input.")
 
         if direction is not None:
             self.set_direction(node_id, direction)
@@ -566,6 +573,9 @@ class VectorRotationTree:
                     self._graph.nodes[c_id]["direction"],
                 )
 
+                if np.any(np.isnan(self._graph.nodes[c_id]["orientation"].base)):
+                    breakpoint()
+
                 # At which angle the rotation should be reduced to obtain a continuous behavior
                 if (
                     pi_margin
@@ -586,6 +596,9 @@ class VectorRotationTree:
                     self._graph.nodes[c_id]["part_direction"] = self._graph.nodes[c_id][
                         "direction"
                     ]
+
+                if np.any(np.isnan(self._graph.nodes[c_id]["part_direction"])):
+                    breakpoint()
 
     def reset_node_weights(self) -> None:
         for node_id in self._graph.nodes:
@@ -646,6 +659,10 @@ class VectorRotationTree:
             self._graph.nodes[node]["weight"] = weights[ii]
 
         self.evaluate_all_orientations(sorted_list)
+        for node in self._graph.nodes():
+            if np.any(np.isnan(self._graph.nodes[node]["orientation"].base)):
+                breakpoint()
+
         for node_id in reversed(sorted_list):
             # Reverse update the weights
             for pred_id in self._graph.predecessors(node_id):
@@ -664,6 +681,9 @@ class VectorRotationTree:
                 ),
             )
 
+            if np.any(np.isnan(self._graph.nodes[node_id]["part_orientation"].base)):
+                breakpoint()
+
             if (
                 not self._graph.successors(node_id)
                 or self._graph.nodes[node_id]["weight"] <= 0
@@ -676,11 +696,15 @@ class VectorRotationTree:
 
             successors = self.get_all_childs_children(node_id)
 
-            _succ_basis = [
-                self._graph.nodes[succ]["part_orientation"].base for succ in successors
-            ]
+            _succ_basis = []
+            for succ in successors:
+                _succ_basis.append(self._graph.nodes[succ]["part_orientation"].base)
+
             if not len(_succ_basis):
                 continue
+
+            if np.any(np.isnan(_succ_basis)):
+                breakpoint()
 
             # Make sure dimension is the first axes for future array restructuring
             succ_basis = np.swapaxes(_succ_basis, 0, 1)
@@ -700,6 +724,10 @@ class VectorRotationTree:
 
             for ii, succ in enumerate(successors):
                 self._graph.nodes[succ]["part_orientation"].base = succ_basis[:, ii, :]
+
+            if np.any(np.isnan(self._graph.nodes[succ]["part_orientation"].base)):
+                breakpoint()
+                aa = 0
 
     def evaluate_graph_summing(self, sorted_list) -> VectorRotationSequence:
         """Graph summing under assumption of shared-basis at each level.
@@ -812,8 +840,8 @@ class VectorRotationTree:
             np.vstack((shared_first_basis, averaged_direction)).T, new_angle
         )
 
-        # if np.any(np.isnan(vector_sequence.basis_array)):
-        #     breakpoint()  # TODO: remove debug
+        if np.any(np.isnan(vector_sequence.basis_array)):
+            breakpoint()  # TODO: remove debug
 
         return vector_sequence
 

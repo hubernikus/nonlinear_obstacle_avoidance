@@ -479,13 +479,44 @@ def test_create_overrotation():
     assert np.allclose(vec2, vector_rotation.rotate(vec1))
 
 
+def test_rotation_from_parallel_vectors():
+    # Highly similar vectors 3D
+    vec1 = np.array([-0.20744130246674772, 0.9767642733625228, 0.05384849406884028])
+    vec2 = np.array([-0.20744130246674777, 0.976764273362523, 0.05384849406884029])
+    rotation = VectorRotationXd.from_directions(vec1, vec2)
+    assert not np.any(np.isnan(rotation.base))
+    assert math.isclose(rotation.rotation_angle, 0, abs_tol=1e-6)
+
+    # Identical vectors 2D
+    vec = np.array([0, 1])
+    rotation = VectorRotationXd.from_directions(vec, vec)
+    assert not np.any(np.isnan(rotation.base))
+    assert math.isclose(rotation.rotation_angle, 0)
+
+
+def test_sequence_of_similar_vectors():
+    vec1 = np.array([0.06376571583361212, -0.043198437634528145, -0.003709748681816061])
+    vec2 = np.array([0.06376571583361212, -0.04319843763452815, -0.003709748681816061])
+
+    rotation = VectorRotationSequence.create_from_vector_array(
+        np.vstack((vec1, vec2)).T
+    )
+    assert not np.any(np.isnan(rotation.basis_array))
+    assert np.allclose(rotation.rotation_angles, [0])
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
+    test_graph_reduction()
+
+    test_sequence_of_similar_vectors()
+
+    test_rotation_from_parallel_vectors()
+
     test_create_overrotation()
     test_rotate_direction()
-    test_graph_reduction()
 
     test_perpendicular_sequence()
 
