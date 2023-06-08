@@ -424,17 +424,17 @@ def test_limit_cycle_single_level(visualize=False):
         pose=Pose(
             np.array([0.0, 0.0]),
         ),
-        radius=2.0,
+        radius=0.2,
     )
 
     container = MultiObstacleContainer()
     obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
     obstacle_tree.set_root(
-        Ellipse(
-            center_position=np.array([-5.0, 0]),
-            axes_length=np.array([2.0, 2.0]),
-            margin_absolut=0.0,
-            distance_scaling=1.0,
+        Cuboid(
+            center_position=np.array([-0.4, 0]),
+            axes_length=np.array([0.16, 0.16]),
+            margin_absolut=0.2,
+            distance_scaling=8.0,
         )
     )
     container.append(obstacle_tree)
@@ -447,8 +447,8 @@ def test_limit_cycle_single_level(visualize=False):
     )
 
     if visualize:
-        x_lim = [-8, 2.5]
-        y_lim = [-5, 5]
+        x_lim = [-1, 1]
+        y_lim = [-1, 1]
 
         n_resolution = 30
         figsize = (6, 5)
@@ -485,13 +485,13 @@ def test_limit_cycle_single_level(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
-    position = np.array([1.0, 0.5])
+    position = np.array([0.25, 0.01])
     velocity = avoider.evaluate_sequence(position)
-    assert velocity[0] < 0 and velocity[1] > 0, "keep circularity."
+    assert velocity[0] < 0 and velocity[1] > 0, "Keep circularity."
 
     position = np.array([0.0, 0])
     velocity = avoider.evaluate_sequence(position)
-    assert np.allclose(velocity, np.zeros_like(velocity))
+    assert np.allclose(velocity, np.zeros_like(velocity)), "Zero at center"
 
 
 def test_limit_cycle_two_obstacle(visualize=False):
@@ -510,7 +510,7 @@ def test_limit_cycle_two_obstacle(visualize=False):
     obstacle_tree.set_root(
         Cuboid(
             center_position=np.array([0.0, -0.7]),
-            axes_length=np.array([2.5, 1.0]),
+            axes_length=np.array([2.0, 1.0]),
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         )
@@ -521,7 +521,7 @@ def test_limit_cycle_two_obstacle(visualize=False):
     obstacle_tree.set_root(
         Cuboid(
             center_position=np.array([-1.0, 0.4]),
-            axes_length=np.array([0.2, 0.3]),
+            axes_length=np.array([0.16, 0.16]),
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         )
@@ -599,5 +599,5 @@ if (__name__) == "__main__":
 
     # test_straight_system_with_tree(visualize=False)
 
-    # test_limit_cycle_single_level(visualize=True)
-    test_limit_cycle_two_obstacle(visualize=True)
+    test_limit_cycle_single_level(visualize=False)
+    # test_limit_cycle_two_obstacle(visualize=True)

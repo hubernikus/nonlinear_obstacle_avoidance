@@ -35,38 +35,42 @@ Vector = np.ndarray
 
 def create_circular_conveyer_dynamics():
     center_pose = Pose(
-        np.array([0.5, 0.0, 0.3]),
+        np.array([0.4, 0.0, 0.25]),
         orientation=Rotation.from_euler("x", 0.0),
     )
     return SimpleCircularDynamics(pose=center_pose, radius=0.1)
 
 
 def create_conveyer_obstacles(margin_absolut=0.1, distance_scaling=10.0):
+    print(f"Create environment with")
+    print(f"margin={margin_absolut}")
+    print(f"scaling={distance_scaling}")
+
     optitrack_obstacles = MultiObstacleContainer()
 
     # Conveyer Belt [static]
-    # conveyer_belt = MultiObstacle(Pose.create_trivial(dimension=3))
-    # conveyer_belt.set_root(
-    #     Cuboid(
-    #         center_position=np.array([0.5, 0.0, -0.25]),
-    #         axes_length=np.array([0.5, 2.5, 0.8]),
-    #         margin_absolut=margin_absolut,
-    #         distance_scaling=distance_scaling,
-    #     )
-    # )
+    conveyer_belt = MultiObstacle(Pose.create_trivial(dimension=3))
+    conveyer_belt.set_root(
+        Cuboid(
+            center_position=np.array([0.5, 0.0, -0.25]),
+            axes_length=np.array([0.5, 2.5, 0.8]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        )
+    )
 
-    # optitrack_obstacles.append(conveyer_belt)
+    optitrack_obstacles.append(conveyer_belt)
 
-    box1 = MultiObstacle(Pose(np.array([0.5, -0.2, 0.30])))
+    box1 = MultiObstacle(Pose(np.array([-0.4, -0.0, 0.00])))
     box1.set_root(
         Cuboid(
-            center_position=np.array([0.0, 0, -0.06]),
+            center_position=np.array([0.0, 0, 0.0]),
             axes_length=np.array([0.16, 0.16, 0.16]),
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         )
     )
-    # box1[-1].set_reference_point(np.array([0.0, 0.0, -0.08]), in_global_frame=False)
+    box1[-1].set_reference_point(np.array([0.0, 0.0, -0.08]), in_global_frame=False)
     optitrack_obstacles.append(box1)
 
     # box2 = MultiObstacle(Pose(np.array([0.5, 0.8, 0.35])))
@@ -165,7 +169,12 @@ class Visualization3D:
 
 
 def test_circular_avoidance_cube(visualize=False, n_grid=1):
-    container = create_conveyer_obstacles(margin_absolut=0, distance_scaling=1)
+    distance_scaling = 10
+    margin_absolut = 0.2
+
+    container = create_conveyer_obstacles(
+        margin_absolut=margin_absolut, distance_scaling=distance_scaling
+    )
     dynamics = create_circular_conveyer_dynamics()
 
     avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
@@ -208,7 +217,7 @@ def test_circular_avoidance_cube(visualize=False, n_grid=1):
             positions = np.zeros((start_positions.shape[0], it_max + 1))
             positions[:, 0] = start_positions[:, 0]
             for ii in range(it_max):
-                velocity = avoider.evaluate(positions[:, ii])
+                velocity = avoider.evaluate_sequence(positions[:, ii])
 
                 # print("vel-mag", np.linalg.norm(velocity))
                 np.set_printoptions(precision=17)
@@ -441,6 +450,6 @@ if (__name__) == "__main__":
     figtype = ".jpeg"
     mlab.close(all=True)
 
-    # test_circular_avoidance_cube(visualize=True, n_grid=1)
+    test_circular_avoidance_cube(visualize=True, n_grid=1)
     # test_circualar_avoidance_cube(visualize=False, n_grid=1)
-    test_visualize_2d(visualize=True)
+    # test_visualize_2d(visualize=True)
