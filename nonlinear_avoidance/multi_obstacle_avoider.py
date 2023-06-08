@@ -266,13 +266,13 @@ class MultiObstacleAvoider:
             initial_velocity = self.initial_dynamics.evaluate(position)
             magnitude = np.linalg.norm(initial_velocity)
 
+        initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
+        if not len(self.obstacle_container):
+            return initial_sequence.get_end_vector() * magnitude
+
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.tree_list
         )
-        initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
-
-        # if True:  # DEBUG
-        #     return initial_sequence.get_end_vector()
 
         if initial_sequence is None:
             return np.zeros(self.initial_dynamics.dimension)
@@ -294,6 +294,8 @@ class MultiObstacleAvoider:
             averaged_normal=averaged_normal,
             gamma=gamma,
         )
+        # breakpoint()
+
         return slowed_velocity
 
     def evaluate(self, position: Vector) -> Vector:
@@ -452,6 +454,7 @@ class MultiObstacleAvoider:
                 node_id=node_id,
                 parent_id=root_id,
             )
+            # breakpoint()
             # Need to add all nodes, otherwise they could be missing later
             node_list.append(node_id)
             weight_list.append(weight)
@@ -532,9 +535,18 @@ class MultiObstacleAvoider:
         tot_weight = normalize_weights(weight_list)
         weight_list[-1] = weight_list[-1] + (1 - tot_weight)
 
+        # for node in self.conv_tree._graph.nodes():
+        #     breakpoint()
+        #     self.conv_tree._graph.nodes[node]
+        #     #     if np.any(np.isnan(self.conv_tree._graph.nodes[node]["orientation"].base)):
+
         weighted_sequence = self.conv_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=weight_list
         )
+
+        if np.any(np.isnan(weighted_sequence.basis_array)):
+            breakpoint()  # TODO: remove after DEBUG
+
         return weighted_sequence
 
     @staticmethod
@@ -620,6 +632,9 @@ class MultiObstacleAvoider:
         obstacle_gammas = np.zeros(len(self.tree_list))
 
         for ii_tree, obstacle_tree in enumerate(self.tree_list):
+            if np.any(np.isnan(initial_sequence.get_end_vector())):
+                breakpoint()
+
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
                 obstacle=obstacle_tree,
                 position=position,
@@ -659,6 +674,7 @@ class MultiObstacleAvoider:
             reference = obstacle_tree.get_root().get_reference_direction(
                 position, in_global_frame=True
             )
+            # TODO: this is actually already evaluate in gammas & weights
             continuation_weight = RotationalAvoider.get_rotation_weight(
                 normal_vector=normal,
                 reference_vector=reference,
@@ -736,12 +752,12 @@ class MultiObstacleAvoider:
             else:
                 local_velocity = linearized_velocity
 
+            if np.any(np.isnan(local_velocity)):
+                breakpoint()
+
             gamma_values, gamma_weights = self.compute_gamma_and_weights(
                 obstacle=obstacle, position=position, base_velocity=local_velocity
             )
-
-            if np.any(np.isnan(local_velocity)):
-                breakpoint()
 
             # obstacle, base_velocity, position, obs_idx: int, gamma_weights
             new_nodes = self.populate_tangent_tree(
@@ -826,6 +842,7 @@ class MultiObstacleAvoider:
         gamma_weights = gamma_weights / gamma_sum * rotation_weight
         if np.any(np.isnan(gamma_weights)):
             breakpoint()
+
         return gamma_values, gamma_weights
 
     def simple_population_tangent_tree(

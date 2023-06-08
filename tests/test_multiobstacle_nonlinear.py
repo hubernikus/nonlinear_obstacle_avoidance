@@ -20,6 +20,22 @@ from nonlinear_avoidance.arch_obstacle import create_arch_obstacle
 from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
 
 
+def integrate_trajectory(
+    start_positions, velocity_functor, dt=0.01, it_max=200, abs_tol=1e-1
+):
+    positions = np.zeros((start_positions.shape[0], it_max + 1))
+
+    positions[:, 0] = start_positions
+    for ii in range(it_max):
+        velocity = velocity_functor(positions[:, ii])
+
+        if np.linalg.norm(velocity) < abs_tol:
+            return positions[:, : ii + 1]
+
+        positions[:, ii + 1] = velocity * dt + positions[:, ii]
+    return positions
+
+
 def test_straight_system_with_edgy_tree(visualize=False):
     dynamics = LinearSystem(attractor_position=np.array([0, 0]))
 
@@ -424,7 +440,7 @@ def test_limit_cycle_single_level(visualize=False):
         pose=Pose(
             np.array([0.0, 0.0]),
         ),
-        radius=0.2,
+        radius=0.1,
     )
 
     container = MultiObstacleContainer()
@@ -586,6 +602,62 @@ def test_limit_cycle_two_obstacle(visualize=False):
         )
 
 
+def test_trajectory_integration(visualize=False):
+    dynamics = SimpleCircularDynamics(
+        pose=Pose(
+            np.array([0.0, 0.0]),
+        ),
+        radius=0.1,
+    )
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([-0.4, 0]),
+            axes_length=np.array([0.16, 0.16]),
+            margin_absolut=0.2,
+            distance_scaling=8.0,
+        )
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-1, 1]
+        y_lim = [-1, 1]
+
+        n_resolution = 3
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        xx, yy = np.meshgrid(
+            np.linspace(x_lim[0], x_lim[1], n_resolution),
+            np.linspace(y_lim[0], y_lim[1], n_resolution),
+        )
+        start_positions = np.array([xx.flatten(), yy.flatten()])
+
+        for ii in range(start_positions.shape[1]):
+            trajectory = integrate_trajectory(
+                start_positions[:, ii], avoider.evaluate_sequence
+            )
+
+            color = "black"
+            ax.plot(trajectory[0, :], trajectory[1, :], "-")
+            ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color=color)
+            ax.plot(trajectory[0, -1], trajectory[1, -1], "o", color=color)
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
 
@@ -599,5 +671,7 @@ if (__name__) == "__main__":
 
     # test_straight_system_with_tree(visualize=False)
 
-    test_limit_cycle_single_level(visualize=False)
+    # test_limit_cycle_single_level(visualize=True)
     # test_limit_cycle_two_obstacle(visualize=True)
+
+    test_trajectory_integration(visualize=True)

@@ -14,8 +14,12 @@ def evaluate_dynamics_sequence(
         return dynamics.evaluate_dynamics_sequence(position)
 
     # Otherwise create based on direction towards stable-attractor
-    base = dynamics.attractor_position - position
-    final = dynamics.evaluate(position)
+    if hasattr(dynamics, "attractor_position"):
+        base = dynamics.attractor_position - position
+        final = dynamics.evaluate(position)
+    else:
+        base = dynamics.evaluate(position)
+        final = base
 
     if not np.linalg.norm(base):
         return None
@@ -25,6 +29,6 @@ def evaluate_dynamics_sequence(
     )
 
     if np.any(np.isnan(rotation.rotation_angles)):
-        breakpoint()
+        breakpoint()  # TODO: remove after debugging
 
     return rotation
