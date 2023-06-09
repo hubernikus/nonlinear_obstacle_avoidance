@@ -301,7 +301,6 @@ class MultiObstacleAvoider:
             averaged_normal=averaged_normal,
             gamma=gamma,
         )
-        # breakpoint()
 
         return slowed_velocity
 
@@ -653,6 +652,8 @@ class MultiObstacleAvoider:
         component_weights: list[list[np.ndarray]] = []
         obstacle_gammas = np.zeros(len(self.tree_list))
 
+        print("initial velocity", initial_sequence.get_end_vector())
+
         for ii_tree, obstacle_tree in enumerate(self.tree_list):
             if np.any(np.isnan(initial_sequence.get_end_vector())):
                 breakpoint()
@@ -728,7 +729,7 @@ class MultiObstacleAvoider:
         # print("gamma_weights", gamma_weights)
         # print("occlusion_weights", occlusion_weights)
         # print("obstacle_weights", obstacle_weights)
-        # print("final weights", self.final_weights)
+        print("final weights", self.final_weights)
 
         return weighted_sequence
 
@@ -1142,7 +1143,7 @@ class MultiObstacleAvoider:
                 reference_directions[ii], reference_directions[ii - 1]
             )
             velocity = rotation.rotate(velocity)
-            # print("velocity", velocity)
+            print("velocity", velocity)
 
             node_id = NodeKey(obs_idx, comp_id, parents_tree[ii])
             self._tangent_tree.add_node(
@@ -1160,17 +1161,23 @@ class MultiObstacleAvoider:
             convergence_radius=self.convergence_radius,
         )
 
+        # print("tangent", tangent)
+
         self._tangent_tree.add_node(
             node_id=NodeKey(obs_idx, comp_id, parents_tree[0]),
             parent_id=parent_id,
             direction=tangent,
         )
+        if obs_idx != 1:
+            continue
+        # breakpoint()
         # np.set_printoptions(precision=6)
         # print("comp_id", comp_id)
-        # print("baseVe", base_velocity)
-        # print("normals \n", np.array(normal_directions))
-        # print("reference_directions \n", np.array(reference_directions))
-        # print("tangent", tangent)
+        print(f"tree {obs_idx} | comp {comp_id}")
+        print("baseVe", base_velocity)
+        print("normals \n", np.array(normal_directions))
+        print("reference_directions \n", np.array(reference_directions))
+        print("tangent", tangent)
 
     def _update_tangent_branch(
         self,

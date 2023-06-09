@@ -199,6 +199,7 @@ class SimpleCircularDynamics(DynamicalSystem):
         self,
         base_matrix: Optional[np.ndarray] = None,
         pose: Optional[ObjectPose] = None,
+        maximum_velocity: float = 1.0,
         # dimension: int = 2,
         radius: float = 1.0,
         **kwargs,
@@ -212,7 +213,12 @@ class SimpleCircularDynamics(DynamicalSystem):
             else:
                 pose.orientation = Rotation.from_matrix(base_matrix)
 
-        super().__init__(pose=pose, attractor_position=pose.position, **kwargs)
+        super().__init__(
+            pose=pose,
+            attractor_position=pose.position,
+            maximum_velocity=maximum_velocity,
+            **kwargs,
+        )
 
         self._E = np.array([[0.0, -1], [1, 0]])
         self.radius = radius
@@ -249,7 +255,7 @@ class SimpleCircularDynamics(DynamicalSystem):
 
     def evaluate(self, position):
         relative_position = self.pose.transform_position_to_relative(position)
-        if not np.linalg.norm(relative_position):
+        if not (pos_norm := np.linalg.norm(relative_position)):
             return np.zeros_like(position)
 
         grad = self.get_grad(relative_position)  # or n11
@@ -264,6 +270,16 @@ class SimpleCircularDynamics(DynamicalSystem):
             return direction
 
         normalized_direction = direction / dir_norm
+
+        # Slow down towards the directional-singularity
+        slow_down_distance = 1 / 3 * self.radius
+        if pos_norm < slow_down_distance:
+            normalized_direction = (
+                normalized_direction
+                * (pos_norm / slow_down_distance)
+                * self.maximum_velocity
+            )
+
         return self.pose.transform_direction_from_relative(normalized_direction)
 
 

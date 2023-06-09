@@ -449,8 +449,8 @@ def test_limit_cycle_single_level(visualize=False):
         Cuboid(
             center_position=np.array([-0.4, 0]),
             axes_length=np.array([0.16, 0.16]),
-            margin_absolut=0.2,
-            distance_scaling=8.0,
+            margin_absolut=0.1,
+            distance_scaling=50.0,
         )
     )
     container.append(obstacle_tree)
@@ -484,15 +484,12 @@ def test_limit_cycle_single_level(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
-    plot_initial = False
+    plot_initial = True
     if plot_initial and visualize:
         fig, ax = plt.subplots(figsize=figsize)
-        plot_multi_obstacle_container(
-            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
-        )
 
         plot_obstacle_dynamics(
-            obstacle_container=obstacle_tree,
+            obstacle_container=[],
             dynamics=dynamics.evaluate,
             x_lim=x_lim,
             y_lim=y_lim,
@@ -511,7 +508,7 @@ def test_limit_cycle_single_level(visualize=False):
 
 
 def test_limit_cycle_two_obstacle(visualize=False):
-    distance_scaling = 10
+    distance_scaling = 30
     margin_absolut = 0.2
     dynamics = SimpleCircularDynamics(
         pose=Pose(
@@ -724,22 +721,88 @@ def test_linear_avoidance_sphere(visualize=False):
     assert abs(velocity[1] / velocity[0]) < 1, "Reduced effect due to distance scaling."
 
 
+def _test_limit_cycle_obstacle_center(visualize=False):
+    dynamics = SimpleCircularDynamics(
+        pose=Pose(
+            np.array([0.0, 0.0]),
+        ),
+        radius=0.1,
+    )
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            pose=Pose(
+                # np.array([-0.01, 0.02]),
+                np.array([-0.2, 0.1]),
+                orientation=0.2 * 180.0 / math.pi,
+            ),
+            axes_length=np.array([0.16, 0.16]),
+            margin_absolut=0.1,
+            distance_scaling=50.0,
+        )
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-0.3, 0.3]
+        y_lim = [-0.3, 0.3]
+
+        n_resolution = 30
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    plot_initial = True
+    if plot_initial and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=dynamics.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
 
     # test_straight_system_with_edgy_tree(visualize=True)
 
     # test_straight_system_with_arch(visualize=True)
-
     # test_straight_system_with_two_trees(visualize=True)
-
     # test_straight_system_single_level_tree(visualize=False)
 
     # test_straight_system_with_tree(visualize=False)
 
-    # test_limit_cycle_single_level(visualize=True)
     # test_limit_cycle_two_obstacle(visualize=True)
-
     # test_trajectory_integration(visualize=True)
+    # test_linear_avoidance_sphere(visualize=False)
 
-    test_linear_avoidance_sphere(visualize=False)
+    # test_limit_cycle_single_level(visualize=False)
+    _test_limit_cycle_obstacle_center(visualize=True)
