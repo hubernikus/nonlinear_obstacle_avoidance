@@ -366,4 +366,4 @@ if (__name__) == "__main__":
     # test_convergence_sequence_single(visualize=True)
 
     # test_convergence_sequence_double_tree(visualize=True)
-    test_convergence_sequence_arch_obstacle(visualize=True)
+    test_convergence_sequence_arch_obstacle(visualize=False)

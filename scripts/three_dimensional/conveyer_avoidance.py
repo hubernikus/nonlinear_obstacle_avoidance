@@ -371,18 +371,33 @@ def test_straight_avoidance_cube(visualize=False, n_grid=2):
     assert np.any(np.isnan(velocity))
 
 
-def test_circular_avoidance_cube(visualize=False, n_grid=5):
-    distance_scaling = 10
-    margin_absolut = 0.1
+def test_circular_avoidance_cube(visualize=False, n_grid=3):
+    distance_scaling = 5
+    margin_absolut = 0.0
 
-    container = create_conveyer_obstacles(
-        margin_absolut=margin_absolut, distance_scaling=distance_scaling
+    dynamics = SimpleCircularDynamics(
+        pose=Pose(
+            np.array([0.0, 0.0, 0.0]),
+            orientation=Rotation.from_euler("x", 0.0),
+        ),
+        radius=1.0,
     )
-    # dynamics = create_circular_conveyer_dynamics()
-    dynamics = LinearSystem(
-        attractor_position=np.array([0.5, 0.0, 0.25]),
-        maximum_velocity=1.0,
+
+    container = MultiObstacleContainer()
+    box = MultiObstacle(
+        Pose(
+            np.array([0.0, 0.0, 0.0]),
+        )
     )
+    box.set_root(
+        Cuboid(
+            center_position=np.array([-2, 0, 0.0]),
+            axes_length=np.array([1.0, 1.0, 1.0]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        )
+    )
+    container.append(box)
 
     avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
         obstacle_container=container,
@@ -394,20 +409,19 @@ def test_circular_avoidance_cube(visualize=False, n_grid=5):
         visualizer = Visualization3D()
         visualizer.plot_multi_obstacles(container)
 
-        it_max = 120
-        step_size = 0.02
+        it_max = 150
+        step_size = 0.08
 
-        x_range = [0.0, 1.0]
-        y_value = -0.3
-        z_range = [-0.1, 0.4]
+        x_value = -4
+        y_range = [-1.0, 1.5]
+        z_range = [-0.4, 0.4]
 
-        yv = y_value * np.ones(n_grid * n_grid)
-        xv, zv = np.meshgrid(
-            np.linspace(x_range[0], x_range[1], n_grid),
+        xv = x_value * np.ones(n_grid * n_grid)
+        yv, zv = np.meshgrid(
+            np.linspace(y_range[0], y_range[1], n_grid),
             np.linspace(z_range[0], z_range[1], n_grid),
         )
         start_positions = np.vstack((xv.flatten(), yv.flatten(), zv.flatten()))
-        # start_positions = np.array([[0.5, -0.2, 0.4]]).T
         n_traj = start_positions.shape[1]
 
         cm = plt.get_cmap("gist_rainbow")
@@ -420,7 +434,6 @@ def test_circular_avoidance_cube(visualize=False, n_grid=5):
             positions[:, 0] = start_positions[:, ii]
 
             for ii in range(it_max):
-                # print(positions[:, ii])
                 velocity = avoider.evaluate_sequence(positions[:, ii])
                 positions[:, ii + 1] = positions[:, ii] + velocity * step_size
 
@@ -433,9 +446,11 @@ def test_circular_avoidance_cube(visualize=False, n_grid=5):
                 tube_radius=0.01,
             )
 
-    position = np.array([0.5, -0.11245940024922693, 0.3116898905360652])
-    velocity = avoider.evaluate_sequence(position)
-    assert not np.any(np.isnan(velocity))
+    position = np.array([-4, -1.0, 0])
+    velocity1 = avoider.evaluate_sequence(position)
+    position = np.array([-4, -1.5, 0])
+    velocity2 = avoider.evaluate_sequence(position)
+    assert velocity1[1] < velocity1[2] < 0, "Splitting the dynamics."
 
 
 def test_linear_avoidance_sphere(visualize=True, n_grid=3):
@@ -523,8 +538,8 @@ if (__name__) == "__main__":
     mlab.close(all=True)
     plt.close("all")
 
-    # test_circular_avoidance_cube(visualize=True)
     # test_visualize_2d(visualize=True)
     # test_straight_avoidance_cube(visualize=True)
 
-    test_linear_avoidance_sphere(visualize=True)
+    # test_linear_avoidance_sphere(visualize=True)
+    test_circular_avoidance_cube(visualize=True)
