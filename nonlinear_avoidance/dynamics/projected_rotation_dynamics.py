@@ -593,6 +593,7 @@ class ProjectedRotationDynamics:
             return 1.0
 
         weight = (1.0 / (proj_gamma * gamma)) ** weight_power
+
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(

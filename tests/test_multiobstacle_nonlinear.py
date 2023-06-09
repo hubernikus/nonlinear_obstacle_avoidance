@@ -658,6 +658,72 @@ def test_trajectory_integration(visualize=False):
             ax.plot(trajectory[0, -1], trajectory[1, -1], "o", color=color)
 
 
+def test_linear_avoidance_sphere(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0.0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Ellipse(
+            center_position=np.array([-2.0, 0]),
+            axes_length=np.array([1.0, 1.0]),
+            margin_absolut=0.0,
+            distance_scaling=5.0,
+        )
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-4, 2]
+        y_lim = [-3, 3]
+
+        n_resolution = 30
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    plot_initial = False
+    if plot_initial and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=dynamics.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-3.0, 0.1])
+    velocity = avoider.evaluate_sequence(position)
+    assert abs(velocity[1] / velocity[0]) < 1, "Reduced effect due to distance scaling."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
 
@@ -674,4 +740,6 @@ if (__name__) == "__main__":
     # test_limit_cycle_single_level(visualize=True)
     # test_limit_cycle_two_obstacle(visualize=True)
 
-    test_trajectory_integration(visualize=True)
+    # test_trajectory_integration(visualize=True)
+
+    test_linear_avoidance_sphere(visualize=False)

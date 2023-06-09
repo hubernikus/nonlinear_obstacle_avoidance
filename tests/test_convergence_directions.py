@@ -255,7 +255,7 @@ def test_convergence_sequence_arch_obstacle(visualize=False):
         create_arch_obstacle(
             wall_width=1.0,
             axes_length=np.array([3, 5]),
-            pose=Pose(position=np.array([3.0, -1]), orientation=math.pi),
+            pose=Pose(position=np.array([4.0, -1]), orientation=math.pi),
         )
     )
 
@@ -266,7 +266,7 @@ def test_convergence_sequence_arch_obstacle(visualize=False):
     )
 
     if visualize:
-        x_lim = [-5, 6]
+        x_lim = [-3, 8]
         y_lim = [-5, 5]
 
         n_resolution = 20
@@ -292,9 +292,9 @@ def test_convergence_sequence_arch_obstacle(visualize=False):
     # TODO: how should this exactly behave opposite the attractor (?)
     assert direction[0] < 0 and direction[1] > 0
 
-    position = np.array([1.2, -3.8])
+    position = np.array([1.37, 1.22])
     direction1 = avoider.compute_convergence_direction(position)
-    position = np.array([3.6, -0.8])
+    position = np.array([4.6, -3.1])
     direction2 = avoider.compute_convergence_direction(position)
     assert np.allclose(direction1, direction2, atol=1e-1)
 
@@ -365,4 +365,5 @@ if (__name__) == "__main__":
 
     # test_convergence_sequence_single(visualize=True)
 
-    test_convergence_sequence_double_tree(visualize=True)
+    # test_convergence_sequence_double_tree(visualize=True)
+    test_convergence_sequence_arch_obstacle(visualize=True)

@@ -435,20 +435,6 @@ class MultiObstacleAvoider:
         initial_sequence: VectorRotationSequence,
     ) -> VectorRotationSequence:
         """Computes and averages the convergence sequence."""
-        # TODO: make sure that the attractor is still attracting (?!)
-        # How does the convergence direction evolve for highly bend objects (?!)
-        # How does it behave with highly concave obstacles
-
-        # gammas = np.zeros(len(self.tree_list) + 1)
-        # for ii, obstacle_tree in enumerate(self.tree_list):
-        #     gammas[ii] = obstacle_tree.get_gamma(position, in_global_frame=True)
-
-        # gammas[-1] = 1 + np.linalg.norm(
-        #     position - self.initial_dynamics.attractor_position
-        # )
-        # weights = compute_gamma_weights(gammas)
-        # if (weight_sum := np.sum(weights)) > 1:
-        #     weights[-1] = weights[-1] + weight_sum
 
         # Create sequence and populate it
         root_id = -10
@@ -468,32 +454,33 @@ class MultiObstacleAvoider:
 
             root = obstacle_tree.get_root()
             node_id = (ii_tree, obstacle_tree.root_idx)
-            # weight = self.add_convergence_directions(
-            #     position, root, position, node_id, root_id
-            # )
 
             weight = self.convergence_dynamics.evaluate_projected_weight(position, root)
-            trafo_pos_to_attr = (
-                self.convergence_dynamics.evaluate_rotation_position_to_transform(
-                    position, root
+
+            if weight > 1e-6:
+                # Each node forms a n individual branch with root velocity -> no need to store / calculate
+                # in case of 0 weight
+                trafo_pos_to_root = (
+                    self.convergence_dynamics.evaluate_rotation_position_to_transform(
+                        position, root
+                    )
                 )
-            )
-            convergence_sequence = evaluate_dynamics_sequence(
-                root.get_reference_point(in_global_frame=True),
-                self.initial_dynamics,
-            )
-            continuous_sequence = self.vector_rotation_reduction(
-                initial_sequence, trafo_pos_to_attr, convergence_sequence, weight
-            )
 
-            self.conv_tree.add_sequence(
-                sequence=continuous_sequence,
-                node_id=node_id,
-                parent_id=root_id,
-            )
+                # Nonzero weight expected, since weight > 0
+                convergence_sequence = evaluate_dynamics_sequence(
+                    root.get_reference_point(in_global_frame=True),
+                    self.initial_dynamics,
+                )
+                continuous_sequence = self.vector_rotation_reduction(
+                    initial_sequence, trafo_pos_to_root, convergence_sequence, weight
+                )
 
-            # Need to add all nodes, otherwise they could be missing later
-            if weight > 0:
+                self.conv_tree.add_sequence(
+                    sequence=continuous_sequence,
+                    node_id=node_id,
+                    parent_id=root_id,
+                )
+
                 node_list.append(node_id)
                 weight_list.append(weight * tree_weight)
 
@@ -510,20 +497,8 @@ class MultiObstacleAvoider:
                 # else:
                 #     weight_list[-1] = weight_list[-1] ** ((1 - weight))
 
-                # if True:
-                #     # TODO improve the convergence direction evaluation
-                #     continue
-
                 if weight <= 1e-6:
                     continue
-
-                # ind_parent = obstacle_tree.get_parent_idx(ii_com)
-
-                # Also rotate the direction
-                # node_id = (ii_tree, ii_com)
-                # parent_id = self.get_reference_node(
-                #     (ii_tree, )
-                # )
 
                 # The constructed 'tree' is reverse to the obstacle tree
                 # To avoid confusion we use pred(ecessor) & node for the directions & graph
@@ -579,7 +554,6 @@ class MultiObstacleAvoider:
         #         position - self.initial_dynamics.attractor_position
         #     )
         #     weight_list.append(1.0 / (1 + dist_norm))
-        # else:
 
         node_list.append(init_id)
         weight_list.append(0.0)
@@ -587,11 +561,6 @@ class MultiObstacleAvoider:
         # Normalize weight [add to initial if small]
         tot_weight = normalize_weights(weight_list)
         weight_list[-1] = weight_list[-1] + (1 - tot_weight)
-
-        # for node in self.conv_tree._graph.nodes():
-        #     breakpoint()
-        #     self.conv_tree._graph.nodes[node]
-        #     #     if np.any(np.isnan(self.conv_tree._graph.nodes[node]["orientation"].base)):
 
         weighted_sequence = self.conv_tree.reduce_weighted_to_sequence(
             node_list=node_list, weights=weight_list
@@ -608,10 +577,10 @@ class MultiObstacleAvoider:
         trafo_seq1_to_seq2: Optional[VectorRotationXd],
         sequence2: VectorRotationSequence,
         weight2: float,
-        weight_factor: bool = 4,
+        # weight_factor: bool = 4,
     ) -> VectorRotationSequence:
         # Start effect drop off later
-        weight2 = min(1, weight2 * weight_factor)
+        # weight2 = min(1, weight2 * weight_factor)
 
         if weight2 <= 0 or trafo_seq1_to_seq2 is None:
             return sequence1

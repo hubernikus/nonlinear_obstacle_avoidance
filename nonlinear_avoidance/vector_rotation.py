@@ -115,17 +115,12 @@ class VectorRotationXd:
         # # Normalize both vectors
         vec_init = vec_init / LA.norm(vec_init)
         vec_rot = vec_rot / LA.norm(vec_rot)
-
         dot_prod = np.dot(vec_init, vec_rot)
-        if math.isclose(dot_prod, -1):
-            warnings.warn("Antiparallel vectors")
 
-        if abs(dot_prod) < 1 - 1e-6:
-            # Margin added to avoid numerical errors
-            vec_perp = vec_rot - vec_init * dot_prod
-            vec_perp = vec_perp / LA.norm(vec_perp)
+        if dot_prod <= -1 - 1e-6:
+            warnings.warn("(Close to) anti-parallel vectors.")
 
-        else:
+        if np.allclose(vec_init, vec_rot):
             # (Anti-)parallel vectors => calculate random perpendicular vector
             vec_perp = np.zeros(vec_init.shape)
             if not LA.norm(vec_init[:2]):
@@ -134,6 +129,9 @@ class VectorRotationXd:
                 vec_perp[0] = vec_init[1]
                 vec_perp[1] = vec_init[0] * (-1)
                 vec_perp[:2] = vec_perp[:2] / LA.norm(vec_perp[:2])
+        else:
+            vec_perp = vec_rot - vec_init * dot_prod
+            vec_perp = vec_perp / LA.norm(vec_perp)
 
         angle = np.arccos(min(max(dot_prod, -1), 1))
         return cls(base=np.array([vec_init, vec_perp]).T, rotation_angle=angle)
@@ -262,7 +260,11 @@ class VectorRotationSequence:
             raise ValueError("Antiparallel vectors.")
 
         # Evaluate basis and angles
-        ind_nonzero = dot_prod < (1.0 - 1e-6)
+        ind_nonzero = np.zeros(dot_prod.shape[0], dtype=bool)
+        for ii in range(ind_nonzero.shape[0]):
+            ind_nonzero[ii] = not np.allclose(
+                vectors_array[:, ii], vectors_array[:, ii + 1]
+            )
         vecs_perp = vectors_array[:, 1:] - vectors_array[:, :-1] * dot_prod
         vecs_perp[:, ind_nonzero] = vecs_perp[:, ind_nonzero] / LA.norm(
             vecs_perp[:, ind_nonzero], axis=0
@@ -388,7 +390,7 @@ class VectorRotationTree:
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
     # Maximum level a tree can reach (this is used to limit loops)
-    maximum_level: int = 20
+    maximum_level: int = 100
 
     def __init__(
         self, root_idx: Optional[int] = None, root_direction: Optional[Vector] = None
@@ -467,6 +469,10 @@ class VectorRotationTree:
             raise ValueError(
                 "Argument 'level' is needed, if no parent or child is provided"
             )
+
+        if level >= self.maximum_level:
+            raise ValueError(f"Exceeding  maximum level {level} of direction-tree.")
+
         self._graph.add_node(
             node_id,
             level=level,

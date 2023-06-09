@@ -495,6 +495,13 @@ def test_rotation_from_parallel_vectors():
 
 
 def test_sequence_of_similar_vectors():
+    vec1 = np.array([0.0, -0.11245940024922693, 0.06168989053606522])
+    vec2 = np.array([0.0, 0.2, -0.10999999999999999])
+    rotation = VectorRotationXd.from_directions(vec1, vec2)
+    assert np.allclose(
+        rotation.get_second_vector(), vec2 / np.linalg.norm(vec2)
+    ), "Restoring worked."
+
     vec1 = np.array([0.06376571583361212, -0.043198437634528145, -0.003709748681816061])
     vec2 = np.array([0.06376571583361212, -0.04319843763452815, -0.003709748681816061])
 
@@ -509,9 +516,9 @@ if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
-    test_graph_reduction()
-
     test_sequence_of_similar_vectors()
+
+    test_graph_reduction()
 
     test_rotation_from_parallel_vectors()
 
