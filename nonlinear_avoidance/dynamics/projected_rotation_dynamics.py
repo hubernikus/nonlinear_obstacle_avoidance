@@ -446,6 +446,31 @@ class ProjectedRotationDynamics:
         else:
             return dist_attr
 
+    def evaluate_rotation_start_to_end(
+        self, start: np.ndarray, end: np.ndarray, center: np.ndarray
+    ) -> Optional[VectorRotationXd]:
+        """Returns VectorRotationXd needed to go from position to the obstacle-reference.
+        The base vectors are pointing towards the attractor for compatibalitiy with straight-stable dynamics.
+        """
+        dir_attr_to_pos = center - start
+        if not (dir_norm := LA.norm(dir_attr_to_pos)):
+            # We're at the attractor -> zero-velocity
+            return None
+        dir_attr_to_pos = dir_attr_to_pos / dir_norm
+
+        dir_attr_to_obs = center - end
+        if not (obs_norm := LA.norm(dir_attr_to_obs)):
+            raise NotImplementedError("Obstacle is at attractor.")
+        dir_attr_to_obs = dir_attr_to_obs / obs_norm
+
+        if np.dot(dir_attr_to_pos, dir_attr_to_obs) <= -1:
+            return None
+
+        rotation_pos_to_transform = VectorRotationXd.from_directions(
+            dir_attr_to_pos, dir_attr_to_obs
+        )
+        return rotation_pos_to_transform
+
     def evaluate_rotation_position_to_transform(
         self, position: np.ndarray, obstacle: Obstacle
     ) -> Optional[VectorRotationXd]:

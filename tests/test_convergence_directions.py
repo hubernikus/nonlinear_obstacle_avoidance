@@ -72,16 +72,6 @@ def test_convergence_sequence_single(visualize=False):
             distance_scaling=1.0,
         )
     )
-    # obstacle_tree.add_component(
-    #     Cuboid(
-    #         center_position=np.array([-2.0, 1.0]),
-    #         axes_length=np.array([4.0, 1.0]),
-    #         margin_absolut=0.0,
-    #         distance_scaling=1.0,
-    #     ),
-    #     reference_position=np.zeros(2),
-    #     parent_ind=0,
-    # )
     container.append(obstacle_tree)
 
     avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
@@ -133,6 +123,58 @@ def test_convergence_sequence_single(visualize=False):
     assert np.allclose(direction, center_velocity)
 
 
+def test_convergence_sequence_single_close(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([-1.01, 0]),
+            axes_length=np.array([2.0, 3.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-5, 3]
+        y_lim = [-4, 4]
+
+        n_resolution = 20
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_obstacles(
+            ax=ax, obstacle_container=obstacle_tree, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.compute_convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-2.05, -1.524])
+    direction = avoider.compute_convergence_direction(position)
+    initial_velocity = dynamics.evaluate(position)
+    initial_velocity = initial_velocity / np.linalg.norm(initial_velocity)
+    assert not np.allclose(
+        direction, initial_velocity, atol=1e-3
+    ), "Singularity almost inside obstaccle --- stay with initial"
+
+
 def test_convergence_sequence_double(visualize=False):
     dynamics = LinearSystem(attractor_position=np.array([0, 0]))
 
@@ -140,7 +182,7 @@ def test_convergence_sequence_double(visualize=False):
     obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
     obstacle_tree.set_root(
         Cuboid(
-            center_position=np.array([-2.0, 0]),
+            center_position=np.array([-3.0, 0]),
             axes_length=np.array([2.0, 3.0]),
             margin_absolut=0.0,
             distance_scaling=1.0,
@@ -148,7 +190,7 @@ def test_convergence_sequence_double(visualize=False):
     )
     obstacle_tree.add_component(
         Cuboid(
-            center_position=np.array([-2.0, 1.0]),
+            center_position=np.array([-3.0, 1.0]),
             axes_length=np.array([4.0, 1.0]),
             margin_absolut=0.0,
             distance_scaling=1.0,
@@ -312,10 +354,11 @@ def test_convergence_sequence_double_tree(visualize=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    test_convergence_sequence_arch_obstacle(visualize=True)
+    # test_convergence_sequence_arch_obstacle(visualize=True)
     # test_convergence_sequence_double_tree(visualize=True)
 
     # test_convergence_sequence_single(visualize=True)
+    test_convergence_sequence_single_close(visualize=True)
     # test_convergence_sequence_double(visualize=True)
 
     # test_weight_normalization()

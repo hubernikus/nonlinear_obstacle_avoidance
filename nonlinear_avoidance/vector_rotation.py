@@ -387,6 +387,9 @@ class VectorRotationTree:
     # as it might happend at  zero-level
     # if it's not the last-branch this could probably be extended by 'jumping' a node (?)
 
+    # Maximum level a tree can reach (this is used to limit loops)
+    maximum_level: int = 20
+
     def __init__(
         self, root_idx: Optional[int] = None, root_direction: Optional[Vector] = None
     ) -> None:

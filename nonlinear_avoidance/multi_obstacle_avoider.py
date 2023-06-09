@@ -187,9 +187,9 @@ class MultiObstacleAvoider:
 
         # self.obstacle = obstacle
         if obstacle is None:
-            self.tree_list = obstacle_container
+            self.tree_list: MultiObstacleContainer = obstacle_container
         else:
-            self.tree_list = [obstacle]
+            self.tree_list: MultiObstacleContainer = [obstacle]
 
         # An ID number which does not co-inside with the obstacle
         self._BASE_VEL_ID = NodeKey(-1, -1, -1)
@@ -198,6 +198,10 @@ class MultiObstacleAvoider:
         self.gamma_power_scaling = 0.5
 
         self._tangent_tree: VectorRotationTree
+
+    @property
+    def singularity(self) -> np.ndarray:
+        return self.initial_dynamics.attractor_position
 
     @property
     def obstacle_list(self):
@@ -399,7 +403,10 @@ class MultiObstacleAvoider:
         return final_seq.get_end_vector()
 
     def compute_convergence_sequence(
-        self, position: np.ndarray, initial_sequence: VectorRotationSequence
+        self,
+        position: np.ndarray,
+        initial_sequence: VectorRotationSequence,
+        gamma_decreasing_influence: float = 2.0,
     ) -> VectorRotationSequence:
         """Computes and averages the convergence sequence."""
         # TODO: make sure that the attractor is still attracting (?!)
@@ -429,6 +436,17 @@ class MultiObstacleAvoider:
         node_list = []
         weight_list = []
         for ii_tree, obstacle_tree in enumerate(self.tree_list):
+            tree_gamma = obstacle_tree.get_gamma(self.singularity, in_global_frame=True)
+
+            if tree_gamma <= 1.0:
+                # Attractor inside obstacle -> no convergence direction
+                continue
+
+            if tree_gamma >= gamma_decreasing_influence:
+                tree_weight = 1.0
+            else:
+                tree_weight = (tree_gamma - 1.0) / (gamma_decreasing_influence - 1.0)
+
             root = obstacle_tree.get_root()
             node_id = (ii_tree, obstacle_tree.root_idx)
             # weight = self.add_convergence_directions(
@@ -454,39 +472,33 @@ class MultiObstacleAvoider:
                 node_id=node_id,
                 parent_id=root_id,
             )
-            # breakpoint()
+
             # Need to add all nodes, otherwise they could be missing later
-            node_list.append(node_id)
-            weight_list.append(weight)
+            if weight > 0:
+                node_list.append(node_id)
+                weight_list.append(weight * tree_weight)
 
             for ii_com, component in enumerate(obstacle_tree):
-                # TODO: higher order obstacles (>2) would need constant tracking of the
-                # root-traversing, BUT this could lead to elevated computation cost (?)
                 if ii_com == obstacle_tree.root_idx:
                     continue
 
-                node_id = (ii_tree, ii_com)
-                # weight = self.add_convergence_directions(
-                #     position,
-                #     component,
-                #     component.global_reference_point,
-                #     node_id,
-                #     parent_id,
-                # )
                 weight = self.convergence_dynamics.evaluate_projected_weight(
                     position, component
                 )
-                if weight >= 1:
-                    weight_list[-1] = 1
-                else:
-                    weight_list[-1] = weight_list[-1] ** ((1 - weight))
 
-                if True:
-                    # TODO improve the convergence direction evaluation
+                # if weight >= 1:
+                #     weight_list[-1] = 1.0
+                # else:
+                #     weight_list[-1] = weight_list[-1] ** ((1 - weight))
+
+                # if True:
+                #     # TODO improve the convergence direction evaluation
+                #     continue
+
+                if weight <= 0:
                     continue
 
                 # ind_parent = obstacle_tree.get_parent_idx(ii_com)
-                ii_parent = obstacle_tree.root_idx
 
                 # Also rotate the direction
                 # node_id = (ii_tree, ii_com)
@@ -494,42 +506,61 @@ class MultiObstacleAvoider:
                 #     (ii_tree, )
                 # )
 
-                trafo_parent_to_component = (
-                    self.convergence_dynamics.evaluate_rotation_position_to_transform(
-                        root.global_reference_point, component
+                # The constructed 'tree' is reverse to the obstacle tree
+                # To avoid confusion we use pred(ecessor) & node for the directions & graph
+                # and obstalce / parent for the obstacles-tree
+                ii_obs = ii_com
+                pred_id = root_id
+                pred_point = position
+                for pp in range(self.conv_tree.maximum_level):
+                    node_id = (ii_tree, ii_com, pp)
+                    obs_point = obstacle_tree.get_component(
+                        ii_obs
+                    ).global_reference_point
+                    trafo_comp_to_parent = (
+                        self.convergence_dynamics.evaluate_rotation_start_to_end(
+                            pred_point,
+                            obs_point,
+                            center=self.singularity,
+                        )
                     )
-                )
-                # Back and forth rotation to not lose track
-                self.conv_tree.add_node_orientation(
-                    orientation=trafo_parent_to_component,
-                    node_id=(node_id, 0),
-                    parent_id=(ii_tree, ii_parent),
-                )
-                self.conv_tree.add_node_orientation(
-                    orientation=trafo_parent_to_component.inv(),
-                    node_id=(node_id, 1),
-                    parent_id=(node_id, 0),
-                )
+                    self.conv_tree.add_node_orientation(
+                        orientation=trafo_comp_to_parent,
+                        node_id=node_id,
+                        parent_id=pred_id,
+                    )
+
+                    # Update direction points & id
+                    pred_id = node_id
+                    pred_point = obs_point
+
+                    ii_obs = obstacle_tree.get_parent_idx(ii_obs)
+                    if ii_obs is None:
+                        # Root reached
+                        break
+
+                # Add convergence transformation to branch
+                node_id = (ii_tree, ii_com)
                 self.conv_tree.add_sequence(
                     sequence=convergence_sequence,
                     node_id=node_id,
-                    parent_id=(node_id, 1),
+                    parent_id=pred_id,
                 )
 
-                # Need to add all nodes, otherwise they could be missing later
                 node_list.append(node_id)
-                weight_list.append(weight)
+                weight_list.append(weight * tree_weight)
 
-        if hasattr(self.initial_dynamics, "attractor_position"):
-            # Ensure convergence around attractor
-            node_list.append(init_id)
-            dist_norm = np.linalg.norm(
-                position - self.initial_dynamics.attractor_position
-            )
-            weight_list.append(1.0 / (1 + dist_norm))
-        else:
-            node_list.append(init_id)
-            weight_list.append(0.0)
+        # if hasattr(self.initial_dynamics, "attractor_position"):
+        #     # Ensure convergence around attractor
+        #     node_list.append(init_id)
+        #     dist_norm = np.linalg.norm(
+        #         position - self.initial_dynamics.attractor_position
+        #     )
+        #     weight_list.append(1.0 / (1 + dist_norm))
+        # else:
+
+        node_list.append(init_id)
+        weight_list.append(0.0)
 
         # Normalize weight [add to initial if small]
         tot_weight = normalize_weights(weight_list)
