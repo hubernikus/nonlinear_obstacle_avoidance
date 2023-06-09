@@ -349,18 +349,20 @@ def test_convergence_sequence_double_tree(visualize=False):
 
     position = np.array([4.0, 0])
     direction = avoider.compute_convergence_direction(position)
-    # breakpoint()
+    assert not np.any(np.isnan(direction))
+    assert direction[0] < 0 and direction[1] > 0, "Convergence towards center"
 
 
 if (__name__) == "__main__":
     figtype = ".pdf"
     # test_convergence_sequence_arch_obstacle(visualize=True)
-    # test_convergence_sequence_double_tree(visualize=True)
 
     # test_convergence_sequence_single(visualize=True)
-    test_convergence_sequence_single_close(visualize=True)
+    # test_convergence_sequence_single_close(visualize=True)
     # test_convergence_sequence_double(visualize=True)
 
     # test_weight_normalization()
 
     # test_convergence_sequence_single(visualize=True)
+
+    test_convergence_sequence_double_tree(visualize=True)

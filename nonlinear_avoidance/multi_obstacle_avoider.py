@@ -200,8 +200,11 @@ class MultiObstacleAvoider:
         self._tangent_tree: VectorRotationTree
 
     @property
-    def singularity(self) -> np.ndarray:
-        return self.initial_dynamics.attractor_position
+    def singularity(self) -> Optional[np.ndarray]:
+        try:
+            return self.initial_dynamics.attractor_position
+        except AttributeError:
+            return None
 
     @property
     def obstacle_list(self):
@@ -303,7 +306,9 @@ class MultiObstacleAvoider:
         return slowed_velocity
 
     def evaluate(self, position: Vector) -> Vector:
-        if True:
+        warnings.warn("This function is currently outdated and does not work well.")
+        if False:
+            # TODO: remove soon...
             raise NotImplementedError(
                 "This function is currently outdated and does not work well."
             )
@@ -402,11 +407,32 @@ class MultiObstacleAvoider:
         final_seq = self.compute_convergence_sequence(position, init_seq)
         return final_seq.get_end_vector()
 
+    def compute_tree_weight(
+        self,
+        obstacle,
+        gamma_decreasing_influence: float = 2.0,
+    ) -> float:
+        """Returns the weight with which the full avoidance is getting neglected, over prioritizing the smoothness
+        across the directional-singularity point.
+        gamma_decreasing_influence : float = Defines the upper limit of gamma at which this is started to be activated.
+        """
+        if self.singularity is None:
+            return 1.0
+        tree_gamma = obstacle.get_gamma(self.singularity, in_global_frame=True)
+
+        if tree_gamma <= 1.0:
+            # Attractor inside obstacle -> no convergence direction
+            return 0.0
+
+        if tree_gamma >= gamma_decreasing_influence:
+            return 1.0
+
+        return (tree_gamma - 1.0) / (gamma_decreasing_influence - 1.0)
+
     def compute_convergence_sequence(
         self,
         position: np.ndarray,
         initial_sequence: VectorRotationSequence,
-        gamma_decreasing_influence: float = 2.0,
     ) -> VectorRotationSequence:
         """Computes and averages the convergence sequence."""
         # TODO: make sure that the attractor is still attracting (?!)
@@ -436,16 +462,9 @@ class MultiObstacleAvoider:
         node_list = []
         weight_list = []
         for ii_tree, obstacle_tree in enumerate(self.tree_list):
-            tree_gamma = obstacle_tree.get_gamma(self.singularity, in_global_frame=True)
-
-            if tree_gamma <= 1.0:
-                # Attractor inside obstacle -> no convergence direction
+            tree_weight = self.compute_tree_weight(obstacle_tree)
+            if tree_weight <= 1e-6:
                 continue
-
-            if tree_gamma >= gamma_decreasing_influence:
-                tree_weight = 1.0
-            else:
-                tree_weight = (tree_gamma - 1.0) / (gamma_decreasing_influence - 1.0)
 
             root = obstacle_tree.get_root()
             node_id = (ii_tree, obstacle_tree.root_idx)
@@ -495,7 +514,7 @@ class MultiObstacleAvoider:
                 #     # TODO improve the convergence direction evaluation
                 #     continue
 
-                if weight <= 0:
+                if weight <= 1e-6:
                     continue
 
                 # ind_parent = obstacle_tree.get_parent_idx(ii_com)
@@ -524,6 +543,9 @@ class MultiObstacleAvoider:
                             center=self.singularity,
                         )
                     )
+                    if trafo_comp_to_parent is None:
+                        breakpoint()  # TODO: debugging -> remove
+
                     self.conv_tree.add_node_orientation(
                         orientation=trafo_comp_to_parent,
                         node_id=node_id,
