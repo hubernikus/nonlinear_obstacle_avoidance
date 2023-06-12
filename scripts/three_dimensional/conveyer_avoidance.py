@@ -540,7 +540,7 @@ def test_conveyer_setup(visualize=False, n_grid=2):
             np.linspace(y_range[0], y_range[1], n_grid),
         )
         start_positions = np.vstack((xv.flatten(), yv.flatten(), zv.flatten()))
-        start_positions = np.array([start_positions[:, 1]]).T
+        # start_positions = np.array([start_positions[:, 1]]).T
 
         n_traj = start_positions.shape[1]
 
@@ -557,6 +557,10 @@ def test_conveyer_setup(visualize=False, n_grid=2):
             velocity_old = avoider.evaluate_sequence(positions[:, jj])
             for ii in range(it_max):
                 velocity = avoider.evaluate_sequence(positions[:, ii])
+                # if velocity[2] > 0:
+                #     positions[:, ii]
+                #     breakpoint()
+
                 positions[:, ii + 1] = positions[:, ii] + velocity * step_size
 
                 # if not np.allclose(velocity, velocity_old, atol=0.6):
@@ -581,47 +585,42 @@ def test_conveyer_setup(visualize=False, n_grid=2):
             plot_double_plot(positions, ranges=[x_range, y_range, [0, 0.8]])
 
         attractor = dynamics.attractor_position
-        mlab.points3d(attractor[0], attractor[1], attractor[2], scale_factor=0.1)
+        mlab.points3d(attractor[0], attractor[1], attractor[2], scale_factor=0.02)
 
-    position = np.array([0.4981972483529464, 0.004332362438969479, 0.3428155262137731])
-    initial_sequence = evaluate_dynamics_sequence(position, avoider.initial_dynamics)
-    convergence4 = avoider.compute_convergence_sequence(position, initial_sequence)
-    velocity4 = avoider.evaluate_sequence(position)
+    # print()
+    # position = np.array([0.6717153338730932, -0.0920069684374953, 0.3734692658417906])
+    # velocity1 = avoider.evaluate_sequence(position)
+    # print("velocity1", velocity1)
 
-    print("convergence", convergence4.get_end_vector())
-    print("velocity", velocity4)
+    # print()
+    # position = np.array([0.6777531783374638, -0.0999618734235742, 0.3739829981519747])
+    # velocity0 = avoider.evaluate_sequence(position)
+    # print("velocity0", velocity0)
 
-    print()
+    # breakpoint()
 
-    position = np.array([0.4941097112959491, 0.01210789275673355, 0.34470485376277726])
-    initial_sequence = evaluate_dynamics_sequence(position, avoider.initial_dynamics)
-    convergence5 = avoider.compute_convergence_sequence(position, initial_sequence)
-    # There is a warning(!)
-    velocity5 = avoider.evaluate_sequence(position)
-    print("convergence", convergence5.get_end_vector())
-    print("velocity", velocity5)
-
-    # position = np.array([0.50256, 0.01091, 0.347315])
+    # Two close positoins
+    # position = np.array([0.4981972483529464, 0.004332362438969479, 0.3428155262137731])
     # initial_sequence = evaluate_dynamics_sequence(position, avoider.initial_dynamics)
-    # convergence3 = avoider.compute_convergence_sequence(position, initial_sequence)
-    # velocity3 = avoider.evaluate_sequence(position)
+    # convergence1 = avoider.compute_convergence_sequence(position, initial_sequence)
+    # velocity1 = avoider.evaluate_sequence(position)
 
-    # position = np.array([0.5169839364023404, 0.002542651842302459, 0.34469752158571343])
+    # position = np.array([0.4941097112959491, 0.01210789275673355, 0.34470485376277726])
     # initial_sequence = evaluate_dynamics_sequence(position, avoider.initial_dynamics)
     # convergence2 = avoider.compute_convergence_sequence(position, initial_sequence)
     # velocity2 = avoider.evaluate_sequence(position)
 
-    # position = np.array([0.4948985925515492, -0.004366692726592763, 0.357815301892854])
-    # initial_sequence = evaluate_dynamics_sequence(position, avoider.initial_dynamics)
-    # convergence1 = avoider.compute_convergence_sequence(position, initial_sequence)
-    # velocity1 = avoider.evaluate_sequence(position)
-    breakpoint()
+    # breakpoint()
+    # assert np.allclose(
+    #     convergence1.get_end_vector(), convergence2.get_end_vector(), atol=0.26
+    # )
+    # assert np.allclose(velocity1, velocity2, atol=0.25)
 
 
 if (__name__) == "__main__":
     figtype = ".jpeg"
-    np.set_printoptions(precision=3)
-    # np.set_printoptions(precision=16)
+    # np.set_printoptions(precision=3)
+    np.set_printoptions(precision=16)
 
     # mlab.close(all=True)
     # plt.close("all")
@@ -630,4 +629,4 @@ if (__name__) == "__main__":
     # test_linear_avoidance_sphere(visualize=True)
     # test_circular_avoidance_cube(visualize=True)
 
-    test_conveyer_setup(visualize=False)
+    test_conveyer_setup(visualize=True)

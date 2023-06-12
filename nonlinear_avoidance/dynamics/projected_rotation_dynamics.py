@@ -592,8 +592,8 @@ class ProjectedRotationDynamics:
         if proj_gamma <= 1.0 or gamma <= 1.0:
             return 1.0
 
-        weight = (1.0 / (proj_gamma * gamma)) ** weight_power
-
+        weight = (1.0 / ((proj_gamma - 1) * (gamma - 1) + 1)) ** weight_power
+        # breakpoint()
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(

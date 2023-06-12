@@ -893,9 +893,12 @@ class RotationalAvoider(BaseAvoider):
         convergence_vector: np.ndarray,
         gamma_value: float,
         convergence_radius: float = math.pi * 0.5,
-        smooth_continuation_power: float = 1,
+        smooth_continuation_power: float = 1.0,
         radius_base: float = math.pi * 0.5,
     ) -> float:
+        """Returns smoothing weight, used in nonlinear obstacle avoidance.
+        smooth_continuation_power:
+        """
         # TODO: the angle calculation could be done one level up (?)
         # Max effect when on the surface
         if gamma_value <= 1.0:
@@ -921,8 +924,11 @@ class RotationalAvoider(BaseAvoider):
             return 1.0 / gamma_value
 
         # rotation_power in [0, 1]
-        rotation_power = (delta_angle / ref_radius) ** smooth_continuation_power
-        return (1.0 / gamma_value) ** rotation_power
+        rotation_power = (ref_radius / delta_angle) ** smooth_continuation_power
+        if rotation_power < 1.0:
+            rotation_power = 1.0
+
+        return (1.0 / gamma_value) ** (rotation_power)
 
     def get_smooth_continuation_weight(
         self,

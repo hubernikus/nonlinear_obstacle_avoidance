@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -753,10 +754,12 @@ def _test_limit_cycle_obstacle_center(visualize=False):
     )
 
     if visualize:
-        x_lim = [-0.3, 0.3]
-        y_lim = [-0.3, 0.3]
+        # x_lim = [-0.3, 0.3]
+        # y_lim = [-0.3, 0.3]
+        x_lim = [-0.05, 0.15]
+        y_lim = [-0.025, 0.15]
 
-        n_resolution = 30
+        n_resolution = 10
         figsize = (6, 5)
 
         fig, ax = plt.subplots(figsize=figsize)
@@ -774,7 +777,53 @@ def _test_limit_cycle_obstacle_center(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
-    plot_initial = True
+    plot_trajectories = True
+    if plot_trajectories and visualize:
+        n_line_grid = 2
+        xx, yy = np.meshgrid(
+            np.linspace(x_lim[0], x_lim[1], n_line_grid),
+            np.linspace(y_lim[0], y_lim[1], n_line_grid),
+        )
+        start_positions = np.array([xx.flatten(), yy.flatten()])
+        # start_positions = np.array([[0, 1.0]]).T
+        for ii in range(start_positions.shape[1]):
+            trajectory = integrate_trajectory(
+                start_positions[:, ii], avoider.evaluate_sequence, it_max=50
+            )
+
+            color = "black"
+            ax.plot(
+                trajectory[0, :], trajectory[1, :], "-", linewidth=2.5, color="orange"
+            )
+            ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color=color)
+            ax.plot(trajectory[0, -1], trajectory[1, -1], "o", color=color)
+
+    plot_convergence = True
+    if plot_convergence and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+
+        def get_convergence(position):
+            initial_sequence = evaluate_dynamics_sequence(
+                position, avoider.initial_dynamics
+            )
+
+            convergence_sequence = avoider.compute_convergence_sequence(
+                position, initial_sequence
+            )
+
+            return convergence_sequence.get_end_vector()
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=get_convergence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    plot_initial = False
     if plot_initial and visualize:
         fig, ax = plt.subplots(figsize=figsize)
 
@@ -787,6 +836,10 @@ def _test_limit_cycle_obstacle_center(visualize=False):
             n_grid=n_resolution,
             attractor_position=dynamics.attractor_position,
         )
+
+    position = np.array([0.1055555555555556, 0.0916666666666667])
+    velocity = avoider.evaluate_sequence(position)
+    assert not np.any(np.isnan(velocity))
 
 
 if (__name__) == "__main__":
@@ -805,4 +858,6 @@ if (__name__) == "__main__":
     # test_linear_avoidance_sphere(visualize=False)
 
     # test_limit_cycle_single_level(visualize=False)
+
+    # _test_limit_cycle_obstacle_center(visualize=False)
     _test_limit_cycle_obstacle_center(visualize=True)

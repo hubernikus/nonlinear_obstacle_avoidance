@@ -650,6 +650,11 @@ class VectorRotationTree:
     def reduce_weighted_to_sequence(
         self, node_list: list[NodeType], weights: npt.ArrayLike
     ) -> VectorRotationSequence:
+        if len(node_list) != len(weights):
+            raise ValueError(
+                "Number of nodes does not correspond to number of weights."
+            )
+
         sorted_list = self.get_nodes_ascending()
         self.update_partial_rotations(node_list, weights, sorted_list)
         return self.evaluate_graph_summing(sorted_list)
