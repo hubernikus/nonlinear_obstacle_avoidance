@@ -1186,7 +1186,7 @@ if (__name__) == "__main__":
 
     # test_trajectory_integration(visualize=True)
 
-    # test_limit_cycle_single_level(visualize=True)
+    test_limit_cycle_single_level(visualize=True)
 
     # _test_limit_cycle_obstacle_center(visualize=False)
     # _test_limit_cycle_obstacle_center(visualize=True)
@@ -1204,4 +1204,4 @@ if (__name__) == "__main__":
     # test_limit_cycle_two_obstacle(visualize=False)
 
     # test_straight_system_single_level_tree(visualize=False)
-    test_straight_system_with_edgy_tree(visualize=True)
+    # test_straight_system_with_edgy_tree(visualize=True)

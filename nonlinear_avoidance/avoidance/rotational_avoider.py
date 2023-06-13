@@ -475,23 +475,29 @@ class RotationalAvoider(BaseAvoider):
         averaged_normal: Vector,
         gamma: float,
         dot_scaling: float = 0.8,
+        power_root: float = 3,
     ) -> Vector:
         if not (rotated_norm := np.linalg.norm(rotated_velocity)):
             return rotated_velocity
 
         dot_product = np.dot(rotated_velocity, averaged_normal)
         normal_norm = np.linalg.norm(averaged_normal)
+
+        # if dot_product < 0:
+        #     print()
+        #     print("dot_product", dot_product)
+        #     print("gamma", gamma)
+
         if dot_product > 0 or normal_norm == 0:
             scaling = 1.0
 
         elif gamma <= 1:
-            if dot_product < 0:
+            if dot_product < (-1e-3):
                 return np.zeros_like(rotated_velocity)
             scaling = 1.0
 
         else:
             # Remember that at this stage, the dot product is negative
-            power_root = 3
             power_factor = (1.0 / (gamma - 1) * normal_norm) ** (1.0 / power_root)
             scaling = ((1.0 + dot_scaling * dot_product)) ** power_factor
 
@@ -500,7 +506,6 @@ class RotationalAvoider(BaseAvoider):
             raise ValueError()
             # breakpoint()
 
-        # breakpoint()
         return rotated_velocity / rotated_norm * initial_norm * scaling
 
     @staticmethod
@@ -750,32 +755,40 @@ class RotationalAvoider(BaseAvoider):
         reference: Vector,
         convergence_radius: float = math.pi / 2,
     ) -> Vector:
-        if np.dot(initial_vector, normal) > np.cos(convergence_radius):
+        """Returns the (pseudo)-tangent for the avoidance."""
+
+        # breakpoint()
+        if np.dot(initial_vector, (-1) * normal) > np.cos(convergence_radius):
+            base = get_orthogonal_basis((-1) * normal)
+            angle_ref = get_angle_from_vector(reference, base=base)
+            tmp_radius = convergence_radius
+
+        else:
             # Switch the circle-basis
             # Note: This switch is continuous as it happens when the initial_vector
             # is on the surface of the circle-boundary
             base = get_orthogonal_basis(normal)
             angle_ref = get_angle_from_vector((-1) * reference, base=base)
-        else:
-            base = get_orthogonal_basis((-1) * normal)
-            angle_ref = get_angle_from_vector(reference, base=base)
+            tmp_radius = math.pi - convergence_radius
 
         angle_init = get_angle_from_vector(initial_vector, base=base)
 
         if not LA.norm(angle_init - angle_ref):
             return initial_vector
 
+        # breakpoint()
         surface_angle = get_intersection_with_circle(
             start_position=angle_ref,
             direction=(angle_init - angle_ref),
-            radius=convergence_radius,
+            radius=tmp_radius,
             intersection_type=IntersectionType.FAR,
         )
 
         if surface_angle is None:
             raise ValueError("No tangent found.")
 
-        # if np.any(np.isnan(get_vector_from_angle(surface_angle, base=base))):
+        # breakpoint()
+
         return get_vector_from_angle(surface_angle, base=base)
 
     @staticmethod
@@ -910,14 +923,14 @@ class RotationalAvoider(BaseAvoider):
             # is on the surface of the circle-boundary
             base = get_orthogonal_basis(normal_vector)
             angle_ref = get_angle_from_vector((-1) * reference_vector, base=base)
+            angle_conv = get_angle_from_vector(convergence_vector, base=base)
 
         else:
             base = get_orthogonal_basis((-1) * normal_vector)
             angle_ref = get_angle_from_vector(reference_vector, base=base)
+            angle_conv = get_angle_from_vector(convergence_vector, base=base)
 
-        angle_conv = get_angle_from_vector(convergence_vector, base=base)
         delta_angle = float(LA.norm(angle_ref - angle_conv))
-
         ref_radius = min(radius_base, convergence_radius) - LA.norm(angle_ref)
 
         if ref_radius <= delta_angle:
