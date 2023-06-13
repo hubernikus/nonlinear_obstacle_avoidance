@@ -629,4 +629,4 @@ if (__name__) == "__main__":
     # test_linear_avoidance_sphere(visualize=True)
     # test_circular_avoidance_cube(visualize=True)
 
-    test_conveyer_setup(visualize=True)
+    # test_conveyer_setup(visualize=True)
