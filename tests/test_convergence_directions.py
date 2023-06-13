@@ -16,7 +16,7 @@ from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from nonlinear_avoidance.dynamics import SimpleCircularDynamics
 from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
-from nonlinear_avoidance.multi_obstacle_avoider import normalize_weights
+from nonlinear_avoidance.multi_obstacle_avoider import get_limited_weights_to_maxsum
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 from nonlinear_avoidance.arch_obstacle import create_arch_obstacle
 
@@ -44,18 +44,17 @@ def test_weight_normalization():
     )
 
     weights = [0.8, 0.9]
-    tot_weight = normalize_weights(weights)
-    weights = np.array(weights)
+    weights, tot_weight = get_limited_weights_to_maxsum(weights)
     assert all(0 < weights) and all(weights < 1)
     assert math.isclose(tot_weight, 1)
 
     weights = [1, 0.1]
-    tot_weight = normalize_weights(weights)
+    weights, tot_weight = get_limited_weights_to_maxsum(weights)
     assert np.allclose(weights, [1, 0])
     assert math.isclose(tot_weight, 1)
 
     weights = [0.1, 0.2]
-    tot_weight = normalize_weights(weights)
+    weights, tot_weight = get_limited_weights_to_maxsum(weights)
     assert isinstance(tot_weight, float) and tot_weight == sum(weights)
 
 

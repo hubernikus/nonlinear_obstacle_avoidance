@@ -55,27 +55,28 @@ def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
     )
 
 
-def normalize_weights(weights: npt.ArrayLike) -> float:
+def get_limited_weights_to_maxsum(weights: npt.ArrayLike) -> float | np.ndarray:
     """Makes sure weights with value of 1 get preferencial treatment.
     Changes the weights if larger > 1
-    Returns the total weight if below 1.0"""
+    Returns the total weight if below 1.0, otherwise the updated list"""
     if (weight_sum := sum(weights)) < 1:
-        return weight_sum
+        return (np.array(weights), weight_sum)
 
     if np.any(ind_max := np.array(weights) >= 1.0):
         new_weights = np.zeros_like(weights)
         new_weights[ind_max] = 1
         # Assign to list
-        weights[:] = new_weights
-        return 1.0
+        return (new_weights, 1.0)
 
     # if zero -> remains zero / otherwise scaling
     new_weights = np.array(weights)
     new_weights = 1.0 / (1 - new_weights) - 1
     new_weights = new_weights / np.sum(new_weights)
-    # Assign to list
-    weights[:] = new_weights
-    return 1.0
+
+    # if np.any(np.isnan(weights)):
+    #     breakpoint()
+
+    return (new_weights, 1.0)
 
 
 def compute_gamma_weights(
@@ -306,6 +307,9 @@ class MultiObstacleAvoider:
         # Move velocity to relative (moving) frame
         # final_velocity = final_sequence.get_end_vector() + relative_velocity
         final_velocity = final_sequence.get_end_vector()
+
+        if len(self._cluster_weights) <= 0:
+            return final_velocity + relative_velocity
 
         # averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
         averaged_normal = np.sum(
@@ -582,7 +586,7 @@ class MultiObstacleAvoider:
         # print(weight_list)
         # print(node_list)
         # Normalize weight [add to initial if small]
-        tot_weight = normalize_weights(weight_list)
+        weight_list, tot_weight = get_limited_weights_to_maxsum(weight_list)
         # breakpoint()
         weight_list[-1] = weight_list[-1] + (1 - tot_weight)
 
@@ -710,6 +714,9 @@ class MultiObstacleAvoider:
             # Normalize component weight
             tree_influence_weights[ii_tree] = np.sum(obstacle_weights)
 
+            if np.isnan(np.sum(obstacle_weights)):
+                breakpoint()
+
             # Normalize weights
             obstacle_weights = obstacle_weights[obstacle_weights > 0]
             if len(obstacle_weights):
@@ -722,13 +729,15 @@ class MultiObstacleAvoider:
             component_weights.append(obstacle_weights)
 
         # print(tree_influence_weights)
-        normalize_weights(tree_influence_weights)
+        normalized_weights, tot_weight = get_limited_weights_to_maxsum(
+            tree_influence_weights
+        )
         # print(tree_influence_weights)
 
         # Flatten weights over the obstacles
         # obstacle_weights = compute_weights(obstacle_gammas)
         self._cluster_weights = np.concatenate(
-            [wo * wc for wo, wc in zip(tree_influence_weights, component_weights)]
+            [wo * wc for wo, wc in zip(normalized_weights, component_weights)]
         )
 
         # Remaining weight to the initial velocity
@@ -736,9 +745,12 @@ class MultiObstacleAvoider:
         final_weights = np.hstack(
             (self._cluster_weights, [1 - np.sum(self._cluster_weights)])
         )
-        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
-            node_list=node_list, weights=final_weights
-        )
+        try:
+            weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
+                node_list=node_list, weights=final_weights
+            )
+        except:
+            breakpoint()
 
         # print("cluster weights", final_weights)
         # print("rotation-weight", self._rotation_weights)
@@ -749,13 +761,16 @@ class MultiObstacleAvoider:
     def compute_weights_from_distances(
         distances: np.ndarray, distance_min: float = 1.0, normalize: bool = True
     ) -> np.ndarray:
-        ind_low = distances < distance_min
+        ind_low = distances <= distance_min
         if np.sum(ind_low):
             return ind_low / np.sum(ind_low)
 
         weights = 1.0 / (distances - distance_min)
         if normalize and (weights_sum := np.sum(weights)) > 1.0:
             weights = weights / weights_sum
+
+        if np.any(np.isinf(weights)):
+            raise NotImplementedError("TODO")
 
         return weights
 
@@ -881,7 +896,6 @@ class MultiObstacleAvoider:
 
         # Store the weights
         self._rotation_weights.append(rotation_weight)
-        # breakpoint()
 
         if not (gamma_sum := sum(gamma_weights)) or not rotation_weight:
             return np.ones_like(gamma_weights), np.zeros_like(gamma_weights)
@@ -992,6 +1006,8 @@ class MultiObstacleAvoider:
                 continue
             occlusion_weights[ii] = occlusion_gamma ** (1 / (1 - dot_prod))
 
+        if np.any(np.isnan(occlusion_weights)):
+            breakpoint()
         return occlusion_weights
 
     def compute_occlusion_weights(
@@ -1096,7 +1112,9 @@ class MultiObstacleAvoider:
         if obs.get_gamma(position, in_global_frame=True) > 1.0:
             # TODO: use maybe gamma instead of distance (?)
             intersection = obs.get_intersection_with_surface(
-                position, reference_directions[-1], in_global_frame=True
+                obs.global_reference_point,
+                (-1) * reference_directions[-1],
+                in_global_frame=True,
             )
             distance_to_surf = np.linalg.norm(position - intersection)
         else:
@@ -1153,8 +1171,11 @@ class MultiObstacleAvoider:
             reference_directions.append(
                 obs_parent.get_reference_direction(intersection, in_global_frame=True)
             )
-        # print("surf-points \n", np.array(surface_points))
-        # breakpoint()
+
+        # # print("surf-points \n", np.array(surface_points))
+        # if comp_id > 0:
+        #     breakpoint()
+
         return parents_tree, normal_directions, reference_directions
 
     def _simple_tangent_branch_update(
@@ -1209,17 +1230,17 @@ class MultiObstacleAvoider:
         # Store normal vectors for 'averaged-normal' computation
         self._normal_vectors.append(normal_directions[0])
 
-        # breakpoint()
-        # np.set_printoptions(precision=6)
+        # # np.set_printoptions(precision=6)
         # print("obs_idx", obs_idx)
         # print("comp_id", comp_id)
         # # print(f"tree {obs_idx} | comp {comp_id}")
-        # # print("reference_directions \n", np.array(reference_directions))
-        # print("normals \n", np.array(normal_directions))
+        # # # print("reference_directions \n", np.array(reference_directions))
+        # # print("normals \n", np.array(normal_directions))
 
         # print("baseVe", base_velocity)
-        # print("tangent", tangent)
         # print("velocity", velocity)
+        # print("tangent", tangent)
+
         # if comp_id > 0:
         #     breakpoint()
 

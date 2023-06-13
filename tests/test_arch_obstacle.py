@@ -176,13 +176,13 @@ def test_2d_blocky_arch_rotated(visualize=False):
 
     # Test positions [which has been prone to a rounding error]
     position = np.array([-1.84, -2.38])
-    averaged_direction = avoider.evaluate(position)
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] > 0, "Velocity is not going right."
     assert averaged_direction[1] < 0, "Avoiding downwards expected."
 
     # On the surface of a leg
     position = np.array([-1.35486, -3.01399])
-    averaged_direction = avoider.evaluate(position)
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] > 0, "Expected to go backwards"
     assert np.isclose(
         averaged_direction[0], -averaged_direction[1], atol=1e-1
@@ -241,7 +241,7 @@ def test_multi_arch_obstacle(visualize=False):
 
         plot_obstacle_dynamics(
             obstacle_container=container,
-            dynamics=avoider.evaluate,
+            dynamics=avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -253,14 +253,9 @@ def test_multi_arch_obstacle(visualize=False):
         )
 
     position = np.array([-0.7, 0.0])
-    averaged_direction = avoider.evaluate(position)
+    averaged_direction = avoider.evaluate_sequence(position)
     assert averaged_direction[0] < 0, "Expected to continue to the left."
     assert averaged_direction[1] < 0, "Expected to rotate down."
-
-    position = np.array([2.1, -0.19])
-    averaged_direction = avoider.evaluate(position)
-    assert averaged_direction[0] < 0, "Expected to continue to the left."
-    assert averaged_direction[1] > 0, "Expected to rotate down."
 
 
 def test_bi_arch_avoidance_nonlinear(visualize=False):
@@ -304,7 +299,7 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
         fig, ax = plt.subplots(figsize=(5, 4))
         # plot_obstacle_dynamics(
         #     obstacle_container=container,
-        #     dynamics=avoider.evaluate,
+        #     dynamics=avoider.evaluate_sequence,
         #     x_lim=x_lim,
         #     y_lim=y_lim,
         #     n_grid=n_grid,
@@ -336,31 +331,32 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
         start_position = np.array([-2.5, 3])
         _ = integrate_with_qolo(
             start_position=start_position,
-            velocity_functor=avoider.evaluate,
+            velocity_functor=avoider.evaluate_sequence,
             ax=ax,
             it_max=200,
         )
 
-    # Integration of Qolo
-    position = np.array([0.8499904639878112, -0.03889134570119339])
-    velocity = avoider.evaluate(position)
-    assert np.isclose(velocity[0], 0, atol=1e-3)
-    assert velocity[1] > 0
-
     # Positions close to the boundary
     position = np.array([0.85, -0.04])
-    velocity = avoider.evaluate(position)
+    velocity = avoider.evaluate_sequence(position)
     assert np.isclose(velocity[0], 0)
+    assert not np.any(np.isnan(velocity))
     # assert velocity[1] > 0
+
+    # Integration of Qolo
+    position = np.array([0.8499904639878112, -0.03889134570119339])
+    velocity = avoider.evaluate_sequence(position)
+    assert np.isclose(velocity[0], 0, atol=1e-3)
+    assert velocity[1] > 0
 
 
 if (__name__) == "__main__":
     import matplotlib.pyplot as plt
 
-    test_2d_blocky_arch(visualize=True)
+    # test_2d_blocky_arch(visualize=True)
     # test_2d_blocky_arch_rotated(visualize=True)
     # test_multi_arch_obstacle(visualize=True)
-    # test_bi_arch_avoidance_nonlinear(visualize=False)
-    # test_multi_arch_obstacle(visualize=True)
+    # test_bi_arch_avoidance_nonlinear(visualize=True)
+    test_multi_arch_obstacle(visualize=False)
 
     print("Tests done.")

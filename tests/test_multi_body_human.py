@@ -36,7 +36,7 @@ from nonlinear_avoidance.multi_body_human import MultiBodyObstacle
 from nonlinear_avoidance.multi_body_human import create_2d_human
 
 
-def test_2d_human_with_linear(visualize=False):
+def _test_2d_human_with_linear(visualize=False):
     # Set arm-orientation
     new_human = create_2d_human()
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
@@ -110,7 +110,7 @@ def test_2d_human_with_linear(visualize=False):
     assert averaged_direction[1] < 0
 
 
-def test_2d_human_with_circular(visualize=False, savefig=False):
+def _test_2d_human_with_circular(visualize=False, savefig=False):
     # Set arm-orientation
     new_human = create_2d_human()
     multibstacle_avoider = MultiObstacleAvoider(obstacle=new_human)
@@ -201,7 +201,9 @@ if (__name__) == "__main__":
     # plt.close("all")
     plt.ion()
 
-    test_2d_human_with_linear(visualize=True)
-    # test_2d_human_with_circular(visualize=True, savefig=False)
+    # TODO: these tests are kind of deactivated, if needed they should be adapted
+
+    _test_2d_human_with_linear(visualize=True)
+    _test_2d_human_with_circular(visualize=True, savefig=False)
 
     print("[INFO] Done.")

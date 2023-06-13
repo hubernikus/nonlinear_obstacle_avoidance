@@ -151,6 +151,9 @@ class MultiObstacle:
             global_reference = get_intersection_of_obstacles(
                 obstacle, self.get_component(parent_ind)
             )
+            if global_reference is None:
+                raise ValueError("No intersection found.")
+
             reference_position = obstacle.pose.transform_position_to_relative(
                 global_reference
             )

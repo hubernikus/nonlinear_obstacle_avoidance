@@ -67,6 +67,14 @@ def get_intersection_of_obstacles(
     intersect = shape1.intersection(shape2)
     intersections = np.array(intersect.exterior.coords.xy)
 
+    if False:
+        # TODO: remove after debug
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.plot(shape1.exterior.xy[0], shape1.exterior.xy[1], color="blue")
+        ax.plot(shape2.exterior.xy[0], shape2.exterior.xy[1], color="green")
+
     if not intersections.shape[1]:
         return None
 
