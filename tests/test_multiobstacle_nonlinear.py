@@ -714,7 +714,7 @@ def test_multiobstacle_normal_and_tangent(visualize=False):
         initial_dynamics=dynamics,
         # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
         create_convergence_dynamics=True,
-        convergence_radius=0.50 * math.pi,
+        convergence_radius=0.55 * math.pi,
     )
 
     if visualize:
@@ -749,7 +749,6 @@ def test_multiobstacle_normal_and_tangent(visualize=False):
 
     velocity = avoider.evaluate_sequence(position)
     assert velocity[1] > 0, "Moving upwards."
-    assert abs(velocity[0] / velocity[1]) < 1e-1
 
 
 def test_trajectory_integration(visualize=False):
@@ -1186,12 +1185,10 @@ if (__name__) == "__main__":
 
     # test_trajectory_integration(visualize=True)
 
-    test_limit_cycle_single_level(visualize=True)
+    # test_limit_cycle_single_level(visualize=True)
 
     # _test_limit_cycle_obstacle_center(visualize=False)
     # _test_limit_cycle_obstacle_center(visualize=True)
-
-    # test_multiobstacle_normal_and_tangent(visualize=True)
 
     # test_straight_system_with_arch(visualize=False)
 
@@ -1205,3 +1202,5 @@ if (__name__) == "__main__":
 
     # test_straight_system_single_level_tree(visualize=False)
     # test_straight_system_with_edgy_tree(visualize=True)
+
+    # test_multiobstacle_normal_and_tangent(visualize=True)

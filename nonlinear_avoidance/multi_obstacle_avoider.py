@@ -73,9 +73,6 @@ def get_limited_weights_to_maxsum(weights: npt.ArrayLike) -> float | np.ndarray:
     new_weights = 1.0 / (1 - new_weights) - 1
     new_weights = new_weights / np.sum(new_weights)
 
-    # if np.any(np.isnan(weights)):
-    #     breakpoint()
-
     return (new_weights, 1.0)
 
 
@@ -258,6 +255,7 @@ class MultiObstacleAvoider:
 
             if initial_dynamics.attractor_position is None:
                 breakpoint()
+
             return ProjectedRotationDynamics(
                 attractor_position=initial_dynamics.attractor_position,
                 initial_dynamics=initial_dynamics,
@@ -339,12 +337,8 @@ class MultiObstacleAvoider:
         if False:
             # TODO: remove soon...
             raise NotImplementedError(
-                "This function is currently outdated and does not work well."
+                "This function is outdated and does not work well."
             )
-
-        if np.any(np.isnan(position)):
-            # TODO: remove debug breakpoint()
-            breakpoint()
 
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.tree_list
@@ -567,14 +561,11 @@ class MultiObstacleAvoider:
 
                 # Add convergence transformation to branch
                 node_id = (ii_tree, ii_com)
-                try:
-                    self.conv_tree.add_sequence(
-                        sequence=convergence_sequence,
-                        node_id=node_id,
-                        parent_id=pred_id,
-                    )
-                except:
-                    breakpoint()
+                self.conv_tree.add_sequence(
+                    sequence=convergence_sequence,
+                    node_id=node_id,
+                    parent_id=pred_id,
+                )
 
                 node_list.append(node_id)
                 weight_list.append(weight * tree_weight)
@@ -713,6 +704,7 @@ class MultiObstacleAvoider:
                 obs_idx=ii_tree,
                 obstacle_weights=obstacle_weights,
                 start_id=self._BASE_VEL_ID,
+                gamma_values=gamma_values,
             )
             # obstacle_gammas[ii_tree] = np.min(gamma_values)
 
@@ -849,12 +841,9 @@ class MultiObstacleAvoider:
         node_list.append(self._BASE_VEL_ID)
         self.final_weights = np.hstack((weights, [1 - np.sum(weights)]))
 
-        try:
-            weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
-                node_list=node_list, weights=self.final_weights
-            )
-        except:
-            breakpoint()
+        weighted_sequence = self._tangent_tree.reduce_weighted_to_sequence(
+            node_list=node_list, weights=self.final_weights
+        )
 
         if np.any(np.isnan(weighted_sequence.get_end_vector())):
             breakpoint()
@@ -914,7 +903,8 @@ class MultiObstacleAvoider:
         position,
         obs_idx: int,
         obstacle_weights,
-        start_id: Optional[Hashable] = None,
+        start_id: Hashable,
+        gamma_values: Optional[np.ndarray] = None,
     ) -> list[NodeType]:
         """Returns the node-list and the (normalized) occlusion weights."""
         # Evaluate rotation weight, to ensure smoothness in space (!)
@@ -928,15 +918,32 @@ class MultiObstacleAvoider:
             direction=base_velocity,
         )
 
+        convergence_radiuses = self.compute_convergence_radiuses(gamma_values)
+
         for comp_id in range(obstacle.n_components):
             if obstacle_weights[comp_id] <= 0:
                 continue
 
             node_list.append((obs_idx, comp_id, comp_id))
             self._simple_tangent_branch_update(
-                position, comp_id, base_velocity, obstacle, obs_idx
+                position=position,
+                comp_id=comp_id,
+                base_velocity=base_velocity,
+                obstacle=obstacle,
+                obs_idx=obs_idx,
+                convergence_radius=convergence_radiuses[comp_id],
             )
         return node_list
+
+    def compute_convergence_radiuses(
+        self, gamma_values: npd.ArrayLike, gamma_lower: float = 0.9
+    ) -> np.ndarray:
+        """Returns the convergence radiuses based on a lower-gamma limit, at which
+        there is full repulsion,"""
+        convergence_max = math.pi
+        weights = (np.array(gamma_values) - gamma_lower) / (1.0 - gamma_lower)
+        weights = np.clip(weights, 0.0, 1.0)
+        return self.convergence_radius * weights + convergence_max * (1 - weights)
 
     def populate_tangent_tree(
         self,
@@ -1186,6 +1193,7 @@ class MultiObstacleAvoider:
         base_velocity: np.ndarray,
         obstacle: MultiObstacle,
         obs_idx: NodeType,
+        convergence_radius: float = None,
     ) -> NodeType:
         (
             parents_tree,
@@ -1212,7 +1220,7 @@ class MultiObstacleAvoider:
             )
             parent_id = node_id
 
-        if self.convergence_radius > math.pi * 0.5:
+        if convergence_radius > math.pi * 0.5:
             # Add an intermediary node to ensure angle < math.pi
             tangent = RotationalAvoider.get_projected_tangent_from_vectors(
                 velocity,
@@ -1233,7 +1241,7 @@ class MultiObstacleAvoider:
             velocity,
             normal=normal_directions[0],
             reference=reference_directions[0],
-            convergence_radius=self.convergence_radius,
+            convergence_radius=convergence_radius,
         )
 
         node_id = NodeKey(obs_idx, comp_id, parents_tree[0])

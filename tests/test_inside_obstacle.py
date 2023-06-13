@@ -47,7 +47,7 @@ def test_simple_cube(visualize=False):
         initial_dynamics=dynamics,
         # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
         create_convergence_dynamics=True,
-        convergence_radius=math.pi * 0.4,
+        convergence_radius=math.pi * 0.5,
     )
 
     if visualize:
@@ -78,7 +78,7 @@ def test_simple_cube(visualize=False):
     position = np.array([-0.5, -0.1])
     velocity = avoider.evaluate_sequence(position)
     normal = obstacle_tree[-1].get_normal_direction(position, in_global_frame=True)
-    assert np.isclose(velocity @ normal, 0)
+    assert velocity @ normal > 0, "Repulsive inside."
 
 
 def test_simple_repulsive_circle(visualize=False):
@@ -217,6 +217,67 @@ def test_ellipse_repulsion(visualize=False):
     assert velocity[1] < 0
 
 
+def test_penetration_repulsion(visualize=False):
+    dynamics = LinearSystem(attractor_position=np.array([0, 0]))
+
+    container = MultiObstacleContainer()
+    obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+    obstacle_tree.set_root(
+        Ellipse(
+            center_position=np.array([-1.5, 0]),
+            # orientation=45 * math.pi / 180,
+            axes_length=np.array([2.0, 2.0]),
+            margin_absolut=0.0,
+            distance_scaling=1.0,
+        )
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        convergence_radius=math.pi * 0.5,
+    )
+
+    if visualize:
+        x_lim = [-3, 2]
+        y_lim = [-2.5, 2.5]
+
+        n_resolution = 21
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        # plot_multi_obstacle_container(
+        #     ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        # )
+
+        boundary = obstacle_tree[0].get_boundary_with_margin_xy()
+        # ax.plot(boundary[0, :], boundary[1, :], "--", color="black")
+        ax.plot(boundary[0], boundary[1], "--", color="black")
+
+        plot_obstacle_dynamics(
+            obstacle_container=[],
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-1.5, 1.0])
+    velocity = avoider.evaluate_sequence(position)
+    velocity = velocity / np.linalg.norm(velocity)
+    assert np.allclose(velocity, [1, 0], atol=1.0), "Tangent on surface"
+
+    position = np.array([-1.5, 0.5])
+    velocity = avoider.evaluate_sequence(position)
+    velocity = velocity / np.linalg.norm(velocity)
+    assert np.allclose(velocity, [0, 1]), "Repulsive inside"
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
 
@@ -224,3 +285,5 @@ if (__name__) == "__main__":
     # test_simple_cube(visualize=False)
     # test_simple_repulsive_circle(visualize=True)
     # test_ellipse_repulsion(visualize=False)
+
+    # test_penetration_repulsion(visualize=False)

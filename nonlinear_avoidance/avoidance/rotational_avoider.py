@@ -776,7 +776,6 @@ class RotationalAvoider(BaseAvoider):
         if not LA.norm(angle_init - angle_ref):
             return initial_vector
 
-        # breakpoint()
         surface_angle = get_intersection_with_circle(
             start_position=angle_ref,
             direction=(angle_init - angle_ref),
