@@ -432,6 +432,14 @@ class VectorRotationTree:
         # rename to _G (?)
         return self._graph
 
+    def get_parent(self, node_id: NodeType) -> NodeType:
+        """Returns the (unique) parent."""
+        return self._graph.predecessors(node_id)[0]
+
+    def get_children(self, node_id: NodeType) -> list[NodeType]:
+        """Returns all the children of an input node."""
+        return self._graph.successors(node_id)
+
     def add_node_orientation(
         self, node_id: NodeType, orientation: VectorRotationXd, parent_id: NodeType
     ) -> None:
@@ -552,7 +560,7 @@ class VectorRotationTree:
             succ["orientation"] = None
 
     def evaluate_all_orientations(
-        self, sorted_list: list[NodeType] = None, pi_margin: float = np.pi * 0.95
+        self, sorted_list: list[NodeType] = None, pi_margin: Optional[float] = None
     ) -> None:
         """Updates all orientations of the '_graph' class.
         -> store the new direction in the graph as 'part_direction'

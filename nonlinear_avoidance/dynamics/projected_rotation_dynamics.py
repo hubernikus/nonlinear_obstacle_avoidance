@@ -453,9 +453,10 @@ class ProjectedRotationDynamics:
         The base vectors are pointing towards the attractor for compatibalitiy with straight-stable dynamics.
         """
         dir_attr_to_pos = center - start
-        if not (dir_norm := LA.norm(dir_attr_to_pos)):
+        if not (dir_norm := np.linalg.norm(dir_attr_to_pos)):
             # We're at the attractor -> zero-velocity
             return None
+
         dir_attr_to_pos = dir_attr_to_pos / dir_norm
 
         dir_attr_to_obs = center - end
@@ -593,7 +594,8 @@ class ProjectedRotationDynamics:
             return 1.0
 
         weight = (1.0 / ((proj_gamma - 1) * (gamma - 1) + 1)) ** weight_power
-        # breakpoint()
+        # if weight < 1e-2:
+        #     breakpoint()
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(

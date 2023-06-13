@@ -22,16 +22,34 @@ from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_con
 
 
 def integrate_trajectory(
-    start_positions, velocity_functor, dt=0.01, it_max=200, abs_tol=1e-1
+    start_positions,
+    velocity_functor,
+    dt=0.01,
+    it_max=200,
+    abs_tol=1e-1,
+    reduce_acceleration: bool = False,
 ):
     positions = np.zeros((start_positions.shape[0], it_max + 1))
 
     positions[:, 0] = start_positions
+    tmp_velocity = velocity_functor(positions[:, 0])
     for ii in range(it_max):
         velocity = velocity_functor(positions[:, ii])
 
         if np.linalg.norm(velocity) < abs_tol:
             return positions[:, : ii + 1]
+
+        # Reduce velocity when going to far apart
+        dotprod = np.dot(velocity, tmp_velocity)
+        if not np.isclose(dotprod, 0):
+            dotprod = dotprod / (
+                np.linalg.norm(velocity) * np.linalg.norm(tmp_velocity)
+            )
+        scaling = (1 + dotprod) / 2.0 + abs_tol
+        scaling = min(1.0, scaling)
+
+        # velocity = velocity * scaling
+        tmp_velocity = velocity
 
         positions[:, ii + 1] = velocity * dt + positions[:, ii]
     return positions
@@ -580,6 +598,8 @@ def test_limit_cycle_two_obstacle(visualize=False):
     if visualize:
         x_lim = [-1.4, 1.4]
         y_lim = [-1.5, 1.5]
+        # x_lim = [-0.9, -0.60]
+        # y_lim = [-0.05, 0.2]
 
         n_resolution = 20
         figsize = (6, 5)
@@ -589,28 +609,11 @@ def test_limit_cycle_two_obstacle(visualize=False):
             ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
         )
 
-    plot_vectorfield = False
+    plot_vectorfield = True
     if plot_vectorfield and visualize:
         plot_obstacle_dynamics(
             obstacle_container=container,
             dynamics=avoider.evaluate_sequence,
-            x_lim=x_lim,
-            y_lim=y_lim,
-            ax=ax,
-            n_grid=n_resolution,
-            attractor_position=dynamics.attractor_position,
-        )
-
-    plot_initial = False
-    if plot_initial and visualize:
-        fig, ax = plt.subplots(figsize=figsize)
-        plot_multi_obstacle_container(
-            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
-        )
-
-        plot_obstacle_dynamics(
-            obstacle_container=obstacle_tree,
-            dynamics=dynamics.evaluate,
             x_lim=x_lim,
             y_lim=y_lim,
             ax=ax,
@@ -630,13 +633,44 @@ def test_limit_cycle_two_obstacle(visualize=False):
         ax.plot(trajectory[0, 0], trajectory[1, 0], "x", color=color)
         ax.plot(trajectory[0, -1], trajectory[1, -1], "o", color=color)
 
-    position = np.array([-0.77, 0.0697])
-    velocity1 = avoider.evaluate_sequence(position)
+    plot_initial = False
+    if plot_initial and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
 
-    print()
-    position = np.array([-0.635, 0.0662])
-    velocity2 = avoider.evaluate_sequence(position)
-    breakpoint()
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=dynamics.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    show_convergnce = True
+    if show_convergnce and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.compute_convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([-0.75809, 0.05526])
+    convergence1 = avoider.compute_convergence_direction(position)
+    assert convergence1[0] > 0
 
     # Position [list]
     position = np.array([0.44977403207952, 0.5055226795420217])
@@ -790,7 +824,7 @@ def test_linear_avoidance_sphere(visualize=False):
             center_position=np.array([-2.0, 0]),
             axes_length=np.array([1.0, 1.0]),
             margin_absolut=0.0,
-            distance_scaling=5.0,
+            # distance_scaling=5.0,
         )
     )
     container.append(obstacle_tree)
@@ -841,14 +875,13 @@ def test_linear_avoidance_sphere(visualize=False):
             attractor_position=dynamics.attractor_position,
         )
 
-    position = np.array([-2.5, -0.0113])
+    position = np.array([-2.8, 0.3])
     velocity = avoider.evaluate_sequence(position)
-    breakpoint()
-    assert abs(velocity[1] / velocity[0]) < 1, "Reduced effect due to distance scaling."
+    assert abs(velocity[0] / velocity[1]) < 1, "Reduced effect due to distance scaling."
 
     position = np.array([-3.0, 0.1])
     velocity = avoider.evaluate_sequence(position)
-    assert abs(velocity[1] / velocity[0]) < 1, "Reduced effect due to distance scaling."
+    assert abs(velocity[0] / velocity[1]) < 1, "Reduced effect due to distance scaling."
 
 
 def _test_limit_cycle_obstacle_center(visualize=False):
@@ -1043,10 +1076,119 @@ def test_limit_cycle_double_level(visualize=False):
     assert np.allclose(velocity, np.zeros_like(velocity)), "Zero at center"
 
 
+def test_simple_tree(visualize=True):
+    distance_scaling = 30
+    margin_absolut = 0.1
+    dynamics = SimpleCircularDynamics(
+        pose=Pose(
+            np.array([-0.5, 0.2]),
+        ),
+        radius=0.3,
+    )
+
+    container = MultiObstacleContainer()
+    # More advanced, concave obstacle
+    obstacle_tree = MultiObstacle(Pose(np.array([0.2, 0.2])))
+    obstacle_tree.set_root(
+        Cuboid(
+            center_position=np.array([0.0, 0.0]),
+            axes_length=np.array([0.1, 0.2]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        )
+    )
+    obstacle_tree[-1].set_reference_point(np.array([0, -0.1]), in_global_frame=False)
+    obstacle_tree.add_component(
+        Cuboid(
+            center_position=np.array([0.0, 0.2]),
+            axes_length=np.array([0.3, 0.2]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        ),
+        parent_ind=0,
+        reference_position=np.array([0.0, -0.1]),
+    )
+    container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-1.4, 1.4]
+        y_lim = [-1.5, 1.5]
+        # x_lim = [-0.9, -0.60]
+        # y_lim = [-0.05, 0.2]
+
+        n_resolution = 20
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+    plot_vectorfield = True
+    if plot_vectorfield and visualize:
+        plot_obstacle_dynamics(
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    plot_initial = False
+    if plot_initial and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=dynamics.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    show_convergnce = True
+    if show_convergnce and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=obstacle_tree,
+            dynamics=avoider.compute_convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    # Evaluate opposite the center
+    position = np.array([-0.9, 0.2])
+    convergence = avoider.compute_convergence_direction(position)
+    assert not np.any(np.isnan((convergence)))
+    assert convergence[1] < 0, "Keeping circle rotation."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
-    # np.set_printoptions(precision=16)
-    np.set_printoptions(precision=3)
+    np.set_printoptions(precision=16)
+    # np.set_printoptions(precision=3)
 
     # test_straight_system_with_edgy_tree(visualize=True)
 
@@ -1055,7 +1197,6 @@ if (__name__) == "__main__":
 
     # test_straight_system_with_tree(visualize=False)
 
-    # test_limit_cycle_two_obstacle(visualize=True)
     # test_trajectory_integration(visualize=True)
 
     # test_limit_cycle_single_level(visualize=True)
@@ -1070,4 +1211,9 @@ if (__name__) == "__main__":
 
     # test_limit_cycle_two_obstacle(visualize=False)
 
-    test_linear_avoidance_sphere(visualize=True)
+    # test_linear_avoidance_sphere(visualize=False)
+    # test_linear_avoidance_sphere(visualize=True)
+
+    # test_simple_tree(visualize=True)
+
+    test_limit_cycle_two_obstacle(visualize=True)
