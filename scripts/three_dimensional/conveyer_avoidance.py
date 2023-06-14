@@ -89,7 +89,7 @@ def create_circular_conveyer_dynamics():
     return SimpleCircularDynamics(pose=center_pose, radius=0.1)
 
 
-def create_conveyer_obstacles(margin_absolut=0.1, distance_scaling=10.0):
+def create_conveyer_obstacles(margin_absolut=0.2, distance_scaling=10.0):
     print(f"Create environment with")
     print(f"margin={margin_absolut}")
     print(f"scaling={distance_scaling}")
@@ -102,8 +102,9 @@ def create_conveyer_obstacles(margin_absolut=0.1, distance_scaling=10.0):
         Cuboid(
             center_position=np.array([0.5, 0.0, -0.25]),
             axes_length=np.array([0.5, 2.5, 0.8]),
-            margin_absolut=margin_absolut,
-            distance_scaling=distance_scaling,
+            # Conveyer has a fixed margin as it's from below
+            margin_absolut=0.05,
+            distance_scaling=20.0,
         )
     )
     container.append(conveyer_belt)
@@ -121,16 +122,26 @@ def create_conveyer_obstacles(margin_absolut=0.1, distance_scaling=10.0):
     container.append(box1)
 
     box2 = MultiObstacle(
-        Pose(np.array([0.5, -0.4, 0.38]), orientation=Rotation.from_euler("z", 0.2))
+        Pose(np.array([0.5, -0.4, 0.50]), orientation=Rotation.from_euler("z", 0.2))
     )
     box2.set_root(
         Cuboid(
-            center_position=np.array([0.0, 0, -0.12]),
-            axes_length=np.array([0.26, 0.37, 0.24]),
-            # axes_length=np.array([0.16, 0.16, 0.16]),
+            center_position=np.array([0.0, 0, -0.34]),
+            axes_length=np.array([0.20, 0.12, 0.24]),
             margin_absolut=margin_absolut,
             distance_scaling=distance_scaling,
         )
+    )
+    box2[-1].set_reference_point(np.array([0, 0, -0.1]), in_global_frame=False)
+    box2.add_component(
+        Cuboid(
+            center_position=np.array([0.0, 0, -0.1]),
+            axes_length=np.array([0.26, 0.37, 0.24]),
+            margin_absolut=margin_absolut,
+            distance_scaling=distance_scaling,
+        ),
+        parent_ind=0,
+        reference_position=np.array([0.0, 0.0, -0.12]),
     )
     box2[-1].set_reference_point(np.array([0.0, 0.0, -0.12]), in_global_frame=False)
     container.append(box2)
@@ -509,9 +520,9 @@ def test_linear_avoidance_sphere(visualize=True, n_grid=3):
     ), "Avoiding towards attractor"
 
 
-def test_conveyer_setup(visualize=False, n_grid=2):
-    distance_scaling = 20.0
-    margin_absolut = 0.1
+def test_conveyer_setup(visualize=False, n_grid=3):
+    distance_scaling = 30.0
+    margin_absolut = 0.20
 
     dynamics = create_circular_conveyer_dynamics()
     container = create_conveyer_obstacles(
@@ -521,6 +532,7 @@ def test_conveyer_setup(visualize=False, n_grid=2):
         obstacle_container=container,
         initial_dynamics=dynamics,
         reference_dynamics=dynamics,
+        convergence_radius=0.55 * math.pi,
     )
 
     if visualize:
@@ -531,15 +543,16 @@ def test_conveyer_setup(visualize=False, n_grid=2):
         step_size = 0.01
 
         x_range = [-0.0, 0.8]
-        y_range = [-0.4, 0.4]
-        z_value = 0.4
+        y_range = [-0.7, 0.4]
+        z_value = 0.3
 
         zv = z_value * np.ones(n_grid * n_grid)
         xv, yv = np.meshgrid(
             np.linspace(x_range[0], x_range[1], n_grid),
             np.linspace(y_range[0], y_range[1], n_grid),
         )
-        start_positions = np.vstack((xv.flatten(), yv.flatten(), zv.flatten()))
+        # start_positions = np.vstack((xv.flatten(), yv.flatten(), zv.flatten()))
+        start_positions = np.array([[0.8, -0.15, 0.3]]).T
         # start_positions = np.array([start_positions[:, 1]]).T
 
         n_traj = start_positions.shape[1]
@@ -563,16 +576,14 @@ def test_conveyer_setup(visualize=False, n_grid=2):
 
                 positions[:, ii + 1] = positions[:, ii] + velocity * step_size
 
+                # if np.isclose(positions[2, ii], 0.352, atol=0.005):
+                #     print("positions", positions[:, ii])
+                #     breakpoint()
+
                 # if not np.allclose(velocity, velocity_old, atol=0.6):
                 #     breakpoint()
-                if np.allclose(
-                    positions[:, ii + 1],
-                    np.array([0.498195, 0.010943, 0.3428145]),
-                    atol=1e-2,
-                ):
-                    print(positions[:, ii + 1])
-
                 velocity_old = velocity
+
             trajectory = positions
             mlab.plot3d(
                 trajectory[0, :],
@@ -586,6 +597,15 @@ def test_conveyer_setup(visualize=False, n_grid=2):
 
         attractor = dynamics.attractor_position
         mlab.points3d(attractor[0], attractor[1], attractor[2], scale_factor=0.02)
+
+    position = np.array([0.7230067622831882, -0.0223965781118951, 0.3555381142803435])
+    convergence1 = avoider.compute_convergence_direction(position)
+    velocity1 = avoider.evaluate_sequence(position)
+
+    position = np.array([0.3049181527015973, -0.0363252258459462, 0.3568114860253242])
+    convergence2 = avoider.compute_convergence_direction(position)
+    velocity2 = avoider.evaluate_sequence(position)
+    # breakpoint()
 
     # print()
     # position = np.array([0.6717153338730932, -0.0920069684374953, 0.3734692658417906])
@@ -629,4 +649,4 @@ if (__name__) == "__main__":
     # test_linear_avoidance_sphere(visualize=True)
     # test_circular_avoidance_cube(visualize=True)
 
-    # test_conveyer_setup(visualize=True)
+    test_conveyer_setup(visualize=True)

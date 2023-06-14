@@ -160,15 +160,15 @@ class MultiObstacleAvoider:
 
     # TODO: clean up to remove old functions
     # TODO: refactoring for speed-up
+    # TODO: Move outwards at position behind obstacle.
     def __init__(
         self,
         obstacle: Optional[HierarchyObstacle] = None,
         initial_dynamics: Optional[DynamicalSystem] = None,
         convergence_dynamics: Optional[ObstacleConvergenceDynamics] = None,
         convergence_radius: float = math.pi * 0.5,
-        # smooth_continuation_power: float = 1.0,
+        gamma_maximum_repulsion: Optional[float] = 0.8,
         smooth_continuation_power: float = 0.3,
-        # smooth_continuation_power: float = 10.0,
         obstacle_container: Optional[list[HierarchyObstacle]] = None,
         create_convergence_dynamics: bool = False,
     ):
@@ -183,7 +183,13 @@ class MultiObstacleAvoider:
         else:
             self.convergence_dynamics = convergence_dynamics
 
+        if not (math.pi * 0.5 <= convergence_radius <= math.pi):
+            raise ValueError(
+                f"Convergence_radius of {convergence_radius} is out of bound."
+            )
+
         self.convergence_radius = convergence_radius
+        self.gamma_maximum_repulsion = gamma_maximum_repulsion
         self.smooth_continuation_power = smooth_continuation_power
 
         # self.obstacle = obstacle
@@ -583,9 +589,9 @@ class MultiObstacleAvoider:
 
         # print(weight_list)
         # print(node_list)
+
         # Normalize weight [add to initial if small]
         weight_list, tot_weight = get_limited_weights_to_maxsum(weight_list)
-        # breakpoint()
         weight_list[-1] = weight_list[-1] + (1 - tot_weight)
 
         weighted_sequence = self.conv_tree.reduce_weighted_to_sequence(
@@ -918,7 +924,9 @@ class MultiObstacleAvoider:
             direction=base_velocity,
         )
 
-        convergence_radiuses = self.compute_convergence_radiuses(gamma_values)
+        convergence_radiuses = self.compute_convergence_radiuses(
+            gamma_values, position=position, obstacle_tree=obstacle
+        )
 
         for comp_id in range(obstacle.n_components):
             if obstacle_weights[comp_id] <= 0:
@@ -936,14 +944,55 @@ class MultiObstacleAvoider:
         return node_list
 
     def compute_convergence_radiuses(
-        self, gamma_values: npd.ArrayLike, gamma_lower: float = 0.9
+        self,
+        gamma_values: npt.ArrayLike,
+        position: np.ndarray,
+        obstacle_tree: MultiObstacle,
+        convergence_radius_inside: float = math.pi,
     ) -> np.ndarray:
         """Returns the convergence radiuses based on a lower-gamma limit, at which
         there is full repulsion,"""
-        convergence_max = math.pi
-        weights = (np.array(gamma_values) - gamma_lower) / (1.0 - gamma_lower)
-        weights = np.clip(weights, 0.0, 1.0)
-        return self.convergence_radius * weights + convergence_max * (1 - weights)
+        # TODO: compute as absolute distance from surface (?) /
+        # BUT needs to be aware of the reference position (if it's close...)
+        conv_radii = self.convergence_radius * np.ones_like(gamma_values)
+        if self.gamma_maximum_repulsion is None:
+            return conv_radii
+
+        ind_small = np.array(gamma_values) < 1.0
+        if not np.sum(ind_small):
+            return conv_radii
+
+        # weights = np.ones(ind_small.shape[0])
+        for ii in np.arange(ind_small.shape[0])[ind_small]:
+            component = obstacle_tree.get_component(ii)
+            # center = component.global_reference_point
+            center = component.center_position
+            if np.allclose(position, center):
+                conv_radii[ii] = convergence_radius_inside
+                continue
+
+            surface_point = component.get_intersection_with_surface(
+                center, position - center, in_global_frame=True
+            )
+
+            inside_gamma = np.linalg.norm(position - center) / np.linalg.norm(
+                surface_point - center
+            )
+            if inside_gamma < self.gamma_maximum_repulsion:
+                conv_radii[ii] = convergence_radius_inside
+                continue
+
+            weight = (inside_gamma - self.gamma_maximum_repulsion) / (
+                1 - self.gamma_maximum_repulsion
+            )
+            conv_radii[ii] = conv_radii[ii] * weight + convergence_radius_inside * (
+                1.0 - weight
+            )
+
+        if np.any(np.isnan(conv_radii)):
+            breakpoint()
+
+        return conv_radii
 
     def populate_tangent_tree(
         self,

@@ -239,6 +239,7 @@ def test_penetration_repulsion(visualize=False):
         # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
         create_convergence_dynamics=True,
         convergence_radius=math.pi * 0.5,
+        gamma_maximum_repulsion=0.8,
     )
 
     if visualize:
@@ -286,4 +287,4 @@ if (__name__) == "__main__":
     # test_simple_repulsive_circle(visualize=True)
     # test_ellipse_repulsion(visualize=False)
 
-    # test_penetration_repulsion(visualize=False)
+    test_penetration_repulsion(visualize=False)
