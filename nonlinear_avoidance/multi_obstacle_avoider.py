@@ -210,6 +210,7 @@ class MultiObstacleAvoider:
         self._normal_vectors: list[float]
         self._cluster_weights: list[float]
         self._rotation_weights: list[float]
+        self._convergence_reference_proximity: list[float]
 
         self._old_relative_velocity = None
 
@@ -282,15 +283,15 @@ class MultiObstacleAvoider:
 
     def evaluate_sequence(self, position: Vector) -> Vector:
         if hasattr(self.initial_dynamics, "evaluate_magnitude"):
-            magnitude = self.initial_dynamics.evaluate_magnitude(position)
+            initial_magnitude = self.initial_dynamics.evaluate_magnitude(position)
 
         else:
             initial_velocity = self.initial_dynamics.evaluate(position)
-            magnitude = np.linalg.norm(initial_velocity)
+            initial_magnitude = np.linalg.norm(initial_velocity)
 
         initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
         if not len(self.obstacle_container):
-            return initial_sequence.get_end_vector() * magnitude
+            return initial_sequence.get_end_vector() * initial_magnitude
 
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.tree_list
@@ -321,11 +322,18 @@ class MultiObstacleAvoider:
             axis=1,
         )
 
-        slowed_velocity = RotationalAvoider.compute_safe_magnitude(
-            rotated_velocity=final_velocity,
-            initial_norm=magnitude,
+        scaling_proximity = RotationalAvoider.compute_safe_scaling(
+            velocity=final_velocity,
             averaged_normal=averaged_normal,
             gamma=(1.0 / max(self._cluster_weights)),
+        )
+        scaling_convergence = self.slowfactor_from_convergence()
+
+        slowed_velocity = (
+            final_velocity
+            / np.linalg.norm(final_velocity)
+            * initial_magnitude
+            * min(scaling_convergence, scaling_proximity)
         )
 
         if False:
@@ -337,6 +345,19 @@ class MultiObstacleAvoider:
             print("self._cluster_weights", self._cluster_weights)
 
         return slowed_velocity + relative_velocity
+
+    def slowfactor_from_convergence(self, power_factor: float = 0.2) -> float:
+        """Returns scaling factor between [0, 1]"""
+        rot_weight = np.array(self._rotation_weights)
+        conv_prox = np.array(self._convergence_reference_proximity)
+        ind_pos = np.logical_and(rot_weight > 0.0, 0.0 < conv_prox, conv_prox < 1.0)
+
+        scaling = np.ones_like(rot_weight)
+        scaling[ind_pos] = ((1 - conv_prox[ind_pos]) / rot_weight[ind_pos]) ** (
+            power_factor
+        )
+        # Ensure a max of 1 (!)
+        return min(np.min(scaling), 1)
 
     def evaluate(self, position: Vector) -> Vector:
         warnings.warn("This function is currently outdated and does not work well.")
@@ -368,6 +389,7 @@ class MultiObstacleAvoider:
 
         averaged_normal, gamma = self.compute_averaged_normal_and_gamma(position)
 
+        # TODO: revert to sequence evaluation
         slowed_velocity = RotationalAvoider.compute_safe_magnitude(
             rotated_velocity=final_velocity,
             initial_norm=np.linalg.norm(initial_velocity),
@@ -514,8 +536,6 @@ class MultiObstacleAvoider:
                 # in case of 0 weight
                 node_list.append(node_id)
                 weight_list.append(weight * tree_weight)
-
-            # breakpoint()
 
             for ii_com, component in enumerate(obstacle_tree):
                 if ii_com == obstacle_tree.root_idx:
@@ -686,6 +706,7 @@ class MultiObstacleAvoider:
         # Reset normal vectors
         self._normal_vectors = []
         self._rotation_weights = []
+        self._convergence_reference_proximity = []
 
         node_list: list[NodeType] = []
         component_weights: list[list[np.ndarray]] = []
@@ -752,7 +773,11 @@ class MultiObstacleAvoider:
             node_list=node_list, weights=final_weights
         )
 
-        # print("cluster weights", final_weights)
+        # print("cluster weights", self._cluster_weights)
+        # print("final_weights", final_weights)
+        # print("node list", node_list)
+        # print("rotation_weight", self._rotation_weights)
+        # breakpoint()
         return weighted_sequence
 
     @staticmethod
@@ -863,6 +888,8 @@ class MultiObstacleAvoider:
         base_velocity: np.ndarray,
         weight_power: float = 1 / 2.0,
     ) -> tuple[np.ndarray, np.ndarray]:
+        """Returns the gammas and weights based on the convergence-rotation and the distance for
+        a obstacle(-tree)."""
         gamma_values = np.zeros(obstacle.n_components)
         for ii in range(obstacle.n_components):
             obs = obstacle.get_component(ii)
@@ -881,6 +908,7 @@ class MultiObstacleAvoider:
         )
 
         # TODO: rotation weight could be done outside...
+        # Single rotation weight, as it's for the root-normal and the velocity
         rotation_weight = RotationalAvoider.get_rotation_weight(
             normal_vector=normal,
             reference_vector=reference,
@@ -890,8 +918,10 @@ class MultiObstacleAvoider:
             # convergence_radius=self.convergence_radius,
         )
 
-        # Store the weights
+        # Store the weights for using it to slow down the velocity
         self._rotation_weights.append(rotation_weight)
+        conv_norml = base_velocity / np.linalg.norm(base_velocity)
+        self._convergence_reference_proximity.append(conv_norml @ reference)
 
         if not (gamma_sum := sum(gamma_weights)) or not rotation_weight:
             return np.ones_like(gamma_weights), np.zeros_like(gamma_weights)

@@ -524,6 +524,7 @@ def test_limit_cycle_single_level(visualize=False):
 def test_limit_cycle_two_obstacle(visualize=False):
     # TODO: remove jittery behvaior (analyse at different positions...)
     #     is it just due to the high (local) nonlinearities? Or is it more fundamental...
+    #     Further investigation needed (!)
 
     distance_scaling = 10
     margin_absolut = 0.2
@@ -637,7 +638,10 @@ def test_limit_cycle_two_obstacle(visualize=False):
         ).T
         for ii in range(start_positions.shape[1]):
             trajectory = integrate_trajectory(
-                start_positions[:, ii], avoider.evaluate_sequence, it_max=400
+                start_positions[:, ii],
+                avoider.evaluate_sequence,
+                it_max=400,
+                abs_tol=1e-3,
             )
 
             color = "black"
@@ -687,18 +691,21 @@ def test_limit_cycle_two_obstacle(visualize=False):
     # position = np.array([-0.04, 0.10])
     # velocity = avoider.evaluate_sequence(postion)
 
-    position = np.array([-0.1887, 0.3150])
+    position = np.array([-0.1885, 0.3150])
     convergence1 = avoider.compute_convergence_direction(position)
     velocity1 = avoider.evaluate_sequence(position)
+    print("velocity", velocity1)
 
-    # position = np.array([-0.1885, 0.3150])
-    # convergence2 = avoider.compute_convergence_direction(position)
-    # velocity2 = avoider.evaluate_sequence(position)
-
-    # position = np.array([-0.1859, 0.3222])
+    print()
     position = np.array([-0.1859, 0.3150])
     convergence2 = avoider.compute_convergence_direction(position)
     velocity2 = avoider.evaluate_sequence(position)
+    print("velocity", velocity2)
+
+    # position = np.array([-0.1859, 0.3222])
+    # position = np.array([-0.1859, 0.3150])
+    # convergence1 = avoider.compute_convergence_direction(position)
+    # velocity3 = avoider.evaluate_sequence(position)
     breakpoint()
 
     # TEST DEACTIVATED (!)
@@ -1228,8 +1235,8 @@ def test_simple_tree(visualize=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-    np.set_printoptions(precision=16)
-    # np.set_printoptions(precision=3)
+    # np.set_printoptions(precision=16)
+    np.set_printoptions(precision=3)
 
     # test_straight_system_with_two_trees(visualize=True)
 
@@ -1255,4 +1262,4 @@ if (__name__) == "__main__":
 
     # test_multiobstacle_normal_and_tangent(visualize=True)
 
-    test_limit_cycle_two_obstacle(visualize=False)
+    test_limit_cycle_two_obstacle(visualize=True)

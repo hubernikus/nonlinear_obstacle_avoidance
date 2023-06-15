@@ -469,6 +469,33 @@ class RotationalAvoider(BaseAvoider):
         return modulated_velocity
 
     @staticmethod
+    def compute_safe_scaling(
+        velocity: Vector,
+        averaged_normal: Vector,
+        gamma: float,
+        dot_scaling: float = 0.8,
+        power_root: float = 3,
+    ) -> float:
+        # TODO: very similar to 'compute_safe_magnitude' -> can they be merged (?!)
+        if not (rotated_norm := np.linalg.norm(velocity)):
+            return 1.0
+
+        dot_product = np.dot(velocity, averaged_normal)
+        normal_norm = np.linalg.norm(averaged_normal)
+
+        if dot_product > 0 or np.isclose(normal_norm, 0):
+            return 1.0
+
+        elif gamma <= 1.0:
+            if dot_product < (-1e-3):
+                return 0.0
+            return 1.0
+
+        # At this stage, the dot product is negative
+        power_factor = (1.0 / (gamma - 1) * normal_norm) ** (1.0 / power_root)
+        return ((1.0 + dot_scaling * dot_product)) ** power_factor
+
+    @staticmethod
     def compute_safe_magnitude(
         rotated_velocity: Vector,
         initial_norm: float,
@@ -929,7 +956,8 @@ class RotationalAvoider(BaseAvoider):
             angle_ref = get_angle_from_vector(reference_vector, base=base)
             angle_conv = get_angle_from_vector(convergence_vector, base=base)
 
-        delta_angle = float(LA.norm(angle_ref - angle_conv))
+        delta_angle = float(np.linalg.norm(angle_ref - angle_conv))
+        # print("delta_angle", delta_angle)
         ref_radius = min(radius_base, convergence_radius) - LA.norm(angle_ref)
 
         if ref_radius <= delta_angle:
@@ -938,8 +966,12 @@ class RotationalAvoider(BaseAvoider):
         # rotation_power in [0, 1]
         rotation_power = (ref_radius / delta_angle) ** smooth_continuation_power
         if rotation_power < 1.0:
-            rotation_power = 1.0
+            # Should never happen -> remove after debug
+            breakpoint()
+            # rotation_power = 1.0
 
+        # print("weight", (1.0 / gamma_value) ** (rotation_power))
+        # print("rotation_power", rotation_power)
         return (1.0 / gamma_value) ** (rotation_power)
 
     def get_smooth_continuation_weight(
