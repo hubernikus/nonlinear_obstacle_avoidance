@@ -18,6 +18,8 @@ from vartools.dynamical_systems import LinearSystem
 
 from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
+from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
+from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
@@ -271,51 +273,59 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
     )
     container = MultiObstacleContainer()
     container.append(
-        BlockArchObstacle(
+        create_arch_obstacle(
             wall_width=0.4,
-            axes_length=np.array([4.5, 6.5]),
+            axes_length=np.array([4.5, 6.0]),
             pose=Pose(np.array([-1.5, -3.5]), orientation=90 * np.pi / 180.0),
             margin_absolut=margin_absolut,
         )
     )
 
     container.append(
-        BlockArchObstacle(
+        create_arch_obstacle(
             wall_width=0.4,
             axes_length=np.array([4.5, 6.0]),
             pose=Pose(np.array([1.5, 3.0]), orientation=-90 * np.pi / 180.0),
             margin_absolut=margin_absolut,
         )
     )
+    # DELETING EVERYTHING (!!!)
+    # container = MultiObstacleContainer()
 
     avoider = MultiObstacleAvoider(
         obstacle_container=container,
         initial_dynamics=initial_dynamics,
-        # convergence_dynamics=rotation_projector,
+        default_dynamics=LinearSystem(initial_dynamics.attractor_position),
         create_convergence_dynamics=True,
     )
 
     if visualize:
+        n_grid = 20
+        x_lim = [-6.5, 6.5]
+        y_lim = [-5.5, 5.5]
+
         fig, ax = plt.subplots(figsize=(5, 4))
-        # plot_obstacle_dynamics(
-        #     obstacle_container=container,
-        #     dynamics=avoider.evaluate_sequence,
-        #     x_lim=x_lim,
-        #     y_lim=y_lim,
-        #     n_grid=n_grid,
-        #     ax=ax,
-        #     attractor_position=initial_dynamics.pose.position,
-        #     collision_check_functor=collision_checker,
-        #     do_quiver=False,
-        #     show_ticks=False,
-        # )
+        plot_obstacle_dynamics(
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            n_grid=n_grid,
+            ax=ax,
+            attractor_position=initial_dynamics.pose.position,
+            do_quiver=True,
+            show_ticks=False,
+        )
+
         plot_multi_obstacles(
             ax=ax,
             container=container,
-            x_lim=[-6.5, 6.5],
-            y_lim=[-5.5, 5.5],
+            x_lim=x_lim,
+            y_lim=y_lim,
         )
 
+    plot_position = False
+    if plot_position and visualize:
         # Check all normal directions
         position = np.array([0.8499904639878112, -0.03889134570119339])
         ax.plot(position[0], position[1], "ok")
@@ -328,6 +338,8 @@ def test_bi_arch_avoidance_nonlinear(visualize=False):
             ax.text(pos_text[0], pos_text[1], f"obs={ii}", color=colors[ii])
             ax.arrow(position[0], position[1], normal[0], normal[1], color=colors[ii])
 
+    do_trajectory = False
+    if do_trajectory and visualize:
         start_position = np.array([-2.5, 3])
         _ = integrate_with_qolo(
             start_position=start_position,
@@ -356,7 +368,7 @@ if (__name__) == "__main__":
     # test_2d_blocky_arch(visualize=True)
     # test_2d_blocky_arch_rotated(visualize=True)
     # test_multi_arch_obstacle(visualize=True)
-    # test_bi_arch_avoidance_nonlinear(visualize=True)
-    test_multi_arch_obstacle(visualize=False)
+    test_bi_arch_avoidance_nonlinear(visualize=True)
+    # test_multi_arch_obstacle(visualize=False)
 
     print("Tests done.")

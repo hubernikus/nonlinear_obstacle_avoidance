@@ -19,6 +19,7 @@ import numpy.typing as npt
 
 import matplotlib.pyplot as plt
 
+from vartools.states import Pose
 from vartools.directional_space import get_directional_weighted_sum
 
 # from vartools.directional_space DirectionBase
@@ -78,7 +79,7 @@ def integrate_trajectory(
 
 
 def create_initial_dynamics():
-    return SimpleCircularDynamics(dimension=2)
+    return SimpleCircularDynamics(pose=Pose.create_trivial(2), radius=2.0)
 
 
 # def create_initial_dynamics():
@@ -691,9 +692,9 @@ if (__name__) == "__main__":
     #     datapath=datapath,
     #     store_to_file=True,
     # )
-    # evaluate_nonlinear_trajectories()
-    # evaluate_modulated_trajectories()
-    # evaluate_original_trajectories()
+    evaluate_nonlinear_trajectories()
+    evaluate_modulated_trajectories()
+    evaluate_original_trajectories()
 
     # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
     # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)

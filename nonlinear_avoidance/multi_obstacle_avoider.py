@@ -156,7 +156,11 @@ def compute_multiobstacle_relative_velocity(
 
 
 class MultiObstacleAvoider:
-    """Obstacle Avoider which can take a 'multi-obstacle' as an input."""
+    """Obstacle Avoider which can take a 'multi-obstacle' as an input.
+
+
+    default_dynamics: Are the 'fall-back' dynamics if they exist..
+    """
 
     # TODO: clean up to remove old functions
     # TODO: refactoring for speed-up
@@ -171,9 +175,13 @@ class MultiObstacleAvoider:
         smooth_continuation_power: float = 0.3,
         obstacle_container: Optional[list[HierarchyObstacle]] = None,
         create_convergence_dynamics: bool = False,
+        default_dynamics: Optional[DynamicalSystem] = None,
     ):
         if initial_dynamics is not None:
             self.initial_dynamics = initial_dynamics
+
+        # The fall-back dynamics
+        self.default_dynamics = default_dynamics
 
         if create_convergence_dynamics:
             # TODO: [Refactor] -> this implementation should happens somewhere else..
@@ -281,6 +289,9 @@ class MultiObstacleAvoider:
     def obstacle_container(self) -> list[HierarchyObstacle]:
         return self.tree_list
 
+    def evaluate(self, position: Vector) -> Vector:
+        return self.evaluate_sequence(position)
+
     def evaluate_sequence(self, position: Vector) -> Vector:
         if hasattr(self.initial_dynamics, "evaluate_magnitude"):
             initial_magnitude = self.initial_dynamics.evaluate_magnitude(position)
@@ -300,9 +311,14 @@ class MultiObstacleAvoider:
         if initial_sequence is None:
             return np.zeros(self.initial_dynamics.dimension)
 
-        convergence_sequence = self.compute_convergence_sequence(
-            position, initial_sequence
-        )
+        if self.default_dynamics is None:
+            convergence_sequence = self.compute_convergence_sequence(
+                position, initial_sequence
+            )
+        else:
+            convergence_sequence = evaluate_dynamics_sequence(
+                position, self.default_dynamics
+            )
 
         final_sequence = self.evaluate_avoidance_from_sequence(
             position, convergence_sequence
@@ -359,7 +375,7 @@ class MultiObstacleAvoider:
         # Ensure a max of 1 (!)
         return min(np.min(scaling), 1)
 
-    def evaluate(self, position: Vector) -> Vector:
+    def evaluate_old(self, position: Vector) -> Vector:
         warnings.warn("This function is currently outdated and does not work well.")
         if False:
             # TODO: remove soon...

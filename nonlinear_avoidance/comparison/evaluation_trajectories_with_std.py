@@ -16,6 +16,7 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
+from vartools.states import Pose
 from nonlinear_avoidance.dynamics.circular_dynamics import (
     # CircularRotationDynamics,
     SimpleCircularDynamics,
@@ -47,7 +48,7 @@ def normalize_velocities(velocities):
 def mean_squared_error_to_path(trajectory, center_position, radius):
     # Assumption of circular dynamics
     traj_centered = trajectory - np.tile(center_position, (trajectory.shape[1], 1)).T
-    err_squared = np.sum(traj_centered**2, axis=0) - radius**2
+    err_squared = abs(np.sum(traj_centered**2, axis=0) - radius**2)
 
     return np.mean(err_squared)
 
@@ -134,7 +135,9 @@ class TrajectoryEvaluator:
         delta_time = simulation_parameters["delta_time"]
         it_max = simulation_parameters["it_max"]
 
-        initial_dynamics = SimpleCircularDynamics(dimension=2)
+        initial_dynamics = SimpleCircularDynamics(
+            dimension=2, pose=Pose.create_trivial(dimension=2)
+        )
 
         datafolder_path = os.path.join(self.data_path, self.data_folder)
         files_list = os.listdir(datafolder_path)
@@ -234,7 +237,7 @@ def print_table(evaluation_list):
     print(" & ".join(["$N^m$"] + value) + " \\\\ \hline")
 
     value = [
-        f"{ee.dist_to_path:.2f}" + " \\pm " + f"{ee.dist_to_path_std:.2f}"
+        f"{ee.dist_to_path:.2f}" + " $\\pm$ " + f"{ee.dist_to_path_std:.2f}"
         for ee in evaluation_list
     ]
     # std = [f"{ee.dist_to_path_std:.2f}" for ee in evaluation_list]
@@ -242,7 +245,7 @@ def print_table(evaluation_list):
 
     value = [
         f"{ee.squared_error_velocity:.2f}"
-        + " \\pm "
+        + " $\\pm$ "
         + f"{ee.squared_error_velocity_std:.2f}"
         for ee in evaluation_list
     ]
@@ -250,14 +253,14 @@ def print_table(evaluation_list):
 
     # value = [f"{(1.0 - ee.dotprod_err_velocity) * 0.5:.2f}" for ee in evaluation_list]
     value = [
-        f"{ee.nics_err_velocity:.2f}" + " \\pm " + f"{ee.nics_err_velocity_std:.2f}"
+        f"{ee.nics_err_velocity:.2f}" + " $\\pm$ " + f"{ee.nics_err_velocity_std:.2f}"
         for ee in evaluation_list
     ]
     print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
 
     value = [
         f"{ee.squared_acceleration:.2f}"
-        + " \\pm "
+        + " $\\pm$ "
         + f"{ee.squared_acceleration_std:.2f}"
         for ee in evaluation_list
     ]
@@ -268,7 +271,7 @@ def print_table(evaluation_list):
     # ]
     value = [
         f"{ee.nics_acceleration*1e4:.2f}"
-        + " \\pm "
+        + " $\\pm$ "
         + f"{ee.nics_acceleration_std*1e4:.2f}"
         for ee in evaluation_list
     ]
