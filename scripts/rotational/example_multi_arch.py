@@ -14,6 +14,7 @@ from dynamic_obstacle_avoidance.visualization import plot_obstacles
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 
 from nonlinear_avoidance.arch_obstacle import BlockArchObstacle
+from nonlinear_avoidance.arch_obstacle import create_arch_obstacle
 from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
@@ -24,7 +25,7 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
 )
 
 
-def visualize_double_arch(save_figure=False, it_max=500):
+def visualize_double_arch(save_figure=False, it_max=800):
     # x_ lim = [-7, 7]
     # y_lim = [-6, 6]
     x_lim = [-6.5, 6.5]
@@ -54,7 +55,7 @@ def visualize_double_arch(save_figure=False, it_max=500):
     )
     container = MultiObstacleContainer()
     container.append(
-        BlockArchObstacle(
+        create_arch_obstacle(
             wall_width=0.4,
             axes_length=np.array([4.5, 6.5]),
             pose=Pose(np.array([-1.5, -3.5]), orientation=90 * np.pi / 180.0),
@@ -63,7 +64,7 @@ def visualize_double_arch(save_figure=False, it_max=500):
     )
 
     container.append(
-        BlockArchObstacle(
+        create_arch_obstacle(
             wall_width=0.4,
             axes_length=np.array([4.5, 6.0]),
             pose=Pose(np.array([1.5, 3.0]), orientation=-90 * np.pi / 180.0),
@@ -79,19 +80,25 @@ def visualize_double_arch(save_figure=False, it_max=500):
         max_rotation=0.4 * math.pi,
     )
 
-    convergence_dynamics = LinearSystem(attractor, maximum_velocity=1.0)
-    rotation_projector = ProjectedRotationDynamics(
-        attractor_position=convergence_dynamics.attractor_position,
-        initial_dynamics=convergence_dynamics,
-        reference_velocity=lambda x: x - attractor,
-    )
+    # convergence_dynamics = LinearSystem(attractor, maximum_velocity=1.0)
+    # rotation_projector = ProjectedRotationDynamics(
+    #     attractor_position=convergence_dynamics.attractor_position,
+    #     initial_dynamics=convergence_dynamics,
+    #     reference_velocity=lambda x: x - attractor,
+    # )
 
+    # avoider = MultiObstacleAvoider(
+    #     obstacle_container=container,
+    #     initial_dynamics=initial_dynamics,
+    #     convergence_dynamics=rotation_projector,
+    #     # convergence_radius=0.51 * np.pi,
+    #     # create_convergence_dynamics=True,
+    # )
     avoider = MultiObstacleAvoider(
         obstacle_container=container,
         initial_dynamics=initial_dynamics,
-        convergence_dynamics=rotation_projector,
-        # convergence_radius=0.51 * np.pi,
-        # create_convergence_dynamics=True,
+        default_dynamics=LinearSystem(initial_dynamics.attractor_position),
+        create_convergence_dynamics=True,
     )
 
     kwargs_quiver = {
@@ -156,6 +163,7 @@ def visualize_double_arch(save_figure=False, it_max=500):
         velocity_functor=initial_dynamics.evaluate,
         ax=ax,
         it_max=it_max,
+        dt=0.02,
         show_qolo=False,
     )
 
