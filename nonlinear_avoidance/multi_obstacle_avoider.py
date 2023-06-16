@@ -55,7 +55,7 @@ def plot_multi_obstacle(multi_obstacle, ax=None, **kwargs):
     )
 
 
-def get_limited_weights_to_maxsum(weights: npt.ArrayLike) -> float | np.ndarray:
+def get_limited_weights_to_max_sum(weights: npt.ArrayLike) -> float | np.ndarray:
     """Makes sure weights with value of 1 get preferencial treatment.
     Changes the weights if larger > 1
     Returns the total weight if below 1.0, otherwise the updated list"""
@@ -594,6 +594,7 @@ class MultiObstacleAvoider:
                     if trafo_comp_to_parent is None:
                         breakpoint()  # TODO: debugging -> remove
 
+                    # TODO: this could be the vector directly...
                     self.conv_tree.add_node_orientation(
                         orientation=trafo_comp_to_parent,
                         node_id=node_id,
@@ -635,7 +636,7 @@ class MultiObstacleAvoider:
         # print(node_list)
 
         # Normalize weight [add to initial if small]
-        weight_list, tot_weight = get_limited_weights_to_maxsum(weight_list)
+        weight_list, tot_weight = get_limited_weights_to_max_sum(weight_list)
         weight_list[-1] = weight_list[-1] + (1 - tot_weight)
 
         weighted_sequence = self.conv_tree.reduce_weighted_to_sequence(
@@ -777,7 +778,7 @@ class MultiObstacleAvoider:
             component_weights.append(obstacle_weights)
 
         # print(tree_influence_weights)
-        normalized_weights, tot_weight = get_limited_weights_to_maxsum(
+        normalized_weights, tot_weight = get_limited_weights_to_max_sum(
             tree_influence_weights
         )
         # print(tree_influence_weights)
