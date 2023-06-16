@@ -311,14 +311,14 @@ class MultiObstacleAvoider:
         if initial_sequence is None:
             return np.zeros(self.initial_dynamics.dimension)
 
-        if self.default_dynamics is None:
-            convergence_sequence = self.compute_convergence_sequence(
-                position, initial_sequence
-            )
-        else:
-            convergence_sequence = evaluate_dynamics_sequence(
-                position, self.default_dynamics
-            )
+        # if self.default_dynamics is None:
+        convergence_sequence = self.compute_convergence_sequence(
+            position, initial_sequence
+        )
+        # else:
+        #     convergence_sequence = evaluate_dynamics_sequence(
+        #         position, self.default_dynamics
+        #     )
 
         final_sequence = self.evaluate_avoidance_from_sequence(
             position, convergence_sequence
@@ -532,11 +532,19 @@ class MultiObstacleAvoider:
                 )
             )
 
+            if self.default_dynamics is None:
+                # Check if there are 'fall-back' global dynamics
+                convergence_sequence = evaluate_dynamics_sequence(
+                    root.get_reference_point(in_global_frame=True),
+                    self.initial_dynamics,
+                )
+            else:
+                convergence_sequence = evaluate_dynamics_sequence(
+                    root.get_reference_point(in_global_frame=True),
+                    self.default_dynamics,
+                )
+
             # Nonzero weight expected, since weight > 0
-            convergence_sequence = evaluate_dynamics_sequence(
-                root.get_reference_point(in_global_frame=True),
-                self.initial_dynamics,
-            )
             continuous_sequence = self.vector_rotation_reduction(
                 initial_sequence, trafo_pos_to_root, convergence_sequence, weight
             )
