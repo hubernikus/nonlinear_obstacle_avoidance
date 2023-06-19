@@ -97,7 +97,10 @@ def create_initial_dynamics():
 
 
 def create_six_obstacle_environment(
-    distance_scaling=1.0, tail_effect=False
+    # distance_scaling=1.0,
+    distance_scaling=6.0,
+    # distance_scaling=0.3,
+    tail_effect=False,
 ) -> RotationContainer:
     obstacle_environment = RotationContainer()
 
@@ -388,12 +391,17 @@ def evaluate_nonlinear_trajectories():
     )
 
 
-def plot_nonlinear_trajectories(visualize=False):
+def plot_nonlinear_trajectories(
+    visualize=False, parameter_file="comparison_parameters.json"
+):
     obstacle_environment = create_six_obstacle_environment()
     initial_dynamics = create_initial_dynamics()
 
     container = MultiObstacleContainer()
-    for obs in obstacle_environment:
+    for oo, obs in enumerate(obstacle_environment):
+        # if oo not in []:
+        #     continue
+
         obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
         obstacle_tree.set_root(obs)
         container.append(obstacle_tree)
@@ -408,8 +416,10 @@ def plot_nonlinear_trajectories(visualize=False):
     if visualize:
         x_lim = [-4.0, 4.0]
         y_lim = [-4.0, 4.0]
+        # x_lim = [-2.5, -1.5]
+        # y_lim = [-1.5, -0.5]
 
-        n_resolution = 20
+        n_resolution = 30
         figsize = (6, 5)
 
         fig, ax = plt.subplots(figsize=figsize)
@@ -417,9 +427,10 @@ def plot_nonlinear_trajectories(visualize=False):
             ax=ax, container=container, x_lim=x_lim, y_lim=y_lim, draw_reference=True
         )
 
+    do_vectorfield = True
+    if do_vectorfield and visualize:
         plot_obstacle_dynamics(
-            # obstacle_container=container,
-            obstacle_container=[],
+            obstacle_container=container,
             dynamics=avoider.evaluate_sequence,
             x_lim=x_lim,
             y_lim=y_lim,
@@ -428,9 +439,81 @@ def plot_nonlinear_trajectories(visualize=False):
             attractor_position=initial_dynamics.attractor_position,
         )
 
+    do_trajectories = True
+    if do_trajectories and visualize:
+        with open(os.path.join(datapath, "..", parameter_file)) as user_file:
+            simulation_parameters = json.load(user_file)
+
+        starting_list = [
+            # [-2, -2],
+            # [-2, 2],
+            # [1, -1],
+            # [2, 2],
+            # [2, -2],
+            # [1.0, -1.0],
+            # [1, -1.0],
+            # [1.0, 1.0],
+            # [-1, -1.0],
+            [0.5, 0.0],
+            [0, -0.5],
+            [0, 0.5],
+            [-0.5, -0],
+        ]
+        for ii in range(len(starting_list)):
+            start_position = np.array(starting_list[ii])
+            trajectory = integrate_trajectory(
+                start_position=start_position,
+                evaluate_function=avoider.evaluate_sequence,
+                **simulation_parameters,
+            )
+
+            ax.plot(trajectory[0, :], trajectory[1, :], linewidth=2)
+            ax.plot(
+                trajectory[0, 0],
+                trajectory[1, 0],
+                "x",
+                linewidth=2,
+                color=(0.5, 0.5, 0.5),
+            )
+            ax.plot(trajectory[0, -1], trajectory[1, -1], "ko", linewidth=2)
+
+    plot_convergence = True
+    if plot_convergence and visualize:
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_obstacle_dynamics(
+            obstacle_container=container,
+            dynamics=avoider.compute_convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=initial_dynamics.attractor_position,
+        )
+
+    # position = np.array([-2.22, -0.70])
+    # convergence1 = avoider.compute_convergence_direction(position)
+    # velocity1 = avoider.evaluate(position)
+
+    # position = np.array([-2.25, -0.70])
+    # convergence2 = avoider.compute_convergence_direction(position)
+    # velocity2 = avoider.evaluate(position)
+    # breakpoint()
+
+    position = np.array([-1.9812, -0.7378])
+    convergence1 = avoider.compute_convergence_direction(position)
+    velocity1 = avoider.evaluate(position)
+
+    position = np.array([-1.9945, -0.7535])
+    convergence2 = avoider.compute_convergence_direction(position)
+    velocity2 = avoider.evaluate(position)
+    # breakpoint()
+
 
 def evaluate_modulated_trajectories():
-    obstacle_environment = create_six_obstacle_environment()
+    obstacle_environment = create_six_obstacle_environment(distance_scaling=1.0)
     initial_ds = create_initial_dynamics()
 
     modulation_avoider = ModulationAvoider(
@@ -568,7 +651,6 @@ def create_base_circles_to_file(datapath, parameter_file="comparison_parameters.
         start_position=start_position,
         evaluate_function=avoider.evaluate,
         collision_functor=lambda x: obstacle_environment.get_minimum_gamma(x) <= 1,
-        **simulation_parameters,
     )
 
     np.savetxt(
@@ -743,18 +825,21 @@ if (__name__) == "__main__":
     create_start_positions(
         # n_grid=5,
         n_grid=10,
-        x_lim=[-3.5, 3],
-        y_lim=[-2.8, 2.8],
+        # x_lim=[-3.5, 3],
+        # y_lim=[-2.8, 2.8],
+        x_lim=[-4.0, 4],
+        y_lim=[-4.0, 4.0],
         obstacle_environment=create_six_obstacle_environment(),
         datapath=datapath,
         store_to_file=True,
     )
 
-    plot_nonlinear_trajectories(visualize=True)
+    # plot_nonlinear_trajectories(visualize=False)
+    # plot_nonlinear_trajectories(visualize=True)
 
-    # evaluate_nonlinear_trajectories()
-    # evaluate_modulated_trajectories()
-    # evaluate_original_trajectories()
+    evaluate_nonlinear_trajectories()
+    evaluate_modulated_trajectories()
+    evaluate_original_trajectories()
 
     # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
     # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)
@@ -765,4 +850,4 @@ if (__name__) == "__main__":
     # visualize_trajectories(datapath, datafolder="original_trajectories")
 
     # create_base_circles_to_file(datapath=datapath)
-    # plot_trajectory_comparison(datapath=datapath, savefig=False)
+    plot_trajectory_comparison(datapath=datapath, savefig=True)

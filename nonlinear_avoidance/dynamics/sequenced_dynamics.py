@@ -30,5 +30,4 @@ def evaluate_dynamics_sequence(
 
     if np.any(np.isnan(rotation.rotation_angles)):
         breakpoint()  # TODO: remove after debugging
-
     return rotation

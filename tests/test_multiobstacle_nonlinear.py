@@ -1233,6 +1233,53 @@ def test_simple_tree(visualize=False):
     assert convergence[1] < 0, "Keeping circle rotation."
 
 
+def test_circular_no_obstacles(visualize=False):
+    dynamics = SimpleCircularDynamics(
+        pose=Pose(
+            np.array([0.0, 0.0]),
+        ),
+        radius=2.0,
+    )
+
+    container = MultiObstacleContainer()
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-3, 3.0]
+        y_lim = [-3, 3.0]
+
+        n_resolution = 40
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim, draw_reference=True
+        )
+
+    plot_vectorfield = True
+    if plot_vectorfield and visualize:
+        plot_obstacle_dynamics(
+            # obstacle_container=container,
+            obstacle_container=[],
+            dynamics=avoider.evaluate,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([1.0, 0])
+    velocity = avoider.evaluate(position)
+    assert velocity[0] > 0
+    assert velocity[1] > 0, "Pointing outwards."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # np.set_printoptions(precision=16)
@@ -1262,4 +1309,6 @@ if (__name__) == "__main__":
 
     # test_multiobstacle_normal_and_tangent(visualize=True)
 
-    test_limit_cycle_two_obstacle(visualize=True)
+    # test_limit_cycle_two_obstacle(visualize=False)
+
+    test_circular_no_obstacles(visualize=False)

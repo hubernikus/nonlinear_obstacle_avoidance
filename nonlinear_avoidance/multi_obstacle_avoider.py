@@ -301,6 +301,7 @@ class MultiObstacleAvoider:
             initial_magnitude = np.linalg.norm(initial_velocity)
 
         initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
+
         if not len(self.obstacle_container):
             return initial_sequence.get_end_vector() * initial_magnitude
 
@@ -798,10 +799,10 @@ class MultiObstacleAvoider:
             node_list=node_list, weights=final_weights
         )
 
+        # print("rotation_weight", self._rotation_weights)
         # print("cluster weights", self._cluster_weights)
         # print("final_weights", final_weights)
         # print("node list", node_list)
-        # print("rotation_weight", self._rotation_weights)
         # breakpoint()
         return weighted_sequence
 
@@ -1324,29 +1325,36 @@ class MultiObstacleAvoider:
             )
             parent_id = node_id
 
-        if convergence_radius > math.pi * 0.5:
-            # Add an intermediary node to ensure angle < math.pi
-            tangent = RotationalAvoider.get_projected_tangent_from_vectors(
+        if (
+            obstacle.get_component(comp_id).tail_effect
+            or np.dot(normal_directions[0], velocity) < 0
+        ):
+            if convergence_radius > math.pi * 0.5:
+                # Add an intermediary node to ensure angle < math.pi
+                tangent = RotationalAvoider.get_projected_tangent_from_vectors(
+                    velocity,
+                    normal=normal_directions[0],
+                    reference=reference_directions[0],
+                    convergence_radius=math.pi * 0.5,
+                )
+                node_id = NodeKey(obs_idx, comp_id, -1)
+                self._tangent_tree.add_node(
+                    node_id=node_id,
+                    parent_id=parent_id,
+                    direction=tangent,
+                )
+                parent_id = node_id
+
+            # Tail effecto or pointing towards obstacle
+            avoidance_direction = RotationalAvoider.get_projected_tangent_from_vectors(
                 velocity,
                 normal=normal_directions[0],
                 reference=reference_directions[0],
-                convergence_radius=math.pi * 0.5,
+                convergence_radius=convergence_radius,
             )
-            node_id = NodeKey(obs_idx, comp_id, -1)
-            self._tangent_tree.add_node(
-                node_id=node_id,
-                parent_id=parent_id,
-                direction=tangent,
-            )
-            parent_id = node_id
-
-            # print("Did an add on...")
-        avoidance_direction = RotationalAvoider.get_projected_tangent_from_vectors(
-            velocity,
-            normal=normal_directions[0],
-            reference=reference_directions[0],
-            convergence_radius=convergence_radius,
-        )
+        else:
+            # Just keep 'rotated' velocity
+            avoidance_direction = velocity
 
         node_id = NodeKey(obs_idx, comp_id, parents_tree[0])
         self._tangent_tree.add_node(

@@ -136,7 +136,7 @@ class TrajectoryEvaluator:
         it_max = simulation_parameters["it_max"]
 
         initial_dynamics = SimpleCircularDynamics(
-            dimension=2, pose=Pose.create_trivial(dimension=2)
+            pose=Pose.create_trivial(dimension=2), radius=2.0
         )
 
         datafolder_path = os.path.join(self.data_path, self.data_folder)
@@ -211,9 +211,6 @@ class TrajectoryEvaluator:
         self.nics_err_velocity = np.mean(self.nics_err_velocity_list)
         self.nics_err_velocity_std = np.std(self.nics_err_velocity_list)
 
-        self.nics_err_velocity_list = self.dotprod_err_velocity_list
-        self.nics_err_velocity = np.mean(self.dotprod_err_velocity_list)
-
         self.dotprod_acceleration = np.mean(self.dotprod_acceleration_list)
         self.dotprod_acceleration_std = np.std(self.dotprod_acceleration_list)
 
@@ -256,7 +253,16 @@ def print_table(evaluation_list):
         f"{ee.nics_err_velocity:.2f}" + " $\\pm$ " + f"{ee.nics_err_velocity_std:.2f}"
         for ee in evaluation_list
     ]
-    print(" & ".join(["$\\langle v \\rangle $"] + value) + " \\\\ \hline")
+    # print(" & ".join(["NICS $\dot \xi, f(\xi) $"] + value) + " \\\\ \hline")
+    print(" & ".join(["NICS [ref]"] + value) + " \\\\ \hline")
+
+    value = [
+        f"{ee.dotprod_err_velocity:.2f}"
+        + " $\\pm$ "
+        + f"{ee.dotprod_err_velocity_std:.2f}"
+        for ee in evaluation_list
+    ]
+    print(" & ".join(["DOTPROD [ref]"] + value) + " \\\\ \hline")
 
     value = [
         f"{ee.squared_acceleration:.2f}"
@@ -266,16 +272,21 @@ def print_table(evaluation_list):
     ]
     print(" & ".join(["$a$"] + value) + " \\\\ \hline")
 
-    # value = [
-    #     f"{(1.0 - ee.dotprod_acceleration) * 0.5 * 1e4:.2f}" for ee in evaluation_list
-    # ]
     value = [
         f"{ee.nics_acceleration*1e4:.2f}"
         + " $\\pm$ "
         + f"{ee.nics_acceleration_std*1e4:.2f}"
         for ee in evaluation_list
     ]
-    print(" & ".join(["$\\langle a \\rangle [1e-4 m/s]$"] + value) + " \\\\ \hline")
+    print(" & ".join(["NICS [time] $[1e-4 m/s]$"] + value) + " \\\\ \hline")
+
+    value = [
+        f"{ee.dotprod_acceleration:.2f}"
+        + " $\\pm$ "
+        + f"{ee.dotprod_acceleration_std:.2f}"
+        for ee in evaluation_list
+    ]
+    print(" & ".join(["$DOTPROD [time] [1e-4 m/s]$"] + value) + " \\\\ \hline")
 
 
 if (__name__) == "__main__":

@@ -512,10 +512,25 @@ def test_sequence_of_similar_vectors():
     assert np.allclose(rotation.rotation_angles, [0])
 
 
+def test_end_of_sequence():
+    base = np.array([-1.0, 0.0])
+    final = np.array([0.655, 0.756])
+    final = final / np.linalg.norm(final)
+    rotation = VectorRotationSequence.create_from_vector_array(
+        np.vstack((base, final)).T
+    )
+
+    final_reconstruct = rotation.get_end_vector()
+
+    assert np.isclose(np.cos(rotation.rotation_angles[0]), np.dot(base, final))
+    assert np.allclose(final, final_reconstruct)
+
+
 if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
+    test_end_of_sequence()
     test_sequence_of_similar_vectors()
 
     test_graph_reduction()
