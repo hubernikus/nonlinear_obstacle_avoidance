@@ -37,6 +37,10 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 
 from dynamic_obstacle_avoidance.avoidance import ModulationAvoider
 
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
+
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     NonlinearRotationalAvoider,
 )
@@ -44,6 +48,7 @@ from nonlinear_avoidance.rotation_container import RotationContainer
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
+from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
 
 
 def integrate_trajectory(
@@ -92,7 +97,7 @@ def create_initial_dynamics():
 
 
 def create_six_obstacle_environment(
-    distance_scaling=0.3, tail_effect=False
+    distance_scaling=1.0, tail_effect=False
 ) -> RotationContainer:
     obstacle_environment = RotationContainer()
 
@@ -350,26 +355,78 @@ def evaluate_trajectories(
 def evaluate_nonlinear_trajectories():
     obstacle_environment = create_six_obstacle_environment()
     initial_ds = create_initial_dynamics()
+    container = MultiObstacleContainer()
+    for obs in obstacle_environment:
+        obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+        obstacle_tree.set_root(obs)
+        container.append(obstacle_tree)
 
-    rotation_projector = ProjectedRotationDynamics(
-        attractor_position=initial_ds.pose.position,
-        initial_dynamics=initial_ds,
-        reference_velocity=lambda x: x - center_velocity.center_position,
-    )
+    # rotation_projector = ProjectedRotationDynamics(
+    #     attractor_position=initial_ds.pose.position,
+    #     initial_dynamics=initial_ds,
+    #     reference_velocity=lambda x: x - center_velocity.center_position,
+    # )
 
-    obstacle_avoider = NonlinearRotationalAvoider(
+    # obstacle_avoider = NonlinearRotationalAvoider(
+    #     initial_dynamics=initial_ds,
+    #     # convergence_system=convergence_dynamics,
+    #     obstacle_environment=obstacle_environment,
+    #     obstacle_convergence=rotation_projector,
+    # )
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
         initial_dynamics=initial_ds,
-        # convergence_system=convergence_dynamics,
-        obstacle_environment=obstacle_environment,
-        obstacle_convergence=rotation_projector,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
     )
 
     evaluate_trajectories(
         datapath=datapath,
         outputfolder="nonlinear_avoidance",
-        avoidance_functor=obstacle_avoider.evaluate,
+        avoidance_functor=avoider.evaluate,
         collision_functor=lambda x: obstacle_environment.get_minimum_gamma(x) <= 1,
     )
+
+
+def plot_nonlinear_trajectories(visualize=False):
+    obstacle_environment = create_six_obstacle_environment()
+    initial_dynamics = create_initial_dynamics()
+
+    container = MultiObstacleContainer()
+    for obs in obstacle_environment:
+        obstacle_tree = MultiObstacle(Pose(np.array([0, 0.0])))
+        obstacle_tree.set_root(obs)
+        container.append(obstacle_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+    )
+
+    if visualize:
+        x_lim = [-4.0, 4.0]
+        y_lim = [-4.0, 4.0]
+
+        n_resolution = 20
+        figsize = (6, 5)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim, draw_reference=True
+        )
+
+        plot_obstacle_dynamics(
+            # obstacle_container=container,
+            obstacle_container=[],
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=initial_dynamics.attractor_position,
+        )
 
 
 def evaluate_modulated_trajectories():
@@ -683,18 +740,21 @@ if (__name__) == "__main__":
     figtype = ".pdf"
     # figtype = ".png"
 
-    # create_start_positions(
-    #     # n_grid=5,
-    #     n_grid=10,
-    #     x_lim=[-3.5, 3],
-    #     y_lim=[-2.8, 2.8],
-    #     obstacle_environment=create_six_obstacle_environment(),
-    #     datapath=datapath,
-    #     store_to_file=True,
-    # )
-    evaluate_nonlinear_trajectories()
-    evaluate_modulated_trajectories()
-    evaluate_original_trajectories()
+    create_start_positions(
+        # n_grid=5,
+        n_grid=10,
+        x_lim=[-3.5, 3],
+        y_lim=[-2.8, 2.8],
+        obstacle_environment=create_six_obstacle_environment(),
+        datapath=datapath,
+        store_to_file=True,
+    )
+
+    plot_nonlinear_trajectories(visualize=True)
+
+    # evaluate_nonlinear_trajectories()
+    # evaluate_modulated_trajectories()
+    # evaluate_original_trajectories()
 
     # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
     # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)
@@ -705,4 +765,4 @@ if (__name__) == "__main__":
     # visualize_trajectories(datapath, datafolder="original_trajectories")
 
     # create_base_circles_to_file(datapath=datapath)
-    plot_trajectory_comparison(datapath=datapath, savefig=False)
+    # plot_trajectory_comparison(datapath=datapath, savefig=False)

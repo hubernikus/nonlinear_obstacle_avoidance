@@ -299,10 +299,10 @@ if (__name__) == "__main__":
         )
         gfield_evaluation.run()
 
-        gfield_evaluation = TrajectoryEvaluator(
-            n_runs=n_runs, data_folder="guiding_field"
-        )
-        gfield_evaluation.run()
+        # gfield_evaluation = TrajectoryEvaluator(
+        #     n_runs=n_runs, data_folder="guiding_field"
+        # )
+        # gfield_evaluation.run()
 
         original_evaluation = TrajectoryEvaluator(
             n_runs=n_runs, data_folder="original_trajectories"

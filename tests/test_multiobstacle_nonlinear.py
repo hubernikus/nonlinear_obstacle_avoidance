@@ -1262,4 +1262,4 @@ if (__name__) == "__main__":
 
     # test_multiobstacle_normal_and_tangent(visualize=True)
 
-    # test_limit_cycle_two_obstacle(visualize=True)
+    test_limit_cycle_two_obstacle(visualize=True)
