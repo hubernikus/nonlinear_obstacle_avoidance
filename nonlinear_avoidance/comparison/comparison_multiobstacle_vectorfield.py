@@ -837,9 +837,9 @@ if (__name__) == "__main__":
     # plot_nonlinear_trajectories(visualize=False)
     # plot_nonlinear_trajectories(visualize=True)
 
-    evaluate_nonlinear_trajectories()
-    evaluate_modulated_trajectories()
-    evaluate_original_trajectories()
+    # evaluate_nonlinear_trajectories()
+    # evaluate_modulated_trajectories()
+    # evaluate_original_trajectories()
 
     # visualize_circular_dynamics_multiobstacle_nonlinear(n_resolution=20)
     # visualize_circular_dynamics_multiobstacle_modulation(n_resolution=20)

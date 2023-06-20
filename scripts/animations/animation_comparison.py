@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from vartools.animator import Animator
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 from nonlinear_avoidance.comparison.comparison_multiobstacle_vectorfield import (
     plot_trajectory_comparison,
     create_six_obstacle_environment,
@@ -67,7 +68,7 @@ class ComparisonSingleAnimator(Animator):
         self.trajectory_color = trajectory_color
 
         # Create base environment
-        self.obstacle_environment = create_six_obstacle_environment()
+
         initial_ds = create_initial_dynamics()
 
         line_kwargs = {
@@ -92,9 +93,13 @@ class ComparisonSingleAnimator(Animator):
                 dtype=float,
                 skiprows=0,
             ).T
-
+            self.obstacle_environment = create_six_obstacle_environment()
         else:
-            self.limit_trajectory = np.zeros((2, 0))
+            radius = 2.0
+            angles = np.linspace(0, 2 * math.pi, 100)
+            self.limit_trajectory = np.vstack((np.cos(angles), np.sin(angles))) * radius
+            # Empty container
+            self.obstacle_environment = MultiObstacleContainer()
         # ax.plot(trajectory[0, :], trajectory[1, :], colors[ii], **line_kwargs)
 
         # Plot base circle
@@ -257,6 +262,45 @@ def main(save_animation=None) -> None:
     print("Now were out.")
 
 
+def run_single(save_animation=False) -> None:
+    datapath = "/home/lukas/Code/nonlinear_obstacle_avoidance/nonlinear_avoidance/comparison/data/"
+
+    colors = [
+        # "red", "green", "blue",
+        "gray"
+    ]
+    datafolders = [
+        # "nonlinear_avoidance",
+        # "modulation_avoidance",
+        # "guiding_field",
+        "original_trajectories",
+    ]
+    labels = [
+        # "ROAM", "MuMo", "VC-CAPF",
+        "Original"
+    ]
+
+    it = 0
+    for color, folder, label in zip(colors, datafolders, labels):
+        # if it < 0:
+        #     it += 1
+        #     continue
+        my_animator = ComparisonSingleAnimator(
+            dt_sleep=1e-5,
+            dt_simulation=1 / 60.0,
+            it_max=501,
+            animation_name=f"comparison_multi_obstacle_{label}",
+            file_type=".gif",
+        )
+        my_animator.setup(folder, color, datapath, figsize=(4.0, 3.5))
+        my_animator.run(save_animation=save_animation)
+
+        print("Done one")
+        # break
+
+    print("Now were out.")
+
+
 def run_all_animation_in_figure() -> None:
     my_animator = ComparisonAnimator(dt_sleep=0.005, dt_simulation=1e-2, it_max=501)
     my_animator.setup()
@@ -265,4 +309,5 @@ def run_all_animation_in_figure() -> None:
 
 if (__name__) == "__main__":
     plt.close("all")
-    main(save_animation=True)
+    # main(save_animation=True)
+    run_single(save_animation=True)
