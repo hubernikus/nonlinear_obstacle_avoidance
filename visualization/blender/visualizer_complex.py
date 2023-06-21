@@ -24,6 +24,7 @@ from blender_math import get_quat_from_direction, deg_to_euler
 from blender_math import DirectionalSpaceTransformer
 from motion import make_disappear, make_appear, move_to, align_with
 from objects import ArrowBlender, MovingSphere, ObjectAssembly, CubeObstacle, Line3D
+from objects import BlenderAttractor
 
 
 class CameraPoser:
@@ -271,6 +272,9 @@ def main(render_scene=False):
     filepath = Path.home() / "Videos" / "rotation_complex.blend"
     delete_all_meshes(filepath)
 
+    fps = 24
+    convergence_color = "0b8095ff"
+
     # # Import 'layer' / scene
     if "Main" not in bpy.context.scene.view_layers:
         bpy.context.scene.view_layers.new("Main")
@@ -284,6 +288,16 @@ def main(render_scene=False):
     scene = SceneStorer()
     scene.camera = CameraPoser()
     scene.camera.to_global0(0)  # Start at global
+
+    # Attractor
+    # attractor_position = np.array([4, 0, 2.5])
+    attractor_position = np.array([6, -4, 2])
+    BlenderAttractor(
+        attractor_position,
+        rotation=(45.0, 45.0, 0),
+        scale=(0.2, 0.2, 0.2),
+        hexcolor=convergence_color,
+    )
 
     obstacle_assembly = []
     main_obstacle = ObjectAssembly()
@@ -308,7 +322,7 @@ def main(render_scene=False):
 
     # Setup initial elements
     frame = 0
-    df = 30
+    df = fps * 6
     end_position = scene.agent.location + velocity_arrow.direction * 3
     move_to(scene.agent, end_position, frame, frame + df)
     move_to(velocity_arrow.object, end_position, frame, frame + df)
@@ -329,22 +343,23 @@ def main(render_scene=False):
 
     # Create relevant arrows
     frame = frame + df
-    df = 10
+    df = 4 * fps
     ref_dir = object_center - scene.agent.location
     ref_dir = ref_dir / np.linalg.norm(ref_dir)
     ref_arrow = ArrowBlender(scene.agent.location, ref_dir, color="3b1e78ff")
     make_appear(ref_arrow, frame, frame + df)
 
     frame = frame + df
-    df = 10
-    conv_dir = np.array([1, 0, 0.5])
+    df = 4 * fps
+    conv_dir = attractor_position - scene.agent.location
+    # conv_dir = np.array([1, 0, 0.5])
     conv_dir = conv_dir / np.linalg.norm(conv_dir)
-    conv_arrow = ArrowBlender(scene.agent.location, conv_dir, color="0b8095ff")
+    conv_arrow = ArrowBlender(scene.agent.location, conv_dir, color=convergence_color)
     make_appear(conv_arrow, frame, frame + df)
 
     ### Create Rotation-Mesh
     frame = frame + df
-    df = 10
+    df = 4 * fps
     make_appear(scene.rotational.object, frame, frame + df)
     velocity_point = create_sphere_from_arrow(
         velocity_arrow, scene.agent, frame, frame + df
@@ -354,7 +369,7 @@ def main(render_scene=False):
 
     ### Unfold
     frame = frame + df
-    df = 60
+    df = 3.5 * fps
     main_obstacle.make_disappear(frame, frame + df * 0.5)  # Get out fast
     do_scene_unfolding(scene, scene.agent, frame, frame + df)
     # Move velocity point
@@ -364,17 +379,17 @@ def main(render_scene=False):
 
     ### Break
     frame = frame + df
-    df = 10
+    df = int(0.1 * fps)
 
     ### Create Tangent
     frame = frame + df
-    df = 60
+    df = int(0.8 * fps)
     surface_point = get_circle_point(conv_point, ref_point, scene=scene)
     conf_ref_line = Line3D(ref_point, surface_point, color="000000")
     make_appear(conf_ref_line, frame + df - 1, frame + df)
 
     frame = frame + df
-    df = 20
+    df = int(fps / 3)
     move_to(conv_point, surface_point, frame, frame + df)
     make_disappear(ref_point, frame + df - 1, frame + df)
     make_disappear(conf_ref_line, frame + df - 1, frame + df)
@@ -383,7 +398,7 @@ def main(render_scene=False):
 
     ### Move velocity
     frame = frame + df
-    df = 60
+    df = 1 * fps
     ww = 0.7
     mid_point = ww * tang_point.location + (1 - ww) * velocity_point.location
     vel_tang_line = Line3D(velocity_point, tang_point, color="000000")
@@ -391,13 +406,13 @@ def main(render_scene=False):
 
     ### Break
     frame = frame + df
-    df = 40
+    df = int(0.5 * fps)
     move_to(velocity_point, mid_point, frame, frame + df)
     make_disappear(vel_tang_line, frame + df - 1, frame + df)
 
     ### Fold
     frame = frame + df
-    df = 60
+    df = int(0.5 * fps)
     do_scene_folding(scene, frame, frame + df)
     vec = scene.transformer.transform_from_direction_space(velocity_point.location)
     move_to(velocity_point, scene.agent.location + vec, frame, frame + df)
@@ -411,16 +426,16 @@ def main(render_scene=False):
 
     # Break
     frame = frame + df
-    df = 10
+    df = int(0.2 * fps)
     make_disappear(velocity_point, frame + df * 0.5, frame)  # Get out fast
 
     ### Pause
     frame = frame
-    df = 10
+    df = int(0.2 * fps)
 
     ### Pause
     frame = frame + df
-    df = 50
+    df = fps
     end_position = scene.agent.location + velocity_arrow.direction * 7
     move_to(scene.agent, end_position, frame, frame + df)
     move_to(velocity_arrow.object, end_position, frame, frame + df)

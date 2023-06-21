@@ -1280,6 +1280,141 @@ def test_circular_no_obstacles(visualize=False):
     assert velocity[1] > 0, "Pointing outwards."
 
 
+def test_circular_spiraling(visualize=False):
+    dimension = 2
+    dynamics = LinearSystem(
+        attractor_position=np.zeros(2),
+        A_matrix=np.array([[-1.0, -2], [2, -1]]),
+        maximum_velocity=1.0,
+    )
+
+    container = MultiObstacleContainer()
+    new_tree = MultiObstacle(Pose.create_trivial(dimension))
+    new_tree.set_root(
+        Ellipse(axes_length=np.array([1.0, 1.0]), center_position=np.array([2.2, 0.0]))
+    )
+    container.append(new_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.55 * math.pi,
+    )
+
+    if visualize:
+        x_lim = [-3.0, 3.4]
+        y_lim = [-3.0, 3.0]
+        # x_lim = [-0.9, -0.60]
+        # y_lim = [-0.05, 0.2]
+
+        n_resolution = 20
+        figsize = (10, 8)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim, draw_reference=True
+        )
+
+    plot_vectorfield = True
+    if plot_vectorfield and visualize:
+        plot_obstacle_dynamics(
+            # obstacle_container=container,
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+
+def test_starshape_spiraling(visualize=False):
+    dimension = 2
+    dynamics = LinearSystem(
+        attractor_position=np.zeros(2),
+        A_matrix=np.array([[-1.0, -2], [2, -1]]),
+        maximum_velocity=1.0,
+    )
+
+    main_obstacle = StarshapedFlower(
+        center_position=np.array([2.2, 0.0]),
+        radius_magnitude=0.3,
+        number_of_edges=4,
+        radius_mean=0.75,
+        orientation=33 / 180 * math.pi,
+        distance_scaling=1.0,
+        # tail_effect=False,
+        # is_boundary=True,
+    )
+
+    container = MultiObstacleContainer()
+    new_tree = MultiObstacle(Pose.create_trivial(dimension))
+    new_tree.set_root(main_obstacle)
+    container.append(new_tree)
+
+    avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.55 * math.pi,
+    )
+
+    if visualize:
+        x_lim = [-3.0, 3.4]
+        y_lim = [-3.0, 3.0]
+        # x_lim = [-0.9, -0.60]
+        # y_lim = [-0.05, 0.2]
+
+        n_resolution = 20
+        # figsize = (10, 8)
+        figsize = (8, 6)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim, draw_reference=True
+        )
+
+    plot_vectorfield = True
+    if plot_vectorfield and visualize:
+        plot_obstacle_dynamics(
+            # obstacle_container=container,
+            obstacle_container=container,
+            dynamics=avoider.evaluate_sequence,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    show_convergence = True
+    if show_convergence and visualize:
+        fig, ax = plt.subplots(figsize=figsize)
+
+        plot_multi_obstacle_container(
+            ax=ax, container=container, x_lim=x_lim, y_lim=y_lim
+        )
+
+        plot_obstacle_dynamics(
+            obstacle_container=container,
+            dynamics=avoider.compute_convergence_direction,
+            x_lim=x_lim,
+            y_lim=y_lim,
+            ax=ax,
+            n_grid=n_resolution,
+            attractor_position=dynamics.attractor_position,
+        )
+
+    position = np.array([2.38, 1.13])
+    # convergence = avoider.compute_convergence_direction(position)
+    dynamics = avoider.evaluate_sequence(position)
+    assert dynamics[1] > 0, "Keep circle dynamics."
+
+
 if (__name__) == "__main__":
     figtype = ".pdf"
     # np.set_printoptions(precision=16)
@@ -1311,4 +1446,7 @@ if (__name__) == "__main__":
 
     # test_limit_cycle_two_obstacle(visualize=False)
 
-    test_circular_no_obstacles(visualize=False)
+    # test_circular_no_obstacles(visualize=False)
+
+    test_starshape_spiraling(visualize=False)
+    # test_circular_spiraling(visualize=True)

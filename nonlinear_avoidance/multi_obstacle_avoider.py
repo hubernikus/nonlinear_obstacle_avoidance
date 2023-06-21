@@ -361,6 +361,7 @@ class MultiObstacleAvoider:
             print("magnitude", magnitude)
             print("self._cluster_weights", self._cluster_weights)
 
+        # breakpoint()
         return slowed_velocity + relative_velocity
 
     def slowfactor_from_convergence(self, power_factor: float = 0.2) -> float:
@@ -803,7 +804,6 @@ class MultiObstacleAvoider:
         # print("cluster weights", self._cluster_weights)
         # print("final_weights", final_weights)
         # print("node list", node_list)
-        # breakpoint()
         return weighted_sequence
 
     @staticmethod
@@ -1375,6 +1375,7 @@ class MultiObstacleAvoider:
 
         # print("baseVe", base_velocity)
         # print("velocity", velocity)
+        # print("normal", normal_directions[0])
         # try:
         #     print("tangent", tangent)
         # except:

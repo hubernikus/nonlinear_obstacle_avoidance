@@ -154,7 +154,7 @@ def main(render_scene=False):
     create_lights()
     # Setup initial elements
     frame = 0
-    df = 120
+    df = 300
     camera = CameraPoser()
     camera.to_global_view(frame)
 
@@ -178,7 +178,7 @@ def main(render_scene=False):
 
     ### Create Obstacle Normal
     frame = frame + df
-    df = 10
+    df = 60
 
     normal_vector = np.array([-1, 0, 0])
     dir_transformer = DirectionalSpaceTransformer.from_vector(
@@ -230,7 +230,7 @@ def main(render_scene=False):
 
     ### Unfold
     frame = frame + df
-    df = 130
+    df = 150
     make_disappear(half_plane, frame, frame + df * 0.5)  # Get out fast
     make_disappear(cube_obstacle, frame, frame + df * 0.5)  # Get out fast
     half_circle = SeparatingCircle(radius=math.pi * 0.5)
@@ -267,7 +267,7 @@ def main(render_scene=False):
 
     ### Fold
     frame = frame + df
-    df = 30
+    df = 100
     camera.to_midpoint(frame, frame + df)
     rotational.make_fold(frame, frame + df, 10)
     make_appear(cube_obstacle, frame + df * 0.3, frame + df * 0.4)
@@ -292,10 +292,10 @@ def main(render_scene=False):
 
     ### Move out of the scene
     frame = frame + df
-    df = 40
+    df = 100
     # camera.to_global_view(frame, frame + df * 0.6)
     camera.to_final_move(frame - 10, frame + df * 0.5)
-    final_position = agent.location + modulated_arrow.direction * 10
+    final_position = agent.location + modulated_arrow.direction * 20
     print(f"Final position {np.round(final_position,2 )}")
     move_to(modulated_arrow, final_position, frame, frame + df)
     move_to(agent, final_position, frame, frame + df)

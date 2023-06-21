@@ -17,9 +17,10 @@ import warnings
 from matplotlib.cm import ScalarMappable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
+from vartools.states import ObjectPose
+from vartools.animator import Animator
 from vartools.dynamical_systems import LinearSystem
 from vartools.linalg import get_orthogonal_basis
-from vartools.states import ObjectPose
 from vartools.dynamical_systems import DynamicalSystem
 from vartools.dynamical_systems import CircularStable
 
@@ -30,6 +31,7 @@ from dynamic_obstacle_avoidance.obstacles import Obstacle
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
+from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization.plot_obstacle_dynamics import (
     plot_obstacle_dynamics,
 )
@@ -46,6 +48,11 @@ from nonlinear_avoidance.nonlinear_rotation_avoider import NonlinearRotationalAv
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
+
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
+from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
 
 from nonlinear_avoidance.nonlinear_rotation_avoider import get_convergence_weight
 
@@ -82,9 +89,7 @@ class CircularEnvironment:
         )
 
 
-def get_environment_obstacle_top_right():
-    # attractor_position = np.array([1.0, -1.0])
-    attractor_position = np.array([0.0, 0.0])
+def get_main_obstacle():
     center = np.array([2.2, 0.0])
     obstacle = StarshapedFlower(
         center_position=center,
@@ -92,17 +97,36 @@ def get_environment_obstacle_top_right():
         number_of_edges=4,
         radius_mean=0.75,
         orientation=33 / 180 * math.pi,
-        distance_scaling=1,
+        # distance_scaling=1,
+        distance_scaling=2.0,
         # tail_effect=False,
         # is_boundary=True,
     )
+
+    return obstacle
+
+
+def get_initial_dynamics():
+    initial_dynamics = LinearSystem(
+        attractor_position=np.zeros(2),
+        A_matrix=np.array([[-1, -2], [2, -1]]),
+        maximum_velocity=1.0,
+    )
+    return initial_dynamics
+
+
+def get_environment_obstacle_top_right():
+    # attractor_position = np.array([1.0, -1.0])
+    attractor_position = np.array([0.0, 0.0])
+    obstacle = get_main_obstacle()
+
     # obstacle = Ellipse(
     #     center_position=center,
     #     axes_length=np.array([2.0, 1.0]),
     #     # orientation=45 * math.pi / 180.0,
     #     # margin_absolut=0.3,
     # )
-
+    initial_dynamics = get_initial_dynamics()
     reference_velocity = np.array([2, 0.1])
 
     # initial_dynamics = SimpleCircularDynamics(
@@ -112,11 +136,6 @@ def get_environment_obstacle_top_right():
     #     ),
     # )
 
-    initial_dynamics = LinearSystem(
-        attractor_position=np.zeros(2),
-        A_matrix=np.array([[-1, -2], [2, -1]]),
-        maximum_velocity=1.0,
-    )
     dynamics = ProjectedRotationDynamics(
         obstacle=obstacle,
         attractor_position=attractor_position,
@@ -183,51 +202,54 @@ def _test_base_gamma(
         dynamics.attractor_position, in_obstacle_frame=False
     )
 
-    gammas = np.zeros(positions.shape[1])
-    convergence_weights = np.ones_like(gammas)
-    ### Basic Obstacle Transformation ###
-    for pp in range(positions.shape[1]):
-        gammas[pp] = dynamics.obstacle.get_gamma(positions[:, pp], in_global_frame=True)
-
-        if gammas[pp] <= 1:
-            continue
-
-        # Convergence direction instead
-        pos_shrink = positions[:, pp]
-        pos_shrink = dynamics._get_position_after_deflating_obstacle(
-            pos_shrink,
-            in_obstacle_frame=False,
-        )
-        pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
-            pos_shrink,
-            attractor_position,
-            in_obstacle_frame=False,
-        )
-
-        pos_shrink = dynamics._get_position_after_inflating_obstacle(
-            pos_shrink,
-            in_obstacle_frame=False,
-        )
-
-        convergence_weights[pp] = get_convergence_weight(
-            dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
-        )
-
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
 
-    cs = ax.contourf(
-        positions[0, :].reshape(nx, ny),
-        positions[1, :].reshape(nx, ny),
-        convergence_weights.reshape(nx, ny),
-        cmap="binary",
-        alpha=kwargs["weights_alpha"],
-        # extend="max",
-        # vmin=1.0,
-        levels=np.linspace(0, 1, 11),
-        zorder=-1,
-    )
-    # cbar = fig.colorbar(cs, ticks=np.linspace(0, 1.0, 6))
+    if n_resolution > 0:
+        gammas = np.zeros(positions.shape[1])
+        convergence_weights = np.ones_like(gammas)
+        ### Basic Obstacle Transformation ###
+        for pp in range(positions.shape[1]):
+            gammas[pp] = dynamics.obstacle.get_gamma(
+                positions[:, pp], in_global_frame=True
+            )
+
+            if gammas[pp] <= 1:
+                continue
+
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            pos_shrink = dynamics._get_position_after_deflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+            pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
+                pos_shrink,
+                attractor_position,
+                in_obstacle_frame=False,
+            )
+
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
+
+        cs = ax.contourf(
+            positions[0, :].reshape(nx, ny),
+            positions[1, :].reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
+            cmap="binary",
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 1, 11),
+            zorder=-1,
+        )
+        # cbar = fig.colorbar(cs, ticks=np.linspace(0, 1.0, 6))
 
     ax.plot(
         dynamics.attractor_position[0],
@@ -351,62 +373,64 @@ def _test_obstacle_inflation(
         dynamics.attractor_position, in_obstacle_frame=False
     )
 
-    ### Do before the trafo ###
-    gammas_shrink = np.ones_like(gammas)
-    convergence_weights = np.zeros_like(gammas)
-    for pp in range(positions.shape[1]):
-        # Do the reverse operation to obtain an 'even' grid
-        pos_shrink = dynamics._get_position_after_inflating_obstacle(
-            positions[:, pp],
-            in_obstacle_frame=False,
-        )
-        gammas_shrink[pp] = dynamics.obstacle.get_gamma(
-            pos_shrink, in_global_frame=True
-        )
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
 
-        # Convergence direction instead
-        pos_shrink = positions[:, pp]
-        pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
-            pos_shrink,
-            attractor_position,
-            in_obstacle_frame=False,
+    if n_grid > 0:
+        ### Do before the trafo of the attractor###
+        gammas_shrink = np.ones_like(gammas)
+        convergence_weights = np.zeros_like(gammas)
+        for pp in range(positions.shape[1]):
+            # Do the reverse operation to obtain an 'even' grid
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                positions[:, pp],
+                in_obstacle_frame=False,
+            )
+            gammas_shrink[pp] = dynamics.obstacle.get_gamma(
+                pos_shrink, in_global_frame=True
+            )
+
+            # Convergence direction instead
+            pos_shrink = positions[:, pp]
+            pos_shrink = dynamics._get_folded_position_opposite_kernel_point(
+                pos_shrink,
+                attractor_position,
+                in_obstacle_frame=False,
+            )
+            pos_shrink = dynamics._get_position_after_inflating_obstacle(
+                pos_shrink,
+                in_obstacle_frame=False,
+            )
+            convergence_weights[pp] = get_convergence_weight(
+                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            )
+
+        # cs = ax.contourf(
+        #     positions[0, :].reshape(nx, ny),
+        #     positions[1, :].reshape(nx, ny),
+        #     gammas_shrink.reshape(nx, ny),
+        #     cmap="binary",
+        #     extend="max",
+        #     vmin=1.0,
+        #     levels=np.linspace(1, 10, 9),
+        # )
+        cs = ax.contourf(
+            positions[0, :].reshape(nx, ny),
+            positions[1, :].reshape(nx, ny),
+            convergence_weights.reshape(nx, ny),
+            cmap="binary",
+            alpha=kwargs["weights_alpha"],
+            # extend="max",
+            # vmin=1.0,
+            levels=np.linspace(0, 0.99, 10),
+            zorder=-1,
         )
-        pos_shrink = dynamics._get_position_after_inflating_obstacle(
-            pos_shrink,
-            in_obstacle_frame=False,
-        )
-        convergence_weights[pp] = get_convergence_weight(
-            dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
-        )
+        # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
 
     # Transpose attractor
     attractor_position = dynamics._get_position_after_deflating_obstacle(
         dynamics.attractor_position, in_obstacle_frame=False
     )
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=figsize)
-    # cs = ax.contourf(
-    #     positions[0, :].reshape(nx, ny),
-    #     positions[1, :].reshape(nx, ny),
-    #     gammas_shrink.reshape(nx, ny),
-    #     cmap="binary",
-    #     extend="max",
-    #     vmin=1.0,
-    #     levels=np.linspace(1, 10, 9),
-    # )
-    cs = ax.contourf(
-        positions[0, :].reshape(nx, ny),
-        positions[1, :].reshape(nx, ny),
-        convergence_weights.reshape(nx, ny),
-        cmap="binary",
-        alpha=kwargs["weights_alpha"],
-        # extend="max",
-        # vmin=1.0,
-        levels=np.linspace(0, 0.99, 10),
-        zorder=-1,
-    )
-    # cbar = fig.colorbar(cs, ticks=np.linspace(1, 11, 6))
 
     ax.plot(
         attractor_position[0],
@@ -1118,7 +1142,162 @@ def plot_single_avoidance():
     )
 
 
+class AnimatorConvergence(Animator):
+    dimension = 2
+
+    def setup(self, start_position):
+        self.fig, self.ax = plt.subplots(figsize=setup["figsize"])
+
+        # Properties
+        self.x_lim = setup["x_lim"]
+        self.y_lim = setup["y_lim"]
+        self.n_vectors = setup["n_vectors"]
+        # _test_base_gamma(ax=self.ax, **dynamic_setup)
+
+        self.dynamics = get_initial_dynamics()
+        self.create_multiobstacle_avoider()
+
+        self.trajectory = np.zeros((self.dimension, self.it_max + 1))
+        self.trajectory[:, 0] = start_position
+
+    def initialize_plot(self):
+        self.ax.clear()
+        (self.position_artist,) = self.ax.plot(
+            self.trajectory[0, 0], self.trajectory[1, 0], "ko"
+        )
+        (self.trajectory_artist,) = self.ax.plot(
+            self.trajectory[0, 0], self.trajectory[1, 0], color="blue", linewidth=2
+        )
+        plot_multi_obstacle_container(
+            ax=self.ax,
+            container=self.container,
+            x_lim=self.x_lim,
+            y_lim=self.y_lim,
+            draw_reference=True,
+        )
+
+        # Do initial trajectory
+        self.initial_trajectory = np.zeros((self.dimension, self.it_max + 1))
+        self.initial_trajectory[:, 0] = self.trajectory[:, 0]
+        for ii in range(self.it_max):
+            velocity = self.dynamics.evaluate(self.initial_trajectory[:, ii])
+            self.initial_trajectory[:, ii + 1] = (
+                self.initial_trajectory[:, ii] + velocity * self.dt_simulation
+            )
+
+        self.ax.plot(
+            self.initial_trajectory[0, :], self.initial_trajectory[1, :], "green"
+        )
+
+        # Initial
+        plot_obstacle_dynamics(
+            obstacle_container=self.container,
+            dynamics=self.dynamics.evaluate,
+            x_lim=self.x_lim,
+            y_lim=self.y_lim,
+            ax=self.ax,
+            n_grid=self.n_vectors,
+            attractor_position=self.dynamics.attractor_position,
+        )
+
+        # Initial
+        plot_obstacle_dynamics(
+            obstacle_container=self.container,
+            dynamics=self.avoider.compute_convergence_direction,
+            x_lim=self.x_lim,
+            y_lim=self.y_lim,
+            ax=self.ax,
+            n_grid=self.n_vectors,
+            attractor_position=self.dynamics.attractor_position,
+        )
+
+    def create_multiobstacle_avoider(self):
+        self.container = MultiObstacleContainer()
+        new_tree = MultiObstacle(Pose.create_trivial(self.dimension))
+        new_tree.set_root(get_main_obstacle())
+        self.container.append(new_tree)
+
+        self.avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+            obstacle_container=self.container,
+            initial_dynamics=self.dynamics,
+            # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+            create_convergence_dynamics=True,
+            # convergence_radius=0.55 * math.pi,
+        )
+
+    def update_step(self, ii: int) -> None:
+        velocity = self.avoider.evaluate(self.trajectory[:, ii])
+        self.trajectory[:, ii + 1] = (
+            self.trajectory[:, ii] + velocity * self.dt_simulation
+        )
+
+        # self.ax.clear()
+
+        self.position_artist.set_xdata([self.trajectory[0, ii + 1]])
+        self.position_artist.set_ydata([self.trajectory[1, ii + 1]])
+
+        self.trajectory_artist.set_xdata(self.trajectory[0, : ii + 2])
+        self.trajectory_artist.set_ydata(self.trajectory[1, : ii + 2])
+        # self.ax.plot(
+        #     self.trajectory[0, ii + 1], self.trajectory[1, ii + 1], "ko", linewidth=2
+        # )
+        # self.ax.plot(
+        #     self.trajectory[0, : ii + 1],
+        #     self.trajectory[1, : ii + 1],
+        #     color="blue",
+        #     linewidth=2,
+        # )
+
+        # plot_obstacle_dynamics(
+        #     obstacle_container=self.container,
+        #     dynamics=self.avoider.evaluate,
+        #     x_lim=self.x_lim,
+        #     y_lim=self.y_lim,
+        #     ax=self.ax,
+        #     n_grid=self.n_vectors,
+        #     attractor_position=self.dynamics.attractor_position,
+        # )
+
+
+def run_animation(start_position, save_animation=False):
+    animator = AnimatorConvergence(
+        dt_simulation=0.1,
+        dt_sleep=0.1,
+        it_max=300,
+        animation_name="global_convergence",
+        file_type=".gif",
+    )
+
+    animator.setup(start_position=start_position)
+    animator.initialize_plot()
+    animator.run(save_animation=save_animation)
+
+
+def run_animation_with_global_convergence(start_position, save_animation=False):
+    animator = AnimatorConvergence(
+        dt_simulation=0.05,
+        dt_sleep=0.1,
+        it_max=300,
+        animation_name="global_convergence",
+        file_type=".gif",
+    )
+
+    animator.setup(start_position=np.array([3.0, -2]))
+    animator.avoider = MultiObstacleAvoider(
+        obstacle_container=animator.container,
+        initial_dynamics=animator.dynamics,
+        default_dynamics=LinearSystem(animator.dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.53 * math.pi,
+    )
+    # breakpoint()
+    # TODO: there is currently a bug which makes this collide > 2.0
+    animator.avoider.tree_list.get_tree(0).get_component(0).distance_scaling = 1.6
+    animator.run(save_animation=save_animation)
+
+
 if (__name__) == "__main__":
+    # TODO: remove '_test_*" functions
     setup = {
         "attractor_color": "#BD5E11",
         "opposite_color": "#4E8212",
@@ -1127,7 +1306,8 @@ if (__name__) == "__main__":
         "final_color": "#30a0b3ff",
         # "figsize": (5, 4),
         "figsize": (10, 8),
-        "x_lim": [-3.0, 3.4],
+        # "x_lim": [-3.0, 3.4],
+        "x_lim": [-2.5, 4.0],
         "y_lim": [-3.0, 3.0],
         "n_resolution": 100,
         "n_vectors": 10,
@@ -1137,8 +1317,8 @@ if (__name__) == "__main__":
         "weights_alpha": 0.7,
     }
 
-    # figtype = ".pdf"
-    figtype = ".png"
+    figtype = ".pdf"
+    # figtype = ".png"
 
     import matplotlib.pyplot as plt
 
@@ -1147,4 +1327,8 @@ if (__name__) == "__main__":
 
     # plot_four_mappings()
     # plot_single_avoidance()
-    plot_mappings_single_plots(save_figure=True)
+    # plot_mappings_single_plots(save_figure=True)
+
+    start_position = np.array([3.5, -2])
+    run_animation(start_position=start_position)
+    # run_animation_with_global_convergence(start_position=start_position)

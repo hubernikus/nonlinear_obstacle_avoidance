@@ -49,6 +49,22 @@ class CubeObstacle:
         create_color(hex_to_rgba("724545ff"), "brown", obj=self.object)
 
 
+class BlenderAttractor:
+    def __init__(
+        self, position, rotation=(0, 0, 0), scale=(1, 1, 1), hexcolor="724545ff"
+    ):
+        bpy.ops.mesh.primitive_cube_add(
+            location=tuple(position),
+            rotation=rotation,
+            align="WORLD",
+            scale=scale,
+        )
+        self.object = bpy.context.object
+
+        # Make object from mesh
+        create_color(hex_to_rgba(hexcolor), "brown", obj=self.object)
+
+
 class ObjectAssembly:
     def __init__(self):
         self.objects = []
