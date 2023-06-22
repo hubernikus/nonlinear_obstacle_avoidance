@@ -595,7 +595,6 @@ class ProjectedRotationDynamics:
 
         weight = (1.0 / ((proj_gamma - 1) * (gamma - 1) + 1)) ** weight_power
         # if weight < 1e-2:
-        #     breakpoint()
         return min(weight, 1)
 
     def evaluate_convergence_sequence_around_obstacle(

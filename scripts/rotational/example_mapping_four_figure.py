@@ -17,7 +17,7 @@ import warnings
 from matplotlib.cm import ScalarMappable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-from vartools.states import ObjectPose
+from vartools.states import Pose
 from vartools.animator import Animator
 from vartools.dynamical_systems import LinearSystem
 from vartools.linalg import get_orthogonal_basis
@@ -83,7 +83,7 @@ class CircularEnvironment:
         self.attractor_position = np.array([0.0, 0])
         self.circular_ds = SimpleCircularDynamics(
             radius=2.0,
-            pose=ObjectPose(
+            pose=Pose(
                 position=attractor_position,
             ),
         )
@@ -131,7 +131,7 @@ def get_environment_obstacle_top_right():
 
     # initial_dynamics = SimpleCircularDynamics(
     #     radius=2.0,
-    #     pose=ObjectPose(
+    #     pose=Pose(
     #         position=attractor_position,
     #     ),
     # )
@@ -157,7 +157,7 @@ def get_environment_obstacle_top_right():
     rotation_projector = ProjectedRotationDynamics(
         attractor_position=initial_dynamics.pose.position,
         initial_dynamics=initial_dynamics,
-        reference_velocity=lambda x: x - circular_ds.center_position,
+        # reference_velocity=lambda x: x - circular_ds.center_position,
     )
 
     nonlinear_avoider = NonlinearRotationalAvoider(
@@ -182,6 +182,7 @@ def _test_base_gamma(
     n_vectors: int = 8,
     save_figure: bool = False,
     ax=None,
+    plot_converence: bool = True,
     **kwargs,
 ):
     # No explicit test in here, since only getting the gamma value.
@@ -234,8 +235,13 @@ def _test_base_gamma(
                 in_obstacle_frame=False,
             )
 
-            convergence_weights[pp] = get_convergence_weight(
-                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            # convergence_weights[pp] = get_convergence_weight(
+            #     dynamics.obstacle.get_gamma(positions[:, pp], in_global_frame=True)
+            # )
+            convergence_weights[
+                pp
+            ] = avoider.obstacle_convergence.evaluate_projected_weight(
+                positions[:, pp], obstacle=dynamics.obstacle
             )
 
         cs = ax.contourf(
@@ -313,24 +319,25 @@ def _test_base_gamma(
             velocity[0],
             velocity[1],
             color=kwargs["initial_color"],
-            scale=10.0,
-            width=0.01,
+            scale=kwargs["quiver_scale"],
+            width=kwargs["quiver_width"],
             zorder=3,
         )
 
-        velocity_rotation = avoider.evaluate_weighted_dynamics(pos, velocity)
-        ax.quiver(
-            pos[0],
-            pos[1],
-            # velocity_mod[0],
-            # velocity_mod[1],
-            velocity_rotation[0],
-            velocity_rotation[1],
-            color=kwargs["final_color"],
-            scale=10.0,
-            width=0.01,
-            zorder=3,
-        )
+        if plot_converence:
+            velocity_rotation = avoider.evaluate_weighted_dynamics(pos, velocity)
+            ax.quiver(
+                pos[0],
+                pos[1],
+                # velocity_mod[0],
+                # velocity_mod[1],
+                velocity_rotation[0],
+                velocity_rotation[1],
+                color=kwargs["final_color"],
+                scale=kwargs["quiver_scale"],
+                width=kwargs["quiver_width"],
+                zorder=3,
+            )
 
     ax.set_xticks([])
     ax.set_yticks([])
@@ -354,6 +361,7 @@ def _test_obstacle_inflation(
     figsize=(5, 4),
     n_vectors: int = 8,
     save_figure: bool = False,
+    plot_converence: bool = True,
     ax=None,
     **kwargs,
 ):
@@ -376,7 +384,7 @@ def _test_obstacle_inflation(
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
 
-    if n_grid > 0:
+    if n_vectors > 0:
         ### Do before the trafo of the attractor###
         gammas_shrink = np.ones_like(gammas)
         convergence_weights = np.zeros_like(gammas)
@@ -401,8 +409,14 @@ def _test_obstacle_inflation(
                 pos_shrink,
                 in_obstacle_frame=False,
             )
-            convergence_weights[pp] = get_convergence_weight(
-                dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            # convergence_weights[pp] = get_convergence_weight(
+            #     dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+            # )
+
+            convergence_weights[
+                pp
+            ] = avoider.obstacle_convergence.evaluate_projected_weight(
+                pos_shrink, obstacle=dynamics.obstacle
             )
 
         # cs = ax.contourf(
@@ -501,22 +515,23 @@ def _test_obstacle_inflation(
                 velocity[0],
                 velocity[1],
                 color=kwargs["initial_color"],
-                scale=10.0,
-                width=0.01,
+                scale=kwargs["quiver_scale"],
+                width=kwargs["quiver_width"],
                 zorder=3,
             )
 
-            convergence_velocity = avoider.evaluate_weighted_dynamics(pos, velocity)
-            ax.quiver(
-                positions[0, pp],
-                positions[1, pp],
-                convergence_velocity[0],
-                convergence_velocity[1],
-                color=kwargs["final_color"],
-                scale=10.0,
-                width=0.01,
-                zorder=3,
-            )
+            if plot_converence:
+                convergence_velocity = avoider.evaluate_weighted_dynamics(pos, velocity)
+                ax.quiver(
+                    positions[0, pp],
+                    positions[1, pp],
+                    convergence_velocity[0],
+                    convergence_velocity[1],
+                    color=kwargs["final_color"],
+                    scale=kwargs["quiver_scale"],
+                    width=kwargs["quiver_width"],
+                    zorder=3,
+                )
 
         ax.set_xticks([])
         ax.set_yticks([])
@@ -541,6 +556,7 @@ def _test_inverse_projection_around_obstacle(
     figsize=(5, 4),
     n_vectors=10,
     save_figure=False,
+    plot_converence: bool = True,
     ax=None,
     **kwargs,
 ):
@@ -582,8 +598,13 @@ def _test_inverse_projection_around_obstacle(
             pos_shrink,
             in_obstacle_frame=False,
         )
-        convergence_weights[pp] = get_convergence_weight(
-            dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+        # convergence_weights[pp] = get_convergence_weight(
+        #     dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+        # )
+        convergence_weights[
+            pp
+        ] = avoider.obstacle_convergence.evaluate_projected_weight(
+            pos_shrink, obstacle=dynamics.obstacle
         )
 
     if ax is None:
@@ -699,25 +720,26 @@ def _test_inverse_projection_around_obstacle(
                 velocity[0],
                 velocity[1],
                 color=kwargs["initial_color"],
-                scale=10.0,
-                width=0.01,
+                scale=kwargs["quiver_scale"],
+                width=kwargs["quiver_width"],
                 zorder=3,
             )
 
-            convergence_velocity = avoider.evaluate_weighted_dynamics(
-                pos_unfold, unrotated_velocity
-            )
-            convergence_velocity = base_rotation.rotate(convergence_velocity)
-            ax.quiver(
-                positions[0, pp],
-                positions[1, pp],
-                convergence_velocity[0],
-                convergence_velocity[1],
-                color=kwargs["final_color"],
-                scale=10.0,
-                width=0.01,
-                zorder=3,
-            )
+            if plot_converence:
+                convergence_velocity = avoider.evaluate_weighted_dynamics(
+                    pos_unfold, unrotated_velocity
+                )
+                convergence_velocity = base_rotation.rotate(convergence_velocity)
+                ax.quiver(
+                    positions[0, pp],
+                    positions[1, pp],
+                    convergence_velocity[0],
+                    convergence_velocity[1],
+                    color=kwargs["final_color"],
+                    scale=kwargs["quiver_scale"],
+                    width=kwargs["quiver_width"],
+                    zorder=3,
+                )
 
         ax.set_xticks([])
         ax.set_yticks([])
@@ -743,6 +765,7 @@ def _test_inverse_projection_and_deflation_around_obstacle(
     n_vectors=10,
     save_figure=False,
     ax=None,
+    plot_converence: bool = True,
     **kwargs,
 ):
     dynamics, avoider = get_environment_obstacle_top_right()
@@ -785,8 +808,13 @@ def _test_inverse_projection_and_deflation_around_obstacle(
 
         # Convergence direction instead
         pos_shrink = positions[:, pp]
-        convergence_weights[pp] = get_convergence_weight(
-            dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+        # convergence_weights[pp] = get_convergence_weight(
+        #     dynamics.obstacle.get_gamma(pos_shrink, in_global_frame=True)
+        # )
+        convergence_weights[
+            pp
+        ] = avoider.obstacle_convergence.evaluate_projected_weight(
+            pos_shrink, obstacle=dynamics.obstacle
         )
 
     if ax is None:
@@ -889,25 +917,26 @@ def _test_inverse_projection_and_deflation_around_obstacle(
                 velocity[0],
                 velocity[1],
                 color=kwargs["initial_color"],
-                scale=10.0,
-                width=0.01,
+                scale=kwargs["quiver_scale"],
+                width=kwargs["quiver_width"],
                 zorder=3,
             )
 
-            convergence_velocity = avoider.evaluate_weighted_dynamics(
-                pos_unfold, unrotated_velocity
-            )
-            convergence_velocity = base_rotation.rotate(convergence_velocity)
-            ax.quiver(
-                pos[0],
-                pos[1],
-                convergence_velocity[0],
-                convergence_velocity[1],
-                color=kwargs["final_color"],
-                scale=10.0,
-                width=0.01,
-                zorder=3,
-            )
+            if plot_converence:
+                convergence_velocity = avoider.evaluate_weighted_dynamics(
+                    pos_unfold, unrotated_velocity
+                )
+                convergence_velocity = base_rotation.rotate(convergence_velocity)
+                ax.quiver(
+                    pos[0],
+                    pos[1],
+                    convergence_velocity[0],
+                    convergence_velocity[1],
+                    color=kwargs["final_color"],
+                    scale=kwargs["quiver_scale"],
+                    width=kwargs["quiver_width"],
+                    zorder=3,
+                )
 
         ax.set_xticks([])
         ax.set_yticks([])
@@ -1144,6 +1173,9 @@ def plot_single_avoidance():
 
 class AnimatorConvergence(Animator):
     dimension = 2
+    linewidth = 5.0
+
+    trajectory_color = "blue"
 
     def setup(self, start_position):
         self.fig, self.ax = plt.subplots(figsize=setup["figsize"])
@@ -1160,20 +1192,29 @@ class AnimatorConvergence(Animator):
         self.trajectory = np.zeros((self.dimension, self.it_max + 1))
         self.trajectory[:, 0] = start_position
 
-    def initialize_plot(self):
+    def initialize_plot(self, convergence_functor=None, baseline_avoider=None):
         self.ax.clear()
-        (self.position_artist,) = self.ax.plot(
-            self.trajectory[0, 0], self.trajectory[1, 0], "ko"
-        )
         (self.trajectory_artist,) = self.ax.plot(
-            self.trajectory[0, 0], self.trajectory[1, 0], color="blue", linewidth=2
+            self.trajectory[0, 0],
+            self.trajectory[1, 0],
+            # color="blue",
+            color=self.trajectory_color,
+            linewidth=self.linewidth,
         )
+        (self.position_artist,) = self.ax.plot(
+            self.trajectory[0, 0],
+            self.trajectory[1, 0],
+            "ko",
+            markersize=10.0,
+        )
+
         plot_multi_obstacle_container(
             ax=self.ax,
             container=self.container,
             x_lim=self.x_lim,
             y_lim=self.y_lim,
             draw_reference=True,
+            noTicks=True,
         )
 
         # Do initial trajectory
@@ -1186,8 +1227,36 @@ class AnimatorConvergence(Animator):
             )
 
         self.ax.plot(
-            self.initial_trajectory[0, :], self.initial_trajectory[1, :], "green"
+            self.initial_trajectory[0, :],
+            self.initial_trajectory[1, :],
+            # "black",
+            color=setup["initial_color"],
+            alpha=0.5,
+            linewidth=self.linewidth,
+            zorder=-5,
         )
+
+        if baseline_avoider is not None:
+            # Do initial trajectory
+            baseline_trajectory = np.zeros((self.dimension, self.it_max + 1))
+            baseline_trajectory[:, 0] = self.trajectory[:, 0]
+
+            for ii in range(self.it_max):
+                velocity = baseline_avoider.evaluate(baseline_trajectory[:, ii])
+                baseline_trajectory[:, ii + 1] = (
+                    baseline_trajectory[:, ii] + velocity * self.dt_simulation
+                )
+
+            self.ax.plot(
+                baseline_trajectory[0, :],
+                baseline_trajectory[1, :],
+                # "black",
+                "--",
+                color=self.trajectory_color,
+                alpha=0.4,
+                linewidth=self.linewidth,
+                zorder=-5,
+            )
 
         # Initial
         plot_obstacle_dynamics(
@@ -1198,17 +1267,21 @@ class AnimatorConvergence(Animator):
             ax=self.ax,
             n_grid=self.n_vectors,
             attractor_position=self.dynamics.attractor_position,
+            vectorfield_color=setup["initial_color"],
         )
 
-        # Initial
+        # Convergence
+        if convergence_functor is None:
+            convergence_functor = self.avoider.compute_convergence_direction
         plot_obstacle_dynamics(
             obstacle_container=self.container,
-            dynamics=self.avoider.compute_convergence_direction,
+            dynamics=convergence_functor,
             x_lim=self.x_lim,
             y_lim=self.y_lim,
             ax=self.ax,
             n_grid=self.n_vectors,
             attractor_position=self.dynamics.attractor_position,
+            vectorfield_color=setup["final_color"],
         )
 
     def create_multiobstacle_avoider(self):
@@ -1264,12 +1337,21 @@ def run_animation(start_position, save_animation=False):
         dt_simulation=0.1,
         dt_sleep=0.1,
         it_max=300,
-        animation_name="global_convergence",
+        animation_name="spiraling_with_local_convergence",
         file_type=".gif",
     )
 
     animator.setup(start_position=start_position)
-    animator.initialize_plot()
+
+    baseline_avoider = MultiObstacleAvoider(
+        obstacle_container=animator.container,
+        initial_dynamics=animator.dynamics,
+        default_dynamics=LinearSystem(animator.dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.53 * math.pi,
+    )
+
+    animator.initialize_plot(baseline_avoider=baseline_avoider)
     animator.run(save_animation=save_animation)
 
 
@@ -1278,11 +1360,11 @@ def run_animation_with_global_convergence(start_position, save_animation=False):
         dt_simulation=0.05,
         dt_sleep=0.1,
         it_max=300,
-        animation_name="global_convergence",
+        animation_name="spiraling_with_global_convergence",
         file_type=".gif",
     )
 
-    animator.setup(start_position=np.array([3.0, -2]))
+    animator.setup(start_position=start_position)
     animator.avoider = MultiObstacleAvoider(
         obstacle_container=animator.container,
         initial_dynamics=animator.dynamics,
@@ -1292,8 +1374,61 @@ def run_animation_with_global_convergence(start_position, save_animation=False):
     )
     # breakpoint()
     # TODO: there is currently a bug which makes this collide > 2.0
-    animator.avoider.tree_list.get_tree(0).get_component(0).distance_scaling = 1.6
+    # animator.avoider.tree_list.get_tree(0).get_component(0).distance_scaling = 1.6
+    animator.initialize_plot(
+        convergence_functor=LinearSystem(
+            attractor_position=animator.dynamics.attractor_position,
+            maximum_velocity=1.0,
+        ).evaluate
+    )
     animator.run(save_animation=save_animation)
+
+
+def evaluate_projected_velocity(save_figure=False):
+    setup["figure_name"] = "mappin_initial_only"
+    _test_base_gamma(
+        visualize=True,
+        visualize_vectors=True,
+        save_figure=save_figure,
+        # ax=axs[0, 0],
+        plot_converence=False,
+        **setup,
+    )
+
+    _test_obstacle_inflation(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        plot_converence=False,
+        # ax=axs[0, 1],
+    )
+
+    _test_inverse_projection_around_obstacle(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        plot_converence=False,
+        # ax=axs[1, 1],
+    )
+
+    _test_inverse_projection_and_deflation_around_obstacle(
+        visualize=True,
+        **setup,
+        save_figure=save_figure,
+        plot_converence=False,
+        # ax=axs[1, 0],
+    )
+
+    setup["figure_name"] = "mapping_initial_and_convergence"
+
+    _test_base_gamma(
+        visualize=True,
+        visualize_vectors=True,
+        save_figure=save_figure,
+        # ax=axs[0, 0],
+        plot_converence=True,
+        **setup,
+    )
 
 
 if (__name__) == "__main__":
@@ -1304,21 +1439,24 @@ if (__name__) == "__main__":
         "obstacle_color": "#b35f5b",
         "initial_color": "#a430b3ff",
         "final_color": "#30a0b3ff",
-        # "figsize": (5, 4),
-        "figsize": (10, 8),
+        "figsize": (5, 4),
+        # "figsize": (16, 14),
         # "x_lim": [-3.0, 3.4],
         "x_lim": [-2.5, 4.0],
         "y_lim": [-3.0, 3.0],
-        "n_resolution": 100,
-        "n_vectors": 10,
+        "n_resolution": 60,
+        # "n_vectors": 10,
+        "quiver_scale": 13,
+        "quiver_width": 0.01,
+        "n_vectors": 9,
         "linestyle": "--",
         "linewidth": 10,
         "figure_name": "linear_spiral_motion",
         "weights_alpha": 0.7,
     }
 
-    figtype = ".pdf"
-    # figtype = ".png"
+    # figtype = ".pdf"
+    figtype = ".png"
 
     import matplotlib.pyplot as plt
 
@@ -1329,6 +1467,9 @@ if (__name__) == "__main__":
     # plot_single_avoidance()
     # plot_mappings_single_plots(save_figure=True)
 
-    start_position = np.array([3.5, -2])
-    run_animation(start_position=start_position)
-    # run_animation_with_global_convergence(start_position=start_position)
+    # start_position = np.array([3.5, -2])
+    # run_animation(start_position=start_position, save_animation=True)
+    # run_animation_with_global_convergence(
+    #     start_position=start_position, save_animation=True
+    # )
+    # evaluate_projected_velocity(save_figure=True)
