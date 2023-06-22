@@ -147,6 +147,9 @@ def main(render_scene=False):
     if "Main" not in bpy.context.scene.view_layers:
         bpy.context.scene.view_layers.new("Main")
 
+    # bpy.context.scene.render.film_transparent = True
+    bpy.context.scene.view_settings.view_transform = "Standard"
+
     new_context = bpy.context.scene
     bpy.context.scene.name = "Main"
     print(f"newScene: {new_context}")
@@ -188,12 +191,13 @@ def main(render_scene=False):
     normal_arrow = ArrowBlender(normal_start, normal_vector, color="6d1119ff")
     make_appear(normal_arrow, frame, frame + df)
 
-    # Rotation-Mesh
+    # Rotation-Mesh [include blend]
     frame = frame + df
     df = 30
     rotational = RotationalMesh(32, 32)
     make_appear(rotational.object, frame, frame + df)
     camera.to_midpoint(frame, frame + df)
+    rotational.change_transparency(frames=[360, 500], values=[0.0, 1.0])
 
     ### Convert vectors to points
     frame = frame + df
@@ -285,7 +289,8 @@ def main(render_scene=False):
     )
     make_appear(modulated_arrow, frame, frame + df)
     make_disappear(velocity_point, frame, frame + df)
-    make_disappear(rotational, frame, frame + df)
+    # make_disappear(rotational, frame, frame + df)
+    rotational.change_transparency(frames=[890, 948], values=[1.0, 0.0])
 
     ### Pause
     frame = frame + 10

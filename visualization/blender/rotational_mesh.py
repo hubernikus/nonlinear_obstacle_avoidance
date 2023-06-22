@@ -107,14 +107,15 @@ class RotationalMesh:
         print("Circle space done.")
 
     def set_colors(self) -> None:
+        self.material_names = ["StereographicGreen", "SteorographicRed"]
         create_color(
             color=(75.0 / 255, 102.0 / 255, 20.0 / 255, 1),
-            name="Green",
+            name=self.material_names[0],
             obj=self.object,
         )
         create_color(
             color=(164.0 / 255, 26.0 / 255, 38.0 / 255, 1),
-            name="Red",
+            name=self.material_names[1],
             obj=self.object,
         )
 
@@ -132,6 +133,24 @@ class RotationalMesh:
                 poly.material_index = 0
             else:
                 poly.material_index = 1
+
+    def change_transparency(self, frames, values) -> None:
+        # Somehow this was needed...
+        for ii in [0, 1]:
+            self.object.active_material_index = ii
+            self.object.active_material.blend_method = "BLEND"
+            self.object.active_material.show_transparent_back = False
+
+        # mat.blend_method = 'OPAQUE'
+        for color in self.material_names:
+            mat = bpy.data.materials[color]
+            mat.blend_method = "BLEND"
+
+            alpha = mat.node_tree.nodes["Principled BSDF"].inputs[21]
+            for frame, value in zip(frames, values):
+                # Set at start
+                alpha.default_value = value
+                alpha.keyframe_insert("default_value", frame=frame)
 
     def move_object(self):
         self.object.keyframe_insert(data_path="location", frame=1)
