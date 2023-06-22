@@ -343,14 +343,14 @@ def main(render_scene=False):
 
     # Create relevant arrows
     frame = frame + df
-    df = 4 * fps
+    df = 3 * fps
     ref_dir = object_center - scene.agent.location
     ref_dir = ref_dir / np.linalg.norm(ref_dir)
     ref_arrow = ArrowBlender(scene.agent.location, ref_dir, color="3b1e78ff")
     make_appear(ref_arrow, frame, frame + df)
 
     frame = frame + df
-    df = 4 * fps
+    df = 3 * fps
     conv_dir = attractor_position - scene.agent.location
     # conv_dir = np.array([1, 0, 0.5])
     conv_dir = conv_dir / np.linalg.norm(conv_dir)
@@ -359,8 +359,9 @@ def main(render_scene=False):
 
     ### Create Rotation-Mesh
     frame = frame + df
-    df = 4 * fps
-    make_appear(scene.rotational.object, frame, frame + df)
+    df = 2 * fps
+    make_appear(scene.rotational.object, frame - 1, frame)
+    scene.rotational.change_transparency(frames=[frame, frame + df], values=[0.0, 1.0])
     velocity_point = create_sphere_from_arrow(
         velocity_arrow, scene.agent, frame, frame + df
     )
@@ -369,7 +370,7 @@ def main(render_scene=False):
 
     ### Unfold
     frame = frame + df
-    df = 3.5 * fps
+    df = 3.0 * fps
     main_obstacle.make_disappear(frame, frame + df * 0.5)  # Get out fast
     do_scene_unfolding(scene, scene.agent, frame, frame + df)
     # Move velocity point
@@ -383,37 +384,45 @@ def main(render_scene=False):
 
     ### Create Tangent
     frame = frame + df
-    df = int(0.8 * fps)
+    df = int(0.5 * fps)
     surface_point = get_circle_point(conv_point, ref_point, scene=scene)
     conf_ref_line = Line3D(ref_point, surface_point, color="000000")
     make_appear(conf_ref_line, frame + df - 1, frame + df)
 
+    # Move to tangent
     frame = frame + df
-    df = int(fps / 3)
+    df = 2 * fps
     move_to(conv_point, surface_point, frame, frame + df)
     make_disappear(ref_point, frame + df - 1, frame + df)
     make_disappear(conf_ref_line, frame + df - 1, frame + df)
 
     tang_point = conv_point
 
-    ### Move velocity
+    ### Create line
     frame = frame + df
-    df = 1 * fps
-    ww = 0.7
-    mid_point = ww * tang_point.location + (1 - ww) * velocity_point.location
+    df = int(0.5 * fps)
+    ww = 0.8
     vel_tang_line = Line3D(velocity_point, tang_point, color="000000")
     make_appear(vel_tang_line, frame + df - 1, frame + df)
 
-    ### Break
+    ### Move velocity
     frame = frame + df
-    df = int(0.5 * fps)
+    df = 2 * fps
+    mid_point = ww * tang_point.location + (1 - ww) * velocity_point.location
     move_to(velocity_point, mid_point, frame, frame + df)
     make_disappear(vel_tang_line, frame + df - 1, frame + df)
+
+    # Pause [look at velocity]
+    frame = frame + df
+    df = 1 * fps
 
     ### Fold
     frame = frame + df
     df = int(0.5 * fps)
     do_scene_folding(scene, frame, frame + df)
+    scene.rotational.change_transparency(frames=[frame, frame + df], values=[1.0, 0.0])
+
+    # Restore vector
     vec = scene.transformer.transform_from_direction_space(velocity_point.location)
     move_to(velocity_point, scene.agent.location + vec, frame, frame + df)
     main_obstacle.make_appear(frame + df * 0.3, frame + df * 0.4)
