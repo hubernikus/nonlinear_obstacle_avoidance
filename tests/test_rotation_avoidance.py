@@ -718,40 +718,35 @@ def test_single_perpendicular_ellipse(visualize=False):
     # assert np.cross(initial_velocity, modulated_velocity) > 0, \
     # " Rotation in the wrong direction to avoid the ellipse."
 
-    print("<< Ellipse >>")
     modulated_velocity = main_avoider.avoid(
         position=position,
         initial_velocity=initial_velocity,
         obstacle_list=obstacle_list,
     )
-    print("Velocities: ")
-    print(initial_velocity / LA.norm(initial_velocity))
-    print(modulated_velocity / LA.norm(modulated_velocity))
 
     obstacle_list[-1].axes_length = np.array([1, 1])
-    print("<< Circular >>")
     modulated_velocity = main_avoider.avoid(
         position=position,
         initial_velocity=initial_velocity,
         obstacle_list=obstacle_list,
     )
-    print("Velocities: ")
-    print(initial_velocity / LA.norm(initial_velocity))
-    print(modulated_velocity / LA.norm(modulated_velocity))
+
+    assert modulated_velocity[0] > 0
+    assert modulated_velocity[1] > 0
 
 
 def _test_single_circle_nonlinear(visualize=False, save_figure=False):
     obstacle_list = RotationContainer()
     obstacle_list.append(
         Ellipse(
-            center_position=np.array([-4, 0]),
+            center_position=np.array([-7, 0]),
             axes_length=np.array([6, 9]),
             distance_scaling=0.5,
         )
     )
 
     # Arbitrary constant velocity
-    initial_dynamics = QuadraticAxisConvergence(attractor_position=np.array([1.5, 0]))
+    initial_dynamics = QuadraticAxisConvergence(attractor_position=np.array([1.5, 2.0]))
     convergence_dynamics = LinearSystem(attractor_position=np.array([1.5, 0]))
 
     obstacle_list.set_convergence_directions(converging_dynamics=initial_dynamics)
@@ -1202,7 +1197,7 @@ if (__name__) == "__main__":
     # test_convergence_tangent(visualize=True)
     # test_rotating_towards_tangent()
 
-    test_single_circle_linear(visualize=True)
+    # test_single_circle_linear(visualize=True)
     # test_single_repulsive_circle_linear_inverted(visualize=True)
 
     # _test_single_circle_nonlinear(visualize=True, save_figure=True)

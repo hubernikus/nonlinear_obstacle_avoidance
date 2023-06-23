@@ -999,8 +999,6 @@ if (__name__) == "__main__":
     # single_ellipse_linear_triple_integration_lines(save_figure=False)
     # single_ellipse_nonlinear_triple_plot(save_figure=True, n_resolution=40)
 
-    # single_ellipse_linear_triple_plot(save_figure=True, n_resolution=15)
-
     # single_ellipse_spiral_triple_plot(save_figure=False, n_resolution=30)
     # single_ellipse_spiral_analysis(save_figure=True, n_resolution=30)
 
@@ -1019,6 +1017,3 @@ if (__name__) == "__main__":
     # multiple_hull_linear(save_figure=True, n_resolution=200)
 
     # multiple_hull_empty(save_figure=True)
-    # single_ellipse_hull(save_figure=True)
-
-    pass
