@@ -281,10 +281,10 @@ def test_penetration_repulsion(visualize=False):
 
 if (__name__) == "__main__":
     figtype = ".pdf"
-
     # np.set_printoptions(precision=16)
-    # test_simple_cube(visualize=False)
+
+    test_simple_cube(visualize=True)
     # test_simple_repulsive_circle(visualize=True)
     # test_ellipse_repulsion(visualize=False)
 
-    test_penetration_repulsion(visualize=False)
+    # test_penetration_repulsion(visualize=False)

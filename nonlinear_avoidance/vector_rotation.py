@@ -253,7 +253,11 @@ class VectorRotationSequence:
 
     @classmethod
     def create_from_vector_array(cls, vectors_array: np.ndarray) -> Self:
-        vectors_array = vectors_array / LA.norm(vectors_array, axis=0)
+        array_norm = LA.norm(vectors_array, axis=0)
+        if np.any(np.isclose(array_norm, 0)):
+            raise ValueError("Zero vector in sequence.")
+
+        vectors_array = vectors_array / array_norm
         dot_prod = np.sum(vectors_array[:, 1:] * vectors_array[:, :-1], axis=0)
 
         if np.sum(dot_prod == (-1)):  # Any of the values

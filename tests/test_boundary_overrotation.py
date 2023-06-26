@@ -38,11 +38,6 @@ from vartools.math import (
 )
 
 
-# from dynamic_obstacle_avoidance.avoidance.rotation import (
-#    directional_convergence_summing,
-# )
-
-
 def get_positions(x_lim, y_lim, n_resolution, flattened=False):
     # dimension = 2
     nx, ny = n_resolution, n_resolution
