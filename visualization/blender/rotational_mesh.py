@@ -142,7 +142,7 @@ class RotationalMesh:
             self.object.active_material.show_transparent_back = False
 
         # mat.blend_method = 'OPAQUE'
-        for color in self.material_names:
+        for jj, color in enumerate(self.material_names):
             mat = bpy.data.materials[color]
             mat.blend_method = "BLEND"
 
@@ -150,7 +150,11 @@ class RotationalMesh:
             for frame, value in zip(frames, values):
                 # Set at start
                 alpha.default_value = value
-                alpha.keyframe_insert("default_value", frame=frame)
+                int_frame = int(frame)
+                alpha.keyframe_insert("default_value", frame=int_frame)
+
+                if jj == 0:
+                    print(f"Transparency: value={value} @ frame={int_frame}")
 
     def move_object(self):
         self.object.keyframe_insert(data_path="location", frame=1)
@@ -312,7 +316,7 @@ class SeparatingCircle:
             radius2=radius + dx * 0.5,
             depth=0.0,
             # location=tuple(root),
-            location=(1, 0, 0),
+            location=(1 + 0.05, 0, 0),  # Put a bit to the front to show
             rotation=deg_to_euler([0, 90, 0]),
             end_fill_type="NOTHING",
         )

@@ -226,7 +226,7 @@ def do_scene_unfolding(scene, agent, frame1, frame2, create_normal: bool = True)
     df = frame2 - frame1
 
     make_disappear(scene.agent, frame, frame + 1)
-    make_appear(scene.rotational, frame, frame + 1)
+    # make_appear(scene.rotational, frame, frame + 1)
     make_appear(scene.half_circle, frame + df - 5, frame + df)
 
     scene.rotational.make_unfold(frame, frame + df, 10)
@@ -250,7 +250,7 @@ def do_scene_folding(scene, frame1, frame2):
 
     make_disappear(scene.half_circle, frame, frame + 5)
     make_disappear(scene.normal_point, frame, frame + 1)
-    make_disappear(scene.rotational, frame + df - 1, frame + df)
+    # make_disappear(scene.rotational, frame + df - 1, frame + df)
 
     make_appear(scene.agent, frame + df - 1, frame + df)
 
@@ -290,6 +290,9 @@ def main(render_scene=False):
     bpy.context.scene.name = "Main"
     print(f"newScene: {new_context}")
 
+    # bpy.context.scene.render.film_transparent = True
+    bpy.context.scene.view_settings.view_transform = "Standard"
+
     create_lights_and_backgroun()
 
     scene = SceneStorer()
@@ -316,7 +319,10 @@ def main(render_scene=False):
     # for radius in [math.pi * 3 / 4, math.pi]:
     camera_poses = [scene.camera.to_global1, scene.camera.to_global0]
     for radius, camera_global in zip([math.pi * 5 / 8, math.pi], camera_poses):
+        print(f"Do for radius {radius}")
         # Velocity step
+        frame = frame + df
+        df = 30
         end_position = scene.agent.location + velocity_arrow.direction * 4
         move_to(scene.agent, end_position, frame, frame + df)
         move_to(velocity_arrow.object, end_position, frame, frame + df)
@@ -325,12 +331,22 @@ def main(render_scene=False):
         scene.transformer.center = scene.agent.location
         move_to(scene.rotational, scene.agent.location, frame, frame + df)
         scene.transformer.center = scene.agent.location + scene.rel_rot_center
-        move_to(scene.half_circle, scene.transformer.center, frame, frame + df)
+
+        delta_circle = (0.02, 0, 0)
+        move_to(
+            scene.half_circle,
+            scene.transformer.center - delta_circle,
+            frame,
+            frame + df,
+        )
 
         ### Create Rotation-Mesh
         frame = frame + df
         df = 10
-        make_appear(scene.rotational.object, frame, frame + df)
+        scene.rotational.change_transparency(
+            frames=[frame - df * 0.2, frame + df * 1.5], values=[0.0, 1.0]
+        )
+        # make_appear(scene.rotational.object, frame, frame + df)
         velocity_point = create_sphere_from_arrow(
             velocity_arrow, scene.agent, frame, frame + df
         )
@@ -372,6 +388,7 @@ def main(render_scene=False):
         ### Fold
         frame = frame + df
         df = 60
+
         do_scene_folding(scene, frame, frame + df)
         vec = scene.transformer.transform_from_direction_space(velocity_point.location)
         move_to(velocity_point, scene.agent.location + vec, frame, frame + df)
@@ -382,19 +399,21 @@ def main(render_scene=False):
         velocity_arrow.align_with(vec, frame, frame + df)
         velocity_arrow.direction = vec
 
-        # Break
-        frame = frame + df
-        df = 10
-
         ### Points to vector
         frame = frame + df
-        df = 60
+        df = 70
+        scene.rotational.change_transparency(
+            frames=[frame - 0.5 * df, frame + df * 0.5], values=[1.0, 0.0]
+        )
         make_appear(velocity_arrow, frame, frame + df * 0.5)  # Get out fast
         make_disappear(velocity_point, frame + df * 0.5, frame)  # Get out fast
 
         ### Pause
-        frame = frame
-        df = 10
+        frame = frame + df
+        df = 30
+        # scene.rotational.change_transparency(
+        #     frames=[frame  * 0.1, frame + df * 1.0], values=[1.0, 0.0]
+        # )
 
     ### Pause
     frame = frame + df

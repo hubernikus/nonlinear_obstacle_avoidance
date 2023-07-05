@@ -208,7 +208,7 @@ def do_scene_unfolding(scene, agent, frame1, frame2, create_normal: bool = True)
     df = frame2 - frame1
 
     make_disappear(scene.agent, frame, frame + 1)
-    make_appear(scene.rotational, frame, frame + 1)
+    # make_appear(scene.rotational, frame, frame + 1)
     make_appear(scene.half_circle, frame + df - 5, frame + df)
 
     scene.rotational.make_unfold(frame, frame + df, 10)
@@ -232,7 +232,7 @@ def do_scene_folding(scene, frame1, frame2):
 
     make_disappear(scene.half_circle, frame, frame + 5)
     make_disappear(scene.normal_point, frame, frame + 1)
-    make_disappear(scene.rotational, frame + df - 1, frame + df)
+    # make_disappear(scene.rotational, frame + df - 1, frame + df)
 
     make_appear(scene.agent, frame + df - 1, frame + df)
 
@@ -282,6 +282,9 @@ def main(render_scene=False):
     new_context = bpy.context.scene
     bpy.context.scene.name = "Main"
     print(f"newScene: {new_context}")
+
+    # bpy.context.scene.render.film_transparent = True
+    bpy.context.scene.view_settings.view_transform = "Standard"
 
     create_lights_and_background()
 
@@ -339,7 +342,10 @@ def main(render_scene=False):
     scene.transformer.center = scene.agent.location
     move_to(scene.rotational, scene.agent.location, frame, frame + df)
     scene.transformer.center = scene.agent.location + scene.rel_rot_center
-    move_to(scene.half_circle, scene.transformer.center, frame, frame + df)
+    delta_circle = (-0.1, 0, 0)
+    move_to(
+        scene.half_circle, scene.transformer.center + delta_circle, frame, frame + df
+    )
 
     # Create relevant arrows
     frame = frame + df
@@ -361,7 +367,9 @@ def main(render_scene=False):
     frame = frame + df
     df = 2 * fps
     make_appear(scene.rotational.object, frame - 1, frame)
-    scene.rotational.change_transparency(frames=[frame, frame + df], values=[0.0, 1.0])
+    scene.rotational.change_transparency(
+        frames=[frame, frame + df * 1.5], values=[0.0, 1.0]
+    )
     velocity_point = create_sphere_from_arrow(
         velocity_arrow, scene.agent, frame, frame + df
     )
@@ -373,6 +381,9 @@ def main(render_scene=False):
     df = 3.0 * fps
     main_obstacle.make_disappear(frame, frame + df * 0.5)  # Get out fast
     do_scene_unfolding(scene, scene.agent, frame, frame + df)
+    # scene.rotational.change_transparency(
+    #     frames=[frame + df * 0.8, frame + 1.1 * df], values=[0.0, 1.0]
+    # )
     # Move velocity point
     to_direction_space(velocity_point, scene, frame, frame + df)
     to_direction_space(conv_point, scene, frame, frame + df)
@@ -418,9 +429,11 @@ def main(render_scene=False):
 
     ### Fold
     frame = frame + df
-    df = int(0.5 * fps)
+    df = 2 * fps
     do_scene_folding(scene, frame, frame + df)
-    scene.rotational.change_transparency(frames=[frame, frame + df], values=[1.0, 0.0])
+    scene.rotational.change_transparency(
+        frames=[frame + df * 0.5, frame + 1.5 * df], values=[1.0, 0.0]
+    )
 
     # Restore vector
     vec = scene.transformer.transform_from_direction_space(velocity_point.location)
@@ -435,16 +448,16 @@ def main(render_scene=False):
 
     # Break
     frame = frame + df
-    df = int(0.2 * fps)
+    df = int(0.5 * fps)
     make_disappear(velocity_point, frame + df * 0.5, frame)  # Get out fast
 
     ### Pause
     frame = frame
-    df = int(0.2 * fps)
+    df = 0.5 * fps
 
-    ### Pause
+    ### Move out
     frame = frame + df
-    df = fps
+    df = 2 * fps
     end_position = scene.agent.location + velocity_arrow.direction * 7
     move_to(scene.agent, end_position, frame, frame + df)
     move_to(velocity_arrow.object, end_position, frame, frame + df)
