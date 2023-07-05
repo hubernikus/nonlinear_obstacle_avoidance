@@ -21,7 +21,7 @@ def evaluate_dynamics_sequence(
         base = dynamics.evaluate(position)
         final = base
 
-    if not np.linalg.norm(base):
+    if not np.linalg.norm(base) or not np.linalg.norm(final):
         return None
 
     rotation = VectorRotationSequence.create_from_vector_array(

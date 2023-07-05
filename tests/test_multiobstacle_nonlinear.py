@@ -1448,5 +1448,5 @@ if (__name__) == "__main__":
 
     # test_circular_no_obstacles(visualize=False)
 
-    test_starshape_spiraling(visualize=False)
+    # test_starshape_spiraling(visualize=False)
     # test_circular_spiraling(visualize=True)

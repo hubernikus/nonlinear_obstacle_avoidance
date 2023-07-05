@@ -13,6 +13,7 @@ import numpy as np
 from numpy import pi
 import matplotlib.pyplot as plt
 
+from vartools.states import Pose
 from vartools.dynamical_systems import LinearSystem, QuadraticAxisConvergence
 from vartools.states import ObjectPose
 from vartools.dynamical_systems import plot_dynamical_system_streamplot
@@ -44,6 +45,11 @@ from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
     ProjectedRotationDynamics,
 )
 from nonlinear_avoidance.nonlinear_rotation_avoider import NonlinearRotationalAvoider
+
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
+from nonlinear_avoidance.multi_obstacle_container import plot_multi_obstacle_container
 
 
 def function_integrator(
@@ -584,74 +590,61 @@ def convergence_direction_comparison_for_circular_dynamics(
         )
 
 
-def convergence_direction_comparison_for_linear_dynamics(
+def convergence_direction_comparison_for_linear_spiraling_dynamics(
     visualize=True, save_figure=False, n_resolution=120, fig_basename="roam_linear_ds_"
 ):
-    obstacle_environment = RotationContainer()
-    center = np.array([2.2, 0.0])
-    obstacle_environment.append(
-        StarshapedFlower(
-            center_position=center,
-            radius_magnitude=0.3,
-            number_of_edges=4,
-            radius_mean=0.75,
-            orientation=30 / 180 * pi,
-            distance_scaling=1,
-            # is_boundary=True,
-        )
+    from scripts.rotational.example_mapping_four_figure import get_main_obstacle
+    from scripts.rotational.example_mapping_four_figure import get_initial_dynamics
+
+    dimension = 2
+    initial_dynamics = get_initial_dynamics()
+
+    container = MultiObstacleContainer()
+    new_tree = MultiObstacle(Pose.create_trivial(dimension))
+    new_tree.set_root(get_main_obstacle())
+    container.append(new_tree)
+
+    avoider_with_local = MultiObstacleAvoider.create_with_convergence_dynamics(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.55 * math.pi,
     )
 
-    # circular_ds = CircularStable(radius=2.5, maximum_velocity=2.0)
-    attractor_position = np.array([0.0, 0])
-    initial_ds = LinearSystem(
-        attractor_position=np.zeros(2),
-        A_matrix=np.array([[-1, -2], [2, -1]]),
-        maximum_velocity=1.0,
+    avoider_with_global = MultiObstacleAvoider(
+        obstacle_container=container,
+        initial_dynamics=initial_dynamics,
+        default_dynamics=LinearSystem(initial_dynamics.attractor_position),
+        create_convergence_dynamics=True,
+        # convergence_radius=0.53 * math.pi,
     )
 
-    # Simple Setup
-    convergence_dynamics = LinearSystem(attractor_position=attractor_position)
-    obstacle_avoider_globally_straight = RotationalAvoider(
-        initial_dynamics=initial_ds,
-        obstacle_environment=obstacle_environment,
-        convergence_system=convergence_dynamics,
-    )
-
-    # Convergence direction [local]
-    rotation_projector = ProjectedRotationDynamics(
-        attractor_position=initial_ds.pose.position,
-        initial_dynamics=initial_ds,
-        reference_velocity=lambda x: x - initial_ds.center_position,
-    )
-
-    obstacle_avoider = NonlinearRotationalAvoider(
-        initial_dynamics=initial_ds,
-        # convergence_system=convergence_dynamics,
-        obstacle_environment=obstacle_environment,
-        obstacle_convergence=rotation_projector,
-        # Currently not working... -> rotational summing needs to be improved..
-        # convergence_radius=math.pi * 3 / 4,
-    )
-
-    x_lim = [-3.0, 3.4]
+    x_lim = [-2.5, 4.0]
     y_lim = [-3.0, 3.0]
     figsize = (5.0, 4.5)
     vf_color = "blue"
     traj_color = "#DB4914"
     # traj_color = "blue"
     traj_base_color = "#808080"
-    it_max = 320
+    it_max = 400
     lw = 4
+    err_conv = 1e-2
 
     # start_integration = np.array([x_lim[0], -2.7])
-    start_integration = np.array([0, y_lim[0]])
+    start_integration = np.array([3.1, y_lim[0]])
     pos_traj_base = function_integrator(
-        start_integration, initial_ds.evaluate, it_max=it_max, stepsize=0.05
+        start_integration, initial_dynamics.evaluate, it_max=it_max, stepsize=0.05
     )
 
+    # Local convergence
     fig, ax = plt.subplots(figsize=figsize)
     pos_traj_global = function_integrator(
-        start_integration, obstacle_avoider.evaluate, it_max=it_max, stepsize=0.05
+        start_integration,
+        avoider_with_local.evaluate,
+        it_max=it_max,
+        stepsize=0.05,
+        err_abs=err_conv,
     )
     ax.plot(
         pos_traj_global[0, :], pos_traj_global[1, :], linewidth=lw, color=traj_color
@@ -666,25 +659,24 @@ def convergence_direction_comparison_for_linear_dynamics(
     )
 
     plot_obstacle_dynamics(
-        obstacle_container=obstacle_environment,
-        # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
-        dynamics=obstacle_avoider.evaluate,
+        obstacle_container=container,
+        dynamics=avoider_with_local.evaluate,
         x_lim=x_lim,
         y_lim=y_lim,
         ax=ax,
         n_grid=n_resolution,
         do_quiver=False,
-        # do_quiver=True,
+        attractor_position=initial_dynamics.attractor_position,
         vectorfield_color=vf_color,
-        attractor_position=attractor_position,
     )
-    plot_obstacles(
+
+    plot_multi_obstacle_container(
         ax=ax,
-        obstacle_container=obstacle_environment,
+        container=container,
         x_lim=x_lim,
         y_lim=y_lim,
+        draw_reference=True,
         noTicks=True,
-        # show_ticks=False,
     )
 
     if save_figure:
@@ -694,13 +686,15 @@ def convergence_direction_comparison_for_linear_dynamics(
             bbox_inches="tight",
         )
 
+    # Global convergence
     fig, ax = plt.subplots(figsize=figsize)
     # traj_color = "#FF9B00"
     pos_traj_global = function_integrator(
         start_integration,
-        obstacle_avoider_globally_straight.evaluate,
+        avoider_with_global.evaluate,
         it_max=it_max,
         stepsize=0.05,
+        err_abs=err_conv,
     )
     ax.plot(
         pos_traj_base[0, :],
@@ -715,9 +709,9 @@ def convergence_direction_comparison_for_linear_dynamics(
     )
 
     plot_obstacle_dynamics(
-        obstacle_container=obstacle_environment,
+        obstacle_container=container,
         # dynamics=obstacle_avoider.evaluate_convergence_dynamics,
-        dynamics=obstacle_avoider_globally_straight.evaluate,
+        dynamics=avoider_with_global.evaluate,
         x_lim=x_lim,
         y_lim=y_lim,
         ax=ax,
@@ -725,15 +719,16 @@ def convergence_direction_comparison_for_linear_dynamics(
         do_quiver=False,
         # do_quiver=True,
         vectorfield_color=vf_color,
-        attractor_position=attractor_position,
+        attractor_position=initial_dynamics.attractor_position,
     )
-    plot_obstacles(
+
+    plot_multi_obstacle_container(
         ax=ax,
-        obstacle_container=obstacle_environment,
+        container=container,
         x_lim=x_lim,
         y_lim=y_lim,
+        draw_reference=True,
         noTicks=True,
-        # show_ticks=False,
     )
 
     if save_figure:
@@ -762,10 +757,10 @@ if (__name__) == "__main__":
     #     n_resolution=100,
     # )
 
-    convergence_direction_comparison_for_linear_dynamics(
+    convergence_direction_comparison_for_linear_spiraling_dynamics(
         visualize=True,
         save_figure=True,
-        n_resolution=100,
+        n_resolution=120,
     )
 
     print("--- done ---")
