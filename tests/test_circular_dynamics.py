@@ -11,6 +11,8 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
+from vartools.states import Pose
+
 from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
 
 

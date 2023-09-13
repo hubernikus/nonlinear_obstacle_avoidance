@@ -8,6 +8,7 @@ from vartools.dynamics import LinearSystem
 
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
+from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
@@ -706,7 +707,6 @@ def test_limit_cycle_two_obstacle(visualize=False):
     # position = np.array([-0.1859, 0.3150])
     # convergence1 = avoider.compute_convergence_direction(position)
     # velocity3 = avoider.evaluate_sequence(position)
-    breakpoint()
 
     # TEST DEACTIVATED (!)
     if True:
