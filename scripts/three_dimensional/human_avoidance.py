@@ -24,6 +24,9 @@ from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from nonlinear_avoidance.multi_body_human import create_3d_human
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.dynamics.spiral_dynamics import SpiralingDynamics3D
+from nonlinear_avoidance.nonlinear_rotation_avoider import (
+    ConvergenceDynamicsWithoutSingularity,
+)
 
 from scripts.three_dimensional.visualizer3d import CubeVisualizer
 
@@ -183,7 +186,6 @@ def main(savefig=False, n_grid=6):
     # plot_axes()
 
     nominal = np.array([0.0, 1, 0.0])
-    convergence_dynamics = ConstantValue(nominal)
 
     dynamics = SpiralingDynamics3D.create_from_direction(
         center=np.array([-0.2, 0, 0.0]),
@@ -191,11 +193,17 @@ def main(savefig=False, n_grid=6):
         radius=0.1,
         speed=1.0,
     )
+    base_dynamics = ConstantValue(nominal)
+    convergence_dynamics = ConvergenceDynamicsWithoutSingularity(
+        convergence_dynamics=base_dynamics,
+        initial_dynamics=dynamics,
+    )
 
     avoider = MultiObstacleAvoider(
         obstacle=human_obstacle,
         initial_dynamics=dynamics,
-        convergence_dynamics=dynamics,
+        convergence_dynamics=convergence_dynamics,
+        default_dynamics=base_dynamics,
     )
 
     x_range = [-0.9, 0.9]

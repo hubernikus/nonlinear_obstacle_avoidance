@@ -84,7 +84,7 @@ class ConvergenceDynamicsWithoutSingularity:
         self, position: np.ndarray, obstacle: Obstacle
     ) -> VectorRotationXd:
         """Returns zero-transform as there is no singularity."""
-        velocity = self.initial_dynamics.evaluate(position)
+        velocity = self.convergence_dynamics.evaluate(position)
         return VectorRotationXd.from_directions(velocity, velocity)
 
     def evaluate_rotation_start_to_end(

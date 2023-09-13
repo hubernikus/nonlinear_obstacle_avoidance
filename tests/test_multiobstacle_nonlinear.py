@@ -695,13 +695,13 @@ def test_limit_cycle_two_obstacle(visualize=False):
     position = np.array([-0.1885, 0.3150])
     convergence1 = avoider.compute_convergence_direction(position)
     velocity1 = avoider.evaluate_sequence(position)
-    print("velocity", velocity1)
+    # print("velocity", velocity1)
 
-    print()
+    # print()
     position = np.array([-0.1859, 0.3150])
     convergence2 = avoider.compute_convergence_direction(position)
     velocity2 = avoider.evaluate_sequence(position)
-    print("velocity", velocity2)
+    # print("velocity", velocity2)
 
     # position = np.array([-0.1859, 0.3222])
     # position = np.array([-0.1859, 0.3150])
@@ -1444,7 +1444,7 @@ if (__name__) == "__main__":
 
     # test_multiobstacle_normal_and_tangent(visualize=True)
 
-    # test_limit_cycle_two_obstacle(visualize=False)
+    test_limit_cycle_two_obstacle(visualize=True)
 
     # test_circular_no_obstacles(visualize=False)
 

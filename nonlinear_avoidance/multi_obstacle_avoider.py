@@ -300,7 +300,11 @@ class MultiObstacleAvoider:
             initial_velocity = self.initial_dynamics.evaluate(position)
             initial_magnitude = np.linalg.norm(initial_velocity)
 
-        initial_sequence = evaluate_dynamics_sequence(position, self.initial_dynamics)
+        initial_sequence = evaluate_dynamics_sequence(
+            position,
+            self.initial_dynamics,
+            # default_dynamics=self.default_dynamics
+        )
 
         if not len(self.obstacle_container):
             return initial_sequence.get_end_vector() * initial_magnitude
@@ -546,16 +550,20 @@ class MultiObstacleAvoider:
                     self.default_dynamics,
                 )
 
-            # Nonzero weight expected, since weight > 0
-            continuous_sequence = self.vector_rotation_reduction(
-                initial_sequence, trafo_pos_to_root, convergence_sequence, weight
-            )
+            try:
+                continuous_sequence = self.vector_rotation_reduction(
+                    initial_sequence, trafo_pos_to_root, convergence_sequence, weight
+                )
+            except:
+                breakpoint()
 
             self.conv_tree.add_sequence(
                 sequence=continuous_sequence,
                 node_id=node_id,
                 parent_id=root_id,
             )
+
+            # Nonzero weight expected, since weight > 0
             if weight > 1e-6:
                 # Each node forms a n individual branch with root velocity
                 # -> no need to store / calculate
@@ -614,11 +622,14 @@ class MultiObstacleAvoider:
 
                 # Add convergence transformation to branch
                 node_id = (ii_tree, ii_com)
-                self.conv_tree.add_sequence(
-                    sequence=convergence_sequence,
-                    node_id=node_id,
-                    parent_id=pred_id,
-                )
+                try:
+                    self.conv_tree.add_sequence(
+                        sequence=convergence_sequence,
+                        node_id=node_id,
+                        parent_id=pred_id,
+                    )
+                except:
+                    breakpoint()
 
                 node_list.append(node_id)
                 weight_list.append(weight * tree_weight)
@@ -675,7 +686,7 @@ class MultiObstacleAvoider:
             orientation=trafo_seq1_to_seq2, node_id=-1, parent_id=0
         )
         tmp_tree.add_sequence(node_id=2, sequence=sequence2, parent_id=-1)
-        # breakpoint()
+
         return tmp_tree.reduce_weighted_to_sequence([1, 2], [(1 - weight2), weight2])
 
     def add_convergence_directions(

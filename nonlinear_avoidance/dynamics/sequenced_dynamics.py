@@ -7,19 +7,26 @@ from nonlinear_avoidance.vector_rotation import VectorRotationSequence
 
 
 def evaluate_dynamics_sequence(
-    position: np.ndarray, dynamics: Dynamics
+    position: np.ndarray,
+    dynamics: Dynamics,
+    default_dynamics: Optional[Dynamics] = None,
 ) -> Optional[VectorRotationSequence]:
     """Evaluate dynamical system as a sequence of 'rotations'."""
     if hasattr(dynamics, "evaluate_dynamics_sequence"):
         return dynamics.evaluate_dynamics_sequence(position)
 
-    # Otherwise create based on direction towards stable-attractor
-    if hasattr(dynamics, "attractor_position"):
+    if default_dynamics is not None:
+        base = default_dynamics.evaluate(position)
+        final = dynamics.evaluate(position)
+
+    elif hasattr(dynamics, "attractor_position"):
         base = dynamics.attractor_position - position
         final = dynamics.evaluate(position)
+
     else:
-        base = dynamics.evaluate(position)
-        final = base
+        final = dynamics.evaluate(position)
+        # Otherwise create based on direction towards stable-attractor
+        base = final
 
     if not np.linalg.norm(base) or not np.linalg.norm(final):
         return None
