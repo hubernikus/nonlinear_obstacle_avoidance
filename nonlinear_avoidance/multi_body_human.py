@@ -152,6 +152,9 @@ class MultiBodyObstacle:
     def root_id(self) -> int:
         return self.root_idx
 
+    def get_root(self) -> int:
+        return self[self.root_id]
+
     @property
     def n_components(self) -> int:
         return len(self._obstacle_list)
