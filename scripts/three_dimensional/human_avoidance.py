@@ -2,6 +2,9 @@ from __future__ import annotations  # To be removed in future python versions
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Callable
+import math
+
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,8 +15,12 @@ from mayavi.sources.api import ParametricSurface
 from mayavi.modules.api import Surface
 from mayavi import mlab
 
+# (!!!) Somehow cv2 has to be imported after mayavi (?!)
+# import cv2
+
 from vartools.states import Pose
 from vartools.dynamics import ConstantValue
+from vartools.dynamics import LinearSystem
 from vartools.colors import hex_to_rgba, hex_to_rgba_float
 from vartools.linalg import get_orthogonal_basis
 
@@ -22,8 +29,14 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from nonlinear_avoidance.multi_body_human import create_3d_human
+from nonlinear_avoidance.multi_body_human import (
+    transform_from_multibodyobstacle_to_multiobstacle,
+)
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
+from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleContainer
 from nonlinear_avoidance.dynamics.spiral_dynamics import SpiralingDynamics3D
+from nonlinear_avoidance.dynamics.spiral_dynamics import SpiralingAttractorDynamics3D
+
 from nonlinear_avoidance.nonlinear_rotation_avoider import (
     ConvergenceDynamicsWithoutSingularity,
 )
@@ -158,9 +171,13 @@ def integrate_trajectory_with_differences(
 def plot_axes(lensoffset=0.0):
     xx = yy = zz = np.arange(-1.0, 1.0, 0.1)
     xy = xz = yx = yz = zx = zy = np.zeros_like(xx)
-    mlab.plot3d(yx, yy + lensoffset, yz, line_width=0.01, tube_radius=0.01)
-    mlab.plot3d(zx, zy + lensoffset, zz, line_width=0.01, tube_radius=0.01)
-    mlab.plot3d(xx, xy + lensoffset, xz, line_width=0.01, tube_radius=0.01)
+
+    mlab.plot3d(yx, yy, yz, line_width=0.01, tube_radius=0.01)
+    mlab.plot3d(zx, zy, zz, line_width=0.01, tube_radius=0.01)
+    mlab.plot3d(xx, xy, xz, line_width=0.01, tube_radius=0.01)
+
+    xx2 = np.arange(0.0, 1.0, 0.05)
+    mlab.plot3d(xx2, xy, xz, line_width=0.02, tube_radius=0.02, color=(0, 0, 0))
 
 
 def set_view():
@@ -175,11 +192,11 @@ def set_view():
     mlab.background = (255, 255, 255)
 
 
-def main(savefig=False, n_grid=6):
-    human_obstacle = create_3d_human()
+print("Import main")
 
-    visualizer = Visualization3D()
-    visualizer.plot_obstacles(human_obstacle)
+
+def main(savefig=False):
+    human_obstacle_3d = create_3d_human()
 
     # plot_multi_obstacle_3d(, obstacle=human_obstacle)
     # plot_reference_points(human_obstacle._obstacle_list)
@@ -187,28 +204,57 @@ def main(savefig=False, n_grid=6):
 
     nominal = np.array([0.0, 1, 0.0])
 
-    dynamics = SpiralingDynamics3D.create_from_direction(
-        center=np.array([-0.2, 0, 0.0]),
-        direction=nominal,
-        radius=0.1,
-        speed=1.0,
-    )
-    base_dynamics = ConstantValue(nominal)
-    convergence_dynamics = ConvergenceDynamicsWithoutSingularity(
-        convergence_dynamics=base_dynamics,
-        initial_dynamics=dynamics,
-    )
+    dynamics_with_attractor = False
+    if dynamics_with_attractor:
+        dynamics = SpiralingDynamics3D.create_from_direction(
+            center=np.array([-0.2, 2, 0.0]),
+            direction=nominal,
+            radius=0.1,
+            speed=1.0,
+        )
+        base_dynamics = ConstantValue(nominal)
+        convergence_dynamics = ConvergenceDynamicsWithoutSingularity(
+            convergence_dynamics=base_dynamics,
+            initial_dynamics=dynamics,
+        )
 
-    avoider = MultiObstacleAvoider(
-        obstacle=human_obstacle,
-        initial_dynamics=dynamics,
-        convergence_dynamics=convergence_dynamics,
-        default_dynamics=base_dynamics,
-    )
+        avoider = MultiObstacleAvoider(
+            obstacle=human_obstacle_3d,
+            initial_dynamics=dynamics,
+            convergence_dynamics=convergence_dynamics,
+            default_dynamics=base_dynamics,
+        )
+    else:
+        # dynamics = SpiralingAttractorDynamics3D.create_from_direction(
+        #     center=np.array([0, 2.0, 0.0]),
+        #     direction=nominal,
+        #     radius=0.1,
+        #     speed=1.0,
+        # )
 
-    x_range = [-0.9, 0.9]
+        dynamics = LinearSystem(attractor_position=np.array([0, 3.0, 0.0]))
+
+        transformed_human = transform_from_multibodyobstacle_to_multiobstacle(
+            human_obstacle_3d
+        )
+        container = MultiObstacleContainer()
+        container.append(transformed_human)
+
+        avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+            obstacle_container=container,
+            initial_dynamics=dynamics,
+            # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+            create_convergence_dynamics=True,
+            convergence_radius=0.55 * math.pi,
+            smooth_continuation_power=0.7,
+        )
+
+    x_range = [-0.8, 0.8]
     y_value = -2
-    z_range = [-0.2, 0.9]
+    # z_range = [-0.6, 0.6]
+    z_range = [-0.65, 0.6]
+
+    n_grid = 5
 
     yv = y_value * np.ones(n_grid * n_grid)
     xv, zv = np.meshgrid(
@@ -221,37 +267,46 @@ def main(savefig=False, n_grid=6):
     cm = plt.get_cmap("gist_rainbow")
     color_list = [cm(1.0 * cc / n_traj) for cc in range(n_traj)]
 
-    for ii, position in enumerate(start_positions.T):
-        color = color_list[ii][:3]
-        trajecotry = integrate_trajectory(
-            np.array(position),
-            it_max=120,
-            step_size=0.05,
-            velocity_functor=avoider.evaluate,
-        )
-        # trajecotry = integrate_trajectory(
-        #     np.array(position),
-        #     it_max=100,
-        #     step_size=0.1,
-        #     velocity_functor=dynamics.evaluate,
-        # )
-        mlab.plot3d(
-            trajecotry[0, :],
-            trajecotry[1, :],
-            trajecotry[2, :],
-            color=color,
-            tube_radius=0.01,
-        )
+    do_avoiding = True
+    if do_avoiding:
+        visualizer = Visualization3D()
+        visualizer.plot_obstacles(human_obstacle_3d)
 
-    set_view()
-    if savefig:
-        mlab.savefig(
-            str(Path("figures") / ("human_avoidance_3d_avoidance" + figtype)),
-            magnification=2,
-        )
+        # if True:
+        #     return
+
+        for ii, position in enumerate(start_positions.T):
+            color = color_list[ii][:3]
+            trajecotry = integrate_trajectory(
+                np.array(position),
+                it_max=80,
+                step_size=0.02,
+                velocity_functor=avoider.evaluate,
+            )
+            # trajecotry = integrate_trajectory(
+            #     np.array(position),
+            #     it_max=100,
+            #     step_size=0.1,
+            #     velocity_functor=dynamics.evaluate,
+            # )
+            mlab.plot3d(
+                trajecotry[0, :],
+                trajecotry[1, :],
+                trajecotry[2, :],
+                color=color,
+                tube_radius=0.01,
+            )
+
+        set_view()
+        if savefig:
+            mlab.savefig(
+                str(Path("figures") / ("human_avoidance_3d_avoidance" + figtype)),
+                magnification=2,
+            )
 
     # Initial dynamics
     visualizer = Visualization3D()
+    plot_axes()
 
     for ii, position in enumerate(start_positions.T):
         color = color_list[ii][:3]
@@ -283,7 +338,156 @@ def main(savefig=False, n_grid=6):
         )
 
 
+print("Import Animator")
+
+
+class MayaviAnimator:
+    def __init__(
+        self, it_max: int = 100, delta_time: float = 0.1, filename: str = "animation"
+    ) -> None:
+        self.it_max = it_max
+        self.delta_time = delta_time
+
+        self.filename = filename
+        self.figuretype = ".png"
+
+        self.save_to_file = True
+
+        self.main_folder = Path("figures")
+        self.image_folder = Path("animation")
+
+        self.leading_zeros = math.ceil(math.log10(self.it_max + 1))
+
+    def run(self):
+        for ii in range(self.it_max):
+            self.update_step(ii)
+
+            if self.save_to_file:
+                mlab.savefig(
+                    str(
+                        self.main_folder
+                        / self.image_folder
+                        / (
+                            self.filename
+                            + str(ii).zfill(self.leading_zeros)
+                            + self.figuretype
+                        )
+                    ),
+                    magnification=2,
+                )
+
+        if self.save_to_file:
+            self.save_animation()
+
+    def save_animation(self):
+        folder = str(self.main_folder / self.image_folder)
+        os.system(
+            f"ffmpeg -framerate {1 / self.delta_time} "
+            # + "-pattern_type glob "
+            + f"-i ./{folder}/{self.filename}%{self.leading_zeros}d.png -vcodec mpeg4 "
+            + f"-y ./figures/{self.filename}.mp4"
+        )
+
+    def save_animation_using_cv2(self):
+        folder = str(self.main_folder / self.image_folder)
+        images = [img for img in os.listdir(folder) if img.endswith(".png")]
+        frame = cv2.imread(os.path.join(folder, images[0]))
+        height, width, layers = frame.shape
+
+        breakpoint()
+        video = cv2.VideoWriter(self.filename + ".mp4v", 0, 1, (width, height))
+
+        for image in images:
+            video.write(cv2.imread(os.path.join(folder, image)))
+
+        cv2.destroyAllWindows()
+        video.release()
+
+    def setup(self):
+        dimension = 3
+
+        # Trajectory integration
+        x_range = [-0.8, 0.8]
+        y_value = -2
+        # z_range = [-0.6, 0.6]
+        z_range = [-0.65, 0.6]
+        n_grid = 2
+
+        yv = y_value * np.ones(n_grid * n_grid)
+        xv, zv = np.meshgrid(
+            np.linspace(x_range[0], x_range[1], n_grid),
+            np.linspace(z_range[0], z_range[1], n_grid),
+        )
+        start_positions = np.vstack((xv.flatten(), yv.flatten(), zv.flatten()))
+        self.n_traj = start_positions.shape[1]
+        self.trajectories = np.zeros((dimension, self.it_max + 1, self.n_traj))
+        self.trajectories[:, 0, :] = start_positions
+
+        cm = plt.get_cmap("gist_rainbow")
+        self.color_list = [cm(1.0 * cc / self.n_traj) for cc in range(self.n_traj)]
+
+        # Create Scene
+        self.human_obstacle_3d = create_3d_human()
+        dynamics = LinearSystem(attractor_position=np.array([0, 3.0, 0.0]))
+
+        transformed_human = transform_from_multibodyobstacle_to_multiobstacle(
+            self.human_obstacle_3d
+        )
+        container = MultiObstacleContainer()
+        container.append(transformed_human)
+
+        self.avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
+            obstacle_container=container,
+            initial_dynamics=dynamics,
+            # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
+            create_convergence_dynamics=True,
+            convergence_radius=0.55 * math.pi,
+            smooth_continuation_power=0.7,
+        )
+
+        self.visualizer = Visualization3D()
+
+    def update_step(self, ii: int) -> None:
+        for it_traj in range(self.n_traj):
+            velocity = self.avoider.evaluate_sequence(self.trajectories[:, ii, it_traj])
+            self.trajectories[:, ii + 1, it_traj] = (
+                velocity * self.delta_time + self.trajectories[:, ii, it_traj]
+            )
+
+        # Clear
+        mlab.clf(figure=None)
+        self.visualizer.plot_obstacles(self.human_obstacle_3d)
+
+        # Plot
+        for it_traj in range(self.n_traj):
+            mlab.plot3d(
+                self.trajectories[0, : ii + 2, it_traj],
+                self.trajectories[1, : ii + 2, it_traj],
+                self.trajectories[2, : ii + 2, it_traj],
+                color=self.color_list[it_traj][:3],
+                tube_radius=0.01,
+            )
+
+            mlab.points3d(
+                self.trajectories[0, ii + 1, it_traj],
+                self.trajectories[1, ii + 1, it_traj],
+                self.trajectories[2, ii + 1, it_traj],
+                color=(0, 0, 0),
+                scale_factor=0.06,
+            )
+
+        set_view()
+
+
+def main_animation():
+    animator = MayaviAnimator(it_max=5, delta_time=0.2)
+
+    animator.setup()
+    animator.run()
+
+
 if (__name__) == "__main__":
     figtype = ".jpeg"
     mlab.close(all=True)
-    main(savefig=True, n_grid=4)
+    # main(savefig=True)
+    main_animation()

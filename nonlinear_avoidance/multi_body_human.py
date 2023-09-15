@@ -16,7 +16,9 @@ from scipy.spatial.transform import Rotation
 import networkx as nx
 
 from vartools.state_filters import PositionFilter, SimpleOrientationFilter
+from vartools.states import Pose
 from vartools.states import ObjectPose
+
 
 from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.obstacles import Obstacle
@@ -24,6 +26,7 @@ from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 
 from nonlinear_avoidance.rigid_body import RigidBody
+from nonlinear_avoidance.multi_obstacle import MultiObstacle
 from nonlinear_avoidance.multi_obstacle_avoider import MultiObstacleAvoider
 from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
 from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
@@ -135,6 +138,9 @@ class MultiBodyObstacle:
         return [
             x for x, y in self._graph.nodes(data=True) if y["optitrack_id"] == opt_id
         ][0]
+
+    def get_name(self, idx: int) -> str:
+        return self._graph.nodes()[idx]["name"]
 
     def get_component(self, idx: int) -> Obstacle:
         return self._obstacle_list[idx]
@@ -485,7 +491,164 @@ class MultiBodyObstacle:
         return np.min(gammas)
 
 
-def create_2d_human():
+def create_2d_human_faulty():
+    upper_arm_axes = [0.5, 0.18]
+    lower_arm_axes = [0.4, 0.14]
+    head_dimension = [0.2, 0.3]
+
+    dimension = 2
+
+    new_human = MultiObstacle(Pose(np.array([0.2, 0.5])))
+
+    distance_scaling = 3
+
+    human_dict = {
+        "body": 0,
+        "neck": 1,
+        "upperarm1": 2,
+        "upperarm2": 3,
+        "lowerarm1": 4,
+        "lowerarm2": 5,
+    }
+
+    human_dict["body"] = new_human.set_root(
+        Cuboid(
+            axes_length=[0.4, 0.7],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="body",
+    )
+    new_human[-1].set_reference_point(np.array([0, -0.3]), in_global_frame=False)
+
+    human_dict["neck"] = new_human.add_component(
+        Cuboid(
+            axes_length=[0.12, 0.12],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="neck",
+        # parent_name="body",
+        parent_ind=human_dict["body"],
+        reference_position=[0.0, -0.05],
+        # parent_reference_position=[0.0, 0.30],
+    )
+
+    human_dict["head"] = new_human.add_component(
+        Ellipse(
+            axes_length=[0.2, 0.3],
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="head",
+        # parent_name="neck",
+        parent_ind=human_dict["neck"],
+        reference_position=[0.0, -0.12],
+        # parent_reference_position=[0.0, 0.05],
+    )
+
+    human_dict["upperarm1"] = new_human.add_component(
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="upperarm1",
+        # parent_name="body",
+        parent_ind=human_dict["body"],
+        reference_position=[-0.2, 0],
+        # parent_reference_position=[0.15, 0.3],
+    )
+
+    human_dict["lowerarm1"] = new_human.add_component(
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="lowerarm1",
+        # parent_name="upperarm1",
+        parent_ind=human_dict["upperarm1"],
+        reference_position=[-0.18, 0],
+        # parent_reference_position=[0.2, 0],
+    )
+
+    human_dict["upperarm2"] = new_human.add_component(
+        Ellipse(
+            axes_length=upper_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="upperarm2",
+        # parent_name="body",
+        parent_ind=human_dict["body"],
+        reference_position=[0.2, 0],
+        # parent_reference_position=[-0.15, 0.3],
+    )
+
+    human_dict["upperarm2"] = new_human.add_component(
+        Ellipse(
+            axes_length=lower_arm_axes,
+            center_position=np.zeros(dimension),
+            distance_scaling=distance_scaling,
+        ),
+        # name="lowerarm2",
+        # parent_name="upperarm2",
+        parent_ind=human_dict["upperarm2"],
+        reference_position=[0.18, 0],
+        # parent_reference_position=[-0.2, 0],
+    )
+
+    # new_human.update()
+
+    # idx_obs = new_human.get_obstacle_id_from_name("lowerarm1")
+    idx_obs = human_dict["lowerarm1"]
+    new_human[idx_obs].orientation = 70 * np.pi / 180
+    # new_human.set_orientation(idx_obs, orientation=)
+    new_human.align_position_with_parent(idx_obs)
+
+    # idx_obs = new_human.get_obstacle_id_from_name("lowerarm2")
+    idx_obs = human_dict["lowerarm2"]
+    new_human[idx_obs].orientation = 45 * np.pi / 180
+    # new_human.set_orientation(idx_obs, orientation=)
+    new_human.align_position_with_parent(idx_obs)
+
+    return new_human
+
+
+def transform_from_multibodyobstacle_to_multiobstacle(
+    multibody_obstacle, base_pose=None
+):
+    if base_pose is None:
+        base_pose = Pose(np.zeros(multibody_obstacle.dimension))
+
+    new_multi = MultiObstacle(base_pose)
+    new_multi.set_root(multibody_obstacle.get_component(multibody_obstacle.root_idx))
+
+    for index in range(multibody_obstacle.n_components):
+        ind_parent = multibody_obstacle.get_parent_idx(index)
+
+        if ind_parent is None:
+            # Root is already set
+            continue
+
+        new_component = multibody_obstacle.get_component(index)
+        new_multi.add_component(
+            new_component,
+            parent_ind=ind_parent,
+            reference_position=new_component.get_reference_point(in_global_frame=False),
+        )
+
+    return new_multi
+
+
+def create_2d_human() -> MultiObstacle:
+    new_human_multibody = create_2d_human_with_multibodyobstacle()
+    new_human = transform_from_multibodyobstacle_to_multiobstacle(new_human_multibody)
+    return new_human
+
+
+def create_2d_human_with_multibodyobstacle() -> MultiBodyObstacle:
     upper_arm_axes = [0.5, 0.18]
     lower_arm_axes = [0.4, 0.14]
     head_dimension = [0.2, 0.3]
@@ -497,6 +660,7 @@ def create_2d_human():
         pose_updater=None,
         robot=None,
     )
+    new_human.dimension = dimension
 
     distance_scaling = 3
 
@@ -612,6 +776,7 @@ def create_3d_human():
         pose_updater=None,
         robot=None,
     )
+    # new_human = MultiObstacle(Pose(np.array([0.0, 0.0, 0.0])))
 
     distance_scaling = 3
 
@@ -659,7 +824,7 @@ def create_3d_human():
             center_position=np.zeros(dimension),
             distance_scaling=distance_scaling,
             margin_absolut=margin_absolut,
-            orientation=Rotation.from_euler("xyz", [0, 0.25 * np.pi, -0.3 * np.pi]),
+            orientation=Rotation.from_euler("xyz", [0, 0.1 * np.pi, -0.3 * np.pi]),
         ),
         name="upperarm1",
         parent_name="body",

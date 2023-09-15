@@ -130,7 +130,7 @@ class MultiObstacle:
     def get_root(self) -> Obstacle:
         return self._obstacle_list[self._root_idx]
 
-    def set_root(self, obstacle: Obstacle) -> None:
+    def set_root(self, obstacle: Obstacle) -> int:
         self._local_poses.append(obstacle.pose)
         obstacle.pose = self._pose.transform_pose_from_relative(self._local_poses[-1])
 
@@ -139,14 +139,16 @@ class MultiObstacle:
         self._graph.add_node(
             self._root_idx, references_children=[], indeces_children=[]
         )
+        return self._root_idx
 
     def add_component(
         self,
         obstacle: Obstacle,
         parent_ind: int,
         reference_position: Optional[npt.ArrayLike] = None,
-    ) -> None:
-        """Create and add an obstacle container in the local frame of reference."""
+    ) -> int:
+        """Create and add an obstacle container in the local frame of reference.
+        Returns component id"""
         if reference_position is None:
             global_reference = get_intersection_of_obstacles(
                 obstacle, self.get_component(parent_ind)
@@ -177,6 +179,8 @@ class MultiObstacle:
 
         self._graph.nodes[parent_ind]["indeces_children"].append(new_id)
         self._graph.add_edge(parent_ind, new_id)
+
+        return new_id
 
     # def update_obstacles(self, delta_time):
     #     # Update all positions of the moved obstacles
