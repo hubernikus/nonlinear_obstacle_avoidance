@@ -50,7 +50,7 @@ class Visualization3D:
     dimension = 3
     obstacle_color = hex_to_rgba_float("724545ff")
 
-    figsize = (800, 600)
+    figsize = (1920, 1080)
 
     def __init__(self):
         self.engine = Engine()
@@ -207,7 +207,7 @@ def main(savefig=False):
     dynamics_with_attractor = False
     if dynamics_with_attractor:
         dynamics = SpiralingDynamics3D.create_from_direction(
-            center=np.array([-0.2, 2, 0.0]),
+            center=np.array([-0.2, 3, 0.0]),
             direction=nominal,
             radius=0.1,
             speed=1.0,
@@ -250,11 +250,13 @@ def main(savefig=False):
         )
 
     x_range = [-0.8, 0.8]
-    y_value = -2
+    y_value = -3.5
     # z_range = [-0.6, 0.6]
-    z_range = [-0.65, 0.6]
+    z_range = [-0.7, 0.3]
 
     n_grid = 5
+    step_size = 0.01
+    it_max = 200
 
     yv = y_value * np.ones(n_grid * n_grid)
     xv, zv = np.meshgrid(
@@ -279,8 +281,8 @@ def main(savefig=False):
             color = color_list[ii][:3]
             trajecotry = integrate_trajectory(
                 np.array(position),
-                it_max=80,
-                step_size=0.02,
+                it_max=it_max,
+                step_size=step_size,
                 velocity_functor=avoider.evaluate,
             )
             # trajecotry = integrate_trajectory(
@@ -343,7 +345,7 @@ print("Import Animator")
 
 class MayaviAnimator:
     def __init__(
-        self, it_max: int = 100, delta_time: float = 0.1, filename: str = "animation"
+        self, it_max: int = 300, delta_time: float = 0.005, filename: str = "animation"
     ) -> None:
         self.it_max = it_max
         self.delta_time = delta_time
@@ -356,11 +358,16 @@ class MayaviAnimator:
         self.main_folder = Path("figures")
         self.image_folder = Path("animation")
 
-        self.leading_zeros = math.ceil(math.log10(self.it_max + 1))
+        # self.leading_zeros = math.ceil(math.log10(self.it_max + 1))
+        self.leading_zeros = 4
 
     def run(self):
+        # mlab.clf(figure=None)
+        # self.visualizer.plot_obstacles(self.human_obstacle_3d)
+
         for ii in range(self.it_max):
             self.update_step(ii)
+            self.update_view(ii)
 
             if self.save_to_file:
                 mlab.savefig(
@@ -376,13 +383,39 @@ class MayaviAnimator:
                     magnification=2,
                 )
 
+            if not ii % 10:
+                print(f"it={ii}")
+
         if self.save_to_file:
             self.save_animation()
+
+    def update_view(self, ii):
+        posangle_range = [-2.31, 1.0]
+        posdist = 5.58
+        z_value = 0.3
+
+        azimuth_range = [-133.0, 42.0]
+        elevation = 80
+        distance = 4.5
+
+        delta_posangle = (posangle_range[1] - posangle_range[0]) / self.it_max
+        delta_azimuth = (azimuth_range[1] - azimuth_range[0]) / self.it_max
+
+        new_angle = posangle_range[0] + ii * delta_posangle
+        pos_cam = np.array(
+            [np.cos(new_angle) * posdist, np.sin(new_angle) * posdist, z_value]
+        )
+        mlab.move(pos_cam)
+
+        new_azimuth = azimuth_range[0] + ii * delta_azimuth
+        mlab.view(azimuth=new_azimuth, elevation=elevation, distance=distance)
 
     def save_animation(self):
         folder = str(self.main_folder / self.image_folder)
         os.system(
-            f"ffmpeg -framerate {1 / self.delta_time} "
+            f"ffmpeg "
+            # + f"-framerate {1 / self.delta_time} "
+            + "-framerate 20 "
             # + "-pattern_type glob "
             + f"-i ./{folder}/{self.filename}%{self.leading_zeros}d.png -vcodec mpeg4 "
             + f"-y ./figures/{self.filename}.mp4"
@@ -408,10 +441,11 @@ class MayaviAnimator:
 
         # Trajectory integration
         x_range = [-0.8, 0.8]
-        y_value = -2
+        y_value = -3.5
         # z_range = [-0.6, 0.6]
-        z_range = [-0.65, 0.6]
-        n_grid = 2
+        z_range = [-0.7, 0.3]
+
+        n_grid = 5
 
         yv = y_value * np.ones(n_grid * n_grid)
         xv, zv = np.meshgrid(
@@ -480,10 +514,11 @@ class MayaviAnimator:
 
 
 def main_animation():
-    animator = MayaviAnimator(it_max=5, delta_time=0.2)
+    animator = MayaviAnimator()
 
     animator.setup()
-    animator.run()
+    # animator.run()
+    animator.save_animation()
 
 
 if (__name__) == "__main__":

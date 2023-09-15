@@ -739,7 +739,7 @@ def _test_single_circle_nonlinear(visualize=False, save_figure=False):
     obstacle_list = RotationContainer()
     obstacle_list.append(
         Ellipse(
-            center_position=np.array([-7, 0]),
+            center_position=np.array([-3.5, 0]),
             axes_length=np.array([6, 9]),
             distance_scaling=0.5,
         )
@@ -762,13 +762,15 @@ def _test_single_circle_nonlinear(visualize=False, save_figure=False):
         # x_lim = [-4, 3]
         # y_lim = [-3, 3]
 
-        x_lim = [-15, 3]
+        # x_lim = [-15, 3]
+        x_lim = [-10, 3]
         y_lim = [-6, 9]
 
         n_grid = 50
         plt.close("all")
 
-        fig, ax = plt.subplots(figsize=(5, 4))
+        # fig, ax = plt.subplots(figsize=(5, 4))
+        fig, ax = plt.subplots(figsize=(3.5, 4))
         plot_obstacle_dynamics(
             obstacle_container=[],
             dynamics=initial_dynamics.evaluate,
@@ -1200,7 +1202,7 @@ if (__name__) == "__main__":
     # test_single_circle_linear(visualize=True)
     # test_single_repulsive_circle_linear_inverted(visualize=True)
 
-    # _test_single_circle_nonlinear(visualize=True, save_figure=True)
+    _test_single_circle_nonlinear(visualize=True, save_figure=True)
     # test_single_circle_linear_repulsive(visualize=False, save_figure=False)
 
     # test_rotated_convergence_direction_circle()
@@ -1208,7 +1210,7 @@ if (__name__) == "__main__":
 
     # test_single_perpendicular_ellipse(visualize=True)
 
-    # test_double_ellipse(visualize=True)
+p    # test_double_ellipse(visualize=True)
     # test_stable_linear_avoidance(visualize=True)
 
     # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)
