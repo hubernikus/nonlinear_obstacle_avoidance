@@ -71,7 +71,7 @@ class Visualization3D:
         )
 
     def plot_obstacles(self, obstacles):
-        for obs in obstacles:
+        for ii, obs in enumerate(obstacles):
             if isinstance(obs, Ellipse):
                 # plot_ellipse_3d(
                 #     scene=scene, center=obs.center_position, axes_length=obs.axes_length
@@ -98,8 +98,35 @@ class Visualization3D:
 
                 # actor.property.frontface_culling = True
                 if obs.pose.orientation is not None:
-                    orientation = obs.pose.orientation.as_euler("xyz")
-                    orientation = orientation.reshape(3) * 180 / np.pi
+                    # orientation = obs.pose.orientation.as_euler("xyz")
+                    # orientation = obs.pose.orientation.as_euler("xyz", degrees=True)
+                    quat = obs.pose.orientation.as_quat()
+                    if quat[0] < 0:
+                        quat = quat * (-1)
+                        obs.pose.orientation.from_quat(quat)
+
+                    orientation = obs.pose.orientation.as_euler("xyz", degrees=True)
+
+                    if np.isclose(abs(orientation[0]), 180) and ii in [7, 8]:
+                        orientation[0] = 0
+                        orientation[1] = orientation[1] - 180
+                        orientation[2] = orientation[2]
+                    #     # Kindof switch it around to avoid problems (!)
+                    #     # This is a hack, as there is compatibility issues between
+                    #     # MayaviAngles & numpy angles
+                    #     orientation = obs.pose.orientation.as_euler("zyx", degrees=True)
+                    #     orientation[0], orientation[2] = orientation[2], orientation[1]
+
+                    # quat = obs.pose.orientation.as_quat()
+                    # orientation = Rotation.from_quat(quat).as_euler("xyz", degrees=True)
+
+                    # if ii == 8:
+                    #     breakpoint()
+
+                    # print("orientation", np.round(orientation, 2))
+                    # orientation[2] = 0.0
+
+                    # orientation = orientation.reshape(3) * 180 / np.pi
                     # ind_negativ = orientation < 0
                     # if np.sum(ind_negativ):
                     #     orientation[ind_negativ] = 360 - orientation[ind_negativ]
@@ -394,9 +421,16 @@ class MayaviAnimator:
         posdist = 5.58
         z_value = 0.3
 
+        # posangle_range = [-2.30, -2.30]
+        # posdist = 10
+
         azimuth_range = [-133.0, 42.0]
+
         elevation = 80
         distance = 4.5
+
+        # azimuth_range = [-133, 133.0]
+        # distance = 10.5
 
         delta_posangle = (posangle_range[1] - posangle_range[0]) / self.it_max
         delta_azimuth = (azimuth_range[1] - azimuth_range[0]) / self.it_max
@@ -436,7 +470,7 @@ class MayaviAnimator:
         cv2.destroyAllWindows()
         video.release()
 
-    def setup(self):
+    def setup(self, n_grid=5):
         dimension = 3
 
         # Trajectory integration
@@ -444,8 +478,6 @@ class MayaviAnimator:
         y_value = -3.5
         # z_range = [-0.6, 0.6]
         z_range = [-0.7, 0.3]
-
-        n_grid = 5
 
         yv = y_value * np.ones(n_grid * n_grid)
         xv, zv = np.meshgrid(
@@ -467,11 +499,11 @@ class MayaviAnimator:
         transformed_human = transform_from_multibodyobstacle_to_multiobstacle(
             self.human_obstacle_3d
         )
-        container = MultiObstacleContainer()
-        container.append(transformed_human)
+        self.container = MultiObstacleContainer()
+        self.container.append(transformed_human)
 
         self.avoider = MultiObstacleAvoider.create_with_convergence_dynamics(
-            obstacle_container=container,
+            obstacle_container=self.container,
             initial_dynamics=dynamics,
             # reference_dynamics=linearsystem(attractor_position=dynamics.attractor_position),
             create_convergence_dynamics=True,
@@ -480,6 +512,84 @@ class MayaviAnimator:
         )
 
         self.visualizer = Visualization3D()
+
+        self.dynamic_human = False
+
+    def update_human(self, ii: int) -> None:
+        amplitude_leg1 = 0.12
+        frequency_leg1 = 0.2
+        idx = self.human_obstacle_3d.get_obstacle_id_from_name("leg1")
+        obstacle = self.human_obstacle_3d[idx]
+        rotation = Rotation.from_euler(
+            "y", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        )
+        obstacle.orientation = obstacle.orientation * rotation
+
+        amplitude_leg1 = -0.12
+        frequency_leg1 = 0.2
+        idx = self.human_obstacle_3d.get_obstacle_id_from_name("leg2")
+        obstacle = self.human_obstacle_3d[idx]
+        rotation = Rotation.from_euler(
+            "y", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        )
+        obstacle.orientation = obstacle.orientation * rotation
+
+        # amplitude_leg1 = 0.08
+        # frequency_leg1 = 0.2
+        # idx = self.human_obstacle_3d.get_obstacle_id_from_name("upperarm1")
+        # obstacle = self.human_obstacle_3d[idx]
+        # rotation = Rotation.from_euler(
+        #     "y", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        # )
+        # obstacle.orientation = obstacle.orientation * rotation
+
+        # amplitude_leg1 = 0.12
+        # frequency_leg1 = 0.2
+        # idx = self.human_obstacle_3d.get_obstacle_id_from_name("lowerarm1")
+        # obstacle = self.human_obstacle_3d[idx]
+        # rotation = Rotation.from_euler(
+        #     "y", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        # )
+        # obstacle.orientation = obstacle.orientation * rotation
+
+        # amplitude_leg1 = -0.05
+        # frequency_leg1 = 0.2
+        # idx = self.human_obstacle_3d.get_obstacle_id_from_name("upperarm2")
+        # obstacle = self.human_obstacle_3d[idx]
+        # rotation = Rotation.from_euler(
+        #     "x", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        # )
+        # obstacle.orientation = rotation * obstacle.orientation
+
+        # amplitude_leg1 = -0.05
+        # frequency_leg1 = 0.2
+        # idx = self.human_obstacle_3d.get_obstacle_id_from_name("lowerarm2")
+        # obstacle = self.human_obstacle_3d[idx]
+        # rotation = Rotation.from_euler(
+        #     "x", amplitude_leg1 * np.sin(ii * frequency_leg1)
+        # )
+        # obstacle.orientation = obstacle.orientation * rotation
+
+        # reference_point_updated = obstacle.get_reference_point(in_global_frame=True)
+
+        self.human_obstacle_3d.align_obstacle_tree()
+
+        # delta_position = reference_point_updated - reference_point_original
+        # obstacle.center_position = obstacle.center_position + delta_position
+        # print(delta_position)
+        # if np.linalg.norm(delta_position):
+        #     breakpoint()
+
+        # obstacle.center_position = obstacle.center_position - delta_position
+
+        # Update in 'parallel' obstacle -> this might not actually be needed as they're all
+        #
+        # obstacle_parallel = self.container.get_obstacle_tree(0).get_component(idx)
+        # obstacle_parallel.orientation = obstacle.orientation
+        # obstacle_parallel.position = obstacle.orientation
+
+        # self.delta_time
+        # pass
 
     def update_step(self, ii: int) -> None:
         for it_traj in range(self.n_traj):
@@ -510,6 +620,9 @@ class MayaviAnimator:
                 scale_factor=0.06,
             )
 
+        if self.dynamic_human:
+            self.update_human(ii)
+
         set_view()
 
 
@@ -521,8 +634,24 @@ def main_animation():
     animator.save_animation()
 
 
+def main_animation_dynamic():
+    # animator = MayaviAnimator(filename="avoidance_around_dynamic_human", it_max=20)
+    animator = MayaviAnimator(filename="avoidance_around_dynamic_human")
+
+    # animator.setup(n_grid=1)
+    animator.setup()
+
+    animator.dynamic_human = True
+    animator.run()
+
+    animator.save_animation()
+
+
 if (__name__) == "__main__":
     figtype = ".jpeg"
     mlab.close(all=True)
+
     # main(savefig=True)
-    main_animation()
+    # main_animation()
+
+    main_animation_dynamic()

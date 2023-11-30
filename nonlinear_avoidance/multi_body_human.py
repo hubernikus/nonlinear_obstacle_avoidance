@@ -789,6 +789,7 @@ def create_3d_human():
         ),
         name="body",
     )
+
     new_human[-1].set_reference_point(np.array([0, 0, -0.3]), in_global_frame=False)
 
     new_human.add_component(
@@ -882,7 +883,7 @@ def create_3d_human():
             distance_scaling=distance_scaling,
             margin_absolut=margin_absolut,
             # orientation=Rotation.from_euler("zy", [np.pi * 0.5, np.pi * 0.4]),
-            orientation=Rotation.from_euler("zx", [-np.pi * 0.5, np.pi * 0.4]),
+            orientation=Rotation.from_euler("zx", [np.pi * 0.5, np.pi * 1.7]),
         ),
         name="leg1",
         parent_name="body",
@@ -897,7 +898,7 @@ def create_3d_human():
             distance_scaling=distance_scaling,
             margin_absolut=margin_absolut,
             # orientation=Rotation.from_euler("zy", [np.pi * 0.5, np.pi * 0.4]),
-            orientation=Rotation.from_euler("zx", [np.pi * 0.5, -np.pi * 0.4]),
+            orientation=Rotation.from_euler("zx", [np.pi * 0.5, np.pi * 1.3]),
         ),
         name="leg2",
         parent_name="body",
