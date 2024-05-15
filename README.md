@@ -41,3 +41,19 @@ pip install "git+https://github.com/hubernikus/dynamic_obstacle_avoidance.git"
 ```
 
 If you need to modify certain elements of the software, its advised to clones these repositories to better browser them. 
+
+
+## Citing Repository
+If you use this repository in a scientific publication, we would appreciate citations to the following paper:
+
+Huber, Lukas. _Exact Obstacle Avoidance for Robots in Complex and Dynamic Environments Using Local Modulation._ No. 10373., EPFL, 2024.
+
+Bibtex entry:
+``` bibtex
+@thesis{huber2024exact,
+  title={Exact Obstacle Avoidance for Robots in Complex and Dynamic Environments Using Local Modulation},
+  author={Huber, Lukas},
+  year={2024},
+  institution={EPFL}
+}
+```
