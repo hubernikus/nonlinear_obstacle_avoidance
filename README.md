@@ -50,10 +50,13 @@ Huber, Lukas. _Exact Obstacle Avoidance for Robots in Complex and Dynamic Enviro
 
 Bibtex entry:
 ``` bibtex
-@thesis{huber2024exact,
+@phdthesis{huber2024exact,
   title={Exact Obstacle Avoidance for Robots in Complex and Dynamic Environments Using Local Modulation},
   author={Huber, Lukas},
   year={2024},
-  institution={EPFL}
+  month={April},
+  address={Lausanne, Switzerland},
+  school={EPFL},
+  type={PhD thesis}
 }
 ```
