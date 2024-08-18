@@ -44,7 +44,7 @@ If you need to modify certain elements of the software, its advised to clones th
 
 
 ## Citing Repository
-If you use this repository in a scientific publication, we would appreciate citations to the following paper:
+If you use this repository in a scientific publication, we would appreciate the citation to:
 
 Huber, Lukas. _Exact Obstacle Avoidance for Robots in Complex and Dynamic Environments Using Local Modulation._ No. 10373., EPFL, 2024.
 
