@@ -7,10 +7,9 @@ from __future__ import annotations  # To be removed in future python versions
 
 import math
 import warnings
-from dataclasses import dataclass
 
 from collections import namedtuple
-from typing import Optional, Protocol, Hashable
+from typing import Optional, Hashable
 
 import numpy as np
 import numpy.typing as npt
@@ -158,7 +157,6 @@ def compute_multiobstacle_relative_velocity(
 class MultiObstacleAvoider:
     """Obstacle Avoider which can take a 'multi-obstacle' as an input.
 
-
     default_dynamics: Are the 'fall-back' dynamics if they exist..
     """
 
@@ -303,28 +301,25 @@ class MultiObstacleAvoider:
         initial_sequence = evaluate_dynamics_sequence(
             position,
             self.initial_dynamics,
-            # default_dynamics=self.default_dynamics
         )
 
+        # No-sequence can be generated at zero-velocity position, 
+        # e.g., at the attractor
+        if initial_sequence is None:
+            return np.zeros(self.initial_dynamics.dimension)
+
+        # No obstacles -> no modulation. Just return final vector
         if not len(self.obstacle_container):
             return initial_sequence.get_end_vector() * initial_magnitude
 
         relative_velocity = compute_multiobstacle_relative_velocity(
             position, self.tree_list
         )
-
-        if initial_sequence is None:
-            return np.zeros(self.initial_dynamics.dimension)
-
-        # if self.default_dynamics is None:
+        
         convergence_sequence = self.compute_convergence_sequence(
             position, initial_sequence
         )
-        # else:
-        #     convergence_sequence = evaluate_dynamics_sequence(
-        #         position, self.default_dynamics
-        #     )
-
+        
         final_sequence = self.evaluate_avoidance_from_sequence(
             position, convergence_sequence
         )

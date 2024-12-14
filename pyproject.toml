@@ -1,0 +1,23 @@
+[project]
+name = "nonlinear_avoidance"
+version = "0.1.0"
+license = {file = "LICENSE"}
+description = "Fast closed-form obstacle avoidance."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+example_static = "scripts.animation.avoidvance_static_circle:main"
+
+[project.gui-scripts]
+example_epfl = "scripts.animation.epfl_avoidance:main"
+
+[tool.setuptools]
+py-modules = ['nonlinear_avoidance']
+
+
