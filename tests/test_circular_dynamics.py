@@ -1,19 +1,10 @@
-#!/USSR/bin/python3.10
-""" Test / visualization of line following. """
-# Author: Lukas Huber
-# Created: 2022-11-25
-# Email: lukas.huber@epfl.ch
-# License: BSD (c) 2025
+"""Test / visualization of line following."""
 
-
+import matplotlib.pyplot as plt  # For debugging only (!)
 import numpy as np
-from numpy import linalg as LA
-
-import matplotlib.pyplot as plt
-
-from vartools.states import Pose
-
 from nonlinear_avoidance.dynamics.circular_dynamics import SimpleCircularDynamics
+from vartools.dynamical_systems import plot_dynamical_system
+from vartools.states import Pose
 
 
 def test_simple_circular(visualize=False):
@@ -45,11 +36,6 @@ def test_simple_circular(visualize=False):
 
 
 if (__name__) == "__main__":
-    import matplotlib.pyplot as plt  # For debugging only (!)
-    from vartools.dynamical_systems import plot_dynamical_system
-
-    figtype = ".pdf"
-
     test_simple_circular(visualize=True)
-
     print("Tests done")
+    input()

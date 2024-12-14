@@ -1194,3 +1194,4 @@ if (__name__) == "__main__":
 
     # test_projection_pipeline_with_circular_rotation()
     print("Tests done.")
+    input()

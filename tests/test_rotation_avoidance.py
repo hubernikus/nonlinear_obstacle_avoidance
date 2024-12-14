@@ -1,15 +1,5 @@
-#!/USSR/bin/python3.9
 """ Test overrotation for ellipses. """
 
-# Created: 2021-08-04
-# Email: lukas.huber@epfl.ch
-# License: BSD (c) 2021
-
-import warnings
-from functools import partial
-import unittest
-
-# from math import pi
 import math
 
 import numpy as np
@@ -17,21 +7,18 @@ from numpy import linalg as LA
 
 import matplotlib.pyplot as plt
 
+from vartools import cross2d
 from vartools.linalg import get_orthogonal_basis
 from vartools.dynamical_systems import LinearSystem, ConstantValue
 from vartools.dynamical_systems import QuadraticAxisConvergence
-from vartools.dynamical_systems import CircularStable
 from vartools.directional_space import UnitDirection
 from vartools.states import ObjectPose
 
-# DirectionBase
-from vartools.dynamical_systems import plot_vectorfield
 from vartools.math import get_intersection_with_circle
 
 from dynamic_obstacle_avoidance.obstacles import EllipseWithAxes as Ellipse
 from dynamic_obstacle_avoidance.obstacles import StarshapedFlower
 from dynamic_obstacle_avoidance.obstacles import CuboidXd as Cuboid
-from dynamic_obstacle_avoidance.containers import ObstacleContainer
 from dynamic_obstacle_avoidance.visualization import plot_obstacle_dynamics
 from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
@@ -40,13 +27,8 @@ from nonlinear_avoidance.dynamics import WavyLinearDynamics
 from nonlinear_avoidance.rotation_container import RotationContainer
 from nonlinear_avoidance.avoidance import obstacle_avoidance_rotational
 from nonlinear_avoidance.avoidance import RotationalAvoider
-from nonlinear_avoidance.dynamics.projected_rotation_dynamics import (
-    ProjectedRotationDynamics,
-)
 
 from dynamic_obstacle_avoidance.visualization import Simulation_vectorFields
-
-# from dynamic_obstacle_avoidance.visualization import plot_obstacles
 
 
 def test_intersection_with_circle():
@@ -1202,7 +1184,7 @@ if (__name__) == "__main__":
     # test_single_circle_linear(visualize=True)
     # test_single_repulsive_circle_linear_inverted(visualize=True)
 
-    _test_single_circle_nonlinear(visualize=True, save_figure=True)
+    # _test_single_circle_nonlinear(visualize=True, save_figure=True)
     # test_single_circle_linear_repulsive(visualize=False, save_figure=False)
 
     # test_rotated_convergence_direction_circle()
@@ -1210,7 +1192,7 @@ if (__name__) == "__main__":
 
     # test_single_perpendicular_ellipse(visualize=True)
 
-p    # test_double_ellipse(visualize=True)
+    # test_double_ellipse(visualize=True)
     # test_stable_linear_avoidance(visualize=True)
 
     # _test_obstacle_and_hull_avoidance(visualize=True, save_figure=True)

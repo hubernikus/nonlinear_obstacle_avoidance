@@ -1426,7 +1426,7 @@ if (__name__) == "__main__":
 
     # test_trajectory_integration(visualize=True)
 
-    # test_limit_cycle_single_level(visualize=True)
+    test_limit_cycle_single_level(visualize=True)
 
     # _test_limit_cycle_obstacle_center(visualize=False)
     # _test_limit_cycle_obstacle_center(visualize=True)
@@ -1444,9 +1444,10 @@ if (__name__) == "__main__":
 
     # test_multiobstacle_normal_and_tangent(visualize=True)
 
-    test_limit_cycle_two_obstacle(visualize=True)
-
+    # test_limit_cycle_two_obstacle(visualize=True)
     # test_circular_no_obstacles(visualize=False)
 
     # test_starshape_spiraling(visualize=False)
     # test_circular_spiraling(visualize=True)
+    
+    # breakpoint()

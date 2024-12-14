@@ -715,7 +715,7 @@ if (__name__) == "__main__":
     plt.close("all")
     plt.ion()
 
-    figtype = ".pdf"
+    # figtype = ".pdf"
     # figtype = ".png"
 
     # test_nonlinear_avoider(visualize=True, savefig=False)
@@ -726,4 +726,5 @@ if (__name__) == "__main__":
     # test_circular_single_obstacle(visualize=True)
     # _test_circular_dynamics_with_two_circles(visualize=True, n_resolution=20)
 
+    # breakpoint()
     print("Done")
